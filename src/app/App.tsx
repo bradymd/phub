@@ -1,12 +1,12 @@
-import { useState } from 'react';
-import { 
-  Award, 
-  GraduationCap, 
-  Heart, 
-  Wallet, 
-  Camera, 
-  Users, 
-  Store, 
+import { useState, useEffect } from 'react';
+import {
+  Award,
+  GraduationCap,
+  Heart,
+  Wallet,
+  Camera,
+  Users,
+  Store,
   Brain,
   LayoutDashboard,
   Briefcase
@@ -16,13 +16,18 @@ import { DocumentManager } from './components/DocumentManager';
 import { FinanceManager } from './components/FinanceManager';
 import { PhotoGallery } from './components/PhotoGallery';
 import { ContactsManager } from './components/ContactsManager';
-import { VirtualHighStreet } from './components/VirtualHighStreet';
+import { VirtualHighStreetSecure } from './components/VirtualHighStreetSecure';
 import { AIOverview } from './components/AIOverview';
 import { EmploymentManager } from './components/EmploymentManager';
+import MasterPasswordSetup from './components/MasterPasswordSetup';
+import MasterPasswordUnlock from './components/MasterPasswordUnlock';
 
 type ModalType = 'certificates' | 'education' | 'health' | 'finance' | 'photos' | 'contacts' | 'websites' | 'employment' | 'ai' | null;
 
 export default function App() {
+  const [isUnlocked, setIsUnlocked] = useState(false);
+  const [masterPassword, setMasterPassword] = useState('');
+  const [hasMasterPassword, setHasMasterPassword] = useState(false);
   const [activeModal, setActiveModal] = useState<ModalType>(null);
   const [counts, setCounts] = useState({
     certificates: 0,
@@ -35,6 +40,23 @@ export default function App() {
     employment: 0
   });
 
+  // Check if user has already set up a master password
+  useEffect(() => {
+    const hasPassword = localStorage.getItem('master_password_hash');
+    setHasMasterPassword(!!hasPassword);
+  }, []);
+
+  const handleSetupComplete = (password: string) => {
+    setMasterPassword(password);
+    setIsUnlocked(true);
+    setHasMasterPassword(true);
+  };
+
+  const handleUnlockSuccess = (password: string) => {
+    setMasterPassword(password);
+    setIsUnlocked(true);
+  };
+
   // Update counts when modals close
   const handleModalClose = () => {
     const certificates = JSON.parse(localStorage.getItem('documents_Certificates') || '[]');
@@ -43,7 +65,7 @@ export default function App() {
     const finance = JSON.parse(localStorage.getItem('finance_items') || '[]');
     const photos = JSON.parse(localStorage.getItem('photos') || '[]');
     const contacts = JSON.parse(localStorage.getItem('contacts') || '[]');
-    const websites = JSON.parse(localStorage.getItem('virtual_street') || '[]');
+    const websites = JSON.parse(localStorage.getItem('virtual_street_encrypted') || '[]');
     const employment = JSON.parse(localStorage.getItem('employment_records') || '[]');
 
     setCounts({
@@ -59,6 +81,16 @@ export default function App() {
 
     setActiveModal(null);
   };
+
+  // Show setup screen if no master password exists
+  if (!hasMasterPassword) {
+    return <MasterPasswordSetup onSetupComplete={handleSetupComplete} />;
+  }
+
+  // Show unlock screen if password exists but not unlocked
+  if (!isUnlocked) {
+    return <MasterPasswordUnlock onUnlockSuccess={handleUnlockSuccess} />;
+  }
 
   const categories = [
     {
@@ -176,7 +208,7 @@ export default function App() {
 
         {/* Footer */}
         <div className="mt-8 text-center text-sm text-gray-500">
-          <p>All data is stored locally in your browser. For production use, consider connecting to a secure backend.</p>
+          <p>All data is encrypted and stored locally in your browser. Passwords are protected with AES-256 encryption.</p>
         </div>
       </div>
 
@@ -200,7 +232,7 @@ export default function App() {
         <ContactsManager onClose={handleModalClose} />
       )}
       {activeModal === 'websites' && (
-        <VirtualHighStreet onClose={handleModalClose} />
+        <VirtualHighStreetSecure onClose={handleModalClose} masterPassword={masterPassword} />
       )}
       {activeModal === 'ai' && (
         <AIOverview onClose={handleModalClose} />
