@@ -12,13 +12,13 @@ import {
   Briefcase
 } from 'lucide-react';
 import { CategoryCard } from './components/CategoryCard';
-import { DocumentManager } from './components/DocumentManager';
-import { FinanceManager } from './components/FinanceManager';
-import { PhotoGallery } from './components/PhotoGallery';
-import { ContactsManager } from './components/ContactsManager';
+import { DocumentManagerSecure } from './components/DocumentManagerSecure';
+import { FinanceManagerSecure } from './components/FinanceManagerSecure';
+import { PhotoGallerySecure } from './components/PhotoGallerySecure';
+import { ContactsManagerSecure } from './components/ContactsManagerSecure';
 import { VirtualHighStreetSecure } from './components/VirtualHighStreetSecure';
 import { AIOverview } from './components/AIOverview';
-import { EmploymentManager } from './components/EmploymentManager';
+import { EmploymentManagerSecure } from './components/EmploymentManagerSecure';
 import MasterPasswordSetup from './components/MasterPasswordSetup';
 import MasterPasswordUnlock from './components/MasterPasswordUnlock';
 
@@ -59,14 +59,14 @@ export default function App() {
 
   // Update counts when modals close
   const handleModalClose = () => {
-    const certificates = JSON.parse(localStorage.getItem('documents_Certificates') || '[]');
-    const education = JSON.parse(localStorage.getItem('documents_Education') || '[]');
-    const health = JSON.parse(localStorage.getItem('documents_Health') || '[]');
-    const finance = JSON.parse(localStorage.getItem('finance_items') || '[]');
-    const photos = JSON.parse(localStorage.getItem('photos') || '[]');
-    const contacts = JSON.parse(localStorage.getItem('contacts') || '[]');
+    const certificates = JSON.parse(localStorage.getItem('documents_Certificates_encrypted') || '[]');
+    const education = JSON.parse(localStorage.getItem('documents_Education_encrypted') || '[]');
+    const health = JSON.parse(localStorage.getItem('documents_Health_encrypted') || '[]');
+    const finance = JSON.parse(localStorage.getItem('finance_items_encrypted') || '[]');
+    const photos = JSON.parse(localStorage.getItem('photos_encrypted') || '[]');
+    const contacts = JSON.parse(localStorage.getItem('contacts_encrypted') || '[]');
     const websites = JSON.parse(localStorage.getItem('virtual_street_encrypted') || '[]');
-    const employment = JSON.parse(localStorage.getItem('employment_records') || '[]');
+    const employment = JSON.parse(localStorage.getItem('employment_records_encrypted') || '[]');
 
     setCounts({
       certificates: certificates.length,
@@ -208,28 +208,28 @@ export default function App() {
 
         {/* Footer */}
         <div className="mt-8 text-center text-sm text-gray-500">
-          <p>All data is encrypted and stored locally in your browser. Passwords are protected with AES-256 encryption.</p>
+          <p>All data is encrypted with AES-256-GCM and stored locally in your browser. Nothing is sent to any server.</p>
         </div>
       </div>
 
       {/* Modals */}
       {activeModal === 'certificates' && (
-        <DocumentManager category="Certificates" onClose={handleModalClose} />
+        <DocumentManagerSecure category="Certificates" onClose={handleModalClose} masterPassword={masterPassword} />
       )}
       {activeModal === 'education' && (
-        <DocumentManager category="Education" onClose={handleModalClose} />
+        <DocumentManagerSecure category="Education" onClose={handleModalClose} masterPassword={masterPassword} />
       )}
       {activeModal === 'health' && (
-        <DocumentManager category="Health" onClose={handleModalClose} />
+        <DocumentManagerSecure category="Health" onClose={handleModalClose} masterPassword={masterPassword} />
       )}
       {activeModal === 'finance' && (
-        <FinanceManager onClose={handleModalClose} />
+        <FinanceManagerSecure onClose={handleModalClose} masterPassword={masterPassword} />
       )}
       {activeModal === 'photos' && (
-        <PhotoGallery onClose={handleModalClose} />
+        <PhotoGallerySecure onClose={handleModalClose} masterPassword={masterPassword} />
       )}
       {activeModal === 'contacts' && (
-        <ContactsManager onClose={handleModalClose} />
+        <ContactsManagerSecure onClose={handleModalClose} masterPassword={masterPassword} />
       )}
       {activeModal === 'websites' && (
         <VirtualHighStreetSecure onClose={handleModalClose} masterPassword={masterPassword} />
@@ -238,7 +238,7 @@ export default function App() {
         <AIOverview onClose={handleModalClose} />
       )}
       {activeModal === 'employment' && (
-        <EmploymentManager onClose={handleModalClose} />
+        <EmploymentManagerSecure onClose={handleModalClose} masterPassword={masterPassword} />
       )}
     </div>
   );

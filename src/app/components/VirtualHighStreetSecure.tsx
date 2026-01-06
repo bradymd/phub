@@ -69,15 +69,14 @@ export function VirtualHighStreetSecure({ onClose, masterPassword }: VirtualHigh
         const encryptedData = JSON.parse(stored);
         const decryptedEntries: WebsiteEntry[] = [];
 
-        for (const entry of encryptedData) {
+        for (const encryptedEntry of encryptedData) {
           try {
-            const decryptedPassword = entry.password ? await decrypt(entry.password, masterPassword) : '';
-            decryptedEntries.push({
-              ...entry,
-              password: decryptedPassword
-            });
+            // Decrypt the entire entry (it's stored as an encrypted JSON string)
+            const decryptedJson = await decrypt(encryptedEntry.data, masterPassword);
+            const entry = JSON.parse(decryptedJson);
+            decryptedEntries.push(entry);
           } catch (err) {
-            console.error('Failed to decrypt entry:', entry.name, err);
+            console.error('Failed to decrypt entry:', err);
             // Skip corrupted entries
           }
         }
@@ -97,10 +96,12 @@ export function VirtualHighStreetSecure({ onClose, masterPassword }: VirtualHigh
       const encryptedEntries = [];
 
       for (const entry of newEntries) {
-        const encryptedPassword = entry.password ? await encrypt(entry.password, masterPassword) : '';
+        // Encrypt the entire entry as a JSON string
+        const entryJson = JSON.stringify(entry);
+        const encryptedData = await encrypt(entryJson, masterPassword);
         encryptedEntries.push({
-          ...entry,
-          password: encryptedPassword
+          id: entry.id, // Keep ID for reference
+          data: encryptedData // Everything else is encrypted
         });
       }
 
