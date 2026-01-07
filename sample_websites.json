@@ -1,0 +1,136 @@
+{
+  "entries": [
+    {
+      "id": "1736000001",
+      "name": "Amazon UK",
+      "url": "https://amazon.co.uk",
+      "username": "mark.brady@fabio.org.uk",
+      "password": "TestPassword123!",
+      "category": "shopping",
+      "color": "#FF9900",
+      "favicon": "https://www.google.com/s2/favicons?domain=amazon.co.uk&sz=128",
+      "notes": "Main shopping account"
+    },
+    {
+      "id": "1736000002",
+      "name": "GitHub",
+      "url": "https://github.com",
+      "username": "bradymd",
+      "password": "TestPassword123!",
+      "category": "social",
+      "color": "#4F46E5",
+      "favicon": "https://www.google.com/s2/favicons?domain=github.com&sz=128",
+      "notes": "Code repositories"
+    },
+    {
+      "id": "1736000003",
+      "name": "Google Account",
+      "url": "https://accounts.google.com",
+      "username": "bradymd@gmail.com",
+      "password": "TestPassword123!",
+      "category": "social",
+      "color": "#4F46E5",
+      "favicon": "https://www.google.com/s2/favicons?domain=google.com&sz=128",
+      "notes": "Main Google account"
+    },
+    {
+      "id": "1736000004",
+      "name": "PayPal",
+      "url": "https://paypal.com",
+      "username": "bradymd@protonmail.com",
+      "password": "TestPassword123!",
+      "category": "banking",
+      "color": "#10B981",
+      "favicon": "https://www.google.com/s2/favicons?domain=paypal.com&sz=128",
+      "notes": "Payment processing"
+    },
+    {
+      "id": "1736000005",
+      "name": "Twitter",
+      "url": "https://twitter.com",
+      "username": "bradymd",
+      "password": "TestPassword123!",
+      "category": "social",
+      "color": "#4F46E5",
+      "favicon": "https://www.google.com/s2/favicons?domain=twitter.com&sz=128",
+      "notes": "Social media"
+    },
+    {
+      "id": "1736000006",
+      "name": "LinkedIn",
+      "url": "https://www.linkedin.com",
+      "username": "bradymd@protonmail.com",
+      "password": "TestPassword123!",
+      "category": "social",
+      "color": "#4F46E5",
+      "favicon": "https://www.google.com/s2/favicons?domain=linkedin.com&sz=128",
+      "notes": "Professional network"
+    },
+    {
+      "id": "1736000007",
+      "name": "Apple ID",
+      "url": "https://appleid.apple.com",
+      "username": "bradymd@protonmail.com",
+      "password": "TestPassword123!",
+      "category": "other",
+      "color": "#6B7280",
+      "favicon": "https://www.google.com/s2/favicons?domain=apple.com&sz=128",
+      "notes": "Apple services"
+    },
+    {
+      "id": "1736000008",
+      "name": "eBay UK",
+      "url": "https://www.ebay.co.uk",
+      "username": "bradymd",
+      "password": "TestPassword123!",
+      "category": "shopping",
+      "color": "#FF9900",
+      "favicon": "https://www.google.com/s2/favicons?domain=ebay.co.uk&sz=128",
+      "notes": "Online auctions"
+    },
+    {
+      "id": "1736000009",
+      "name": "Spotify",
+      "url": "https://www.spotify.com",
+      "username": "bradymd",
+      "password": "TestPassword123!",
+      "category": "entertainment",
+      "color": "#8B5CF6",
+      "favicon": "https://www.google.com/s2/favicons?domain=spotify.com&sz=128",
+      "notes": "Music streaming"
+    },
+    {
+      "id": "1736000010",
+      "name": "Proton Mail",
+      "url": "https://account.proton.me",
+      "username": "bradymd",
+      "password": "TestPassword123!",
+      "category": "social",
+      "color": "#4F46E5",
+      "favicon": "https://www.google.com/s2/favicons?domain=proton.me&sz=128",
+      "notes": "Secure email"
+    },
+    {
+      "id": "1736000011",
+      "name": "Waitrose",
+      "url": "https://waitrose.com",
+      "username": "mark.brady@fabio.org.uk",
+      "password": "TestPassword123!",
+      "category": "shopping",
+      "color": "#FF9900",
+      "favicon": "https://www.google.com/s2/favicons?domain=waitrose.com&sz=128",
+      "notes": "Grocery shopping"
+    },
+    {
+      "id": "1736000012",
+      "name": "Coinbase",
+      "url": "https://login.coinbase.com",
+      "username": "bradymd@protonmail.com",
+      "password": "TestPassword123!",
+      "category": "banking",
+      "color": "#10B981",
+      "favicon": "https://www.google.com/s2/favicons?domain=coinbase.com&sz=128",
+      "notes": "Cryptocurrency exchange"
+    }
+  ]
+}

@@ -1,6 +1,6 @@
 import { useState, useEffect } from 'react';
-import { X, Plus, Trash, Briefcase, Calendar, Edit, FileText, Key } from 'lucide-react';
-import { encrypt, decrypt } from '../../utils/crypto';
+import { X, Plus, Trash, Briefcase, Calendar, Edit2, FileText, Key, ChevronDown, ChevronUp } from 'lucide-react';
+import { useStorage } from '../../contexts/StorageContext';
 
 interface EmploymentRecord {
   id: string;
@@ -19,109 +19,109 @@ interface EmploymentRecord {
 
 interface EmploymentManagerSecureProps {
   onClose: () => void;
-  masterPassword: string;
 }
 
-export function EmploymentManagerSecure({ onClose, masterPassword }: EmploymentManagerSecureProps) {
+const emptyRecord = {
+  company: '',
+  jobTitle: '',
+  startDate: '',
+  endDate: '',
+  current: false,
+  responsibilities: '',
+  achievements: '',
+  salary: '',
+  pensionScheme: '',
+  location: '',
+  employmentType: 'full-time' as const
+};
+
+export function EmploymentManagerSecure({ onClose }: EmploymentManagerSecureProps) {
+  const storage = useStorage();
   const [records, setRecords] = useState<EmploymentRecord[]>([]);
   const [showAddForm, setShowAddForm] = useState(false);
+  const [showEditForm, setShowEditForm] = useState(false);
+  const [editingRecord, setEditingRecord] = useState<EmploymentRecord | null>(null);
   const [expandedRecord, setExpandedRecord] = useState<string | null>(null);
   const [isLoading, setIsLoading] = useState(true);
   const [error, setError] = useState('');
-  const [newRecord, setNewRecord] = useState({
-    company: '',
-    jobTitle: '',
-    startDate: '',
-    endDate: '',
-    current: false,
-    responsibilities: '',
-    achievements: '',
-    salary: '',
-    pensionScheme: '',
-    location: '',
-    employmentType: 'full-time' as const
-  });
+  const [newRecord, setNewRecord] = useState(emptyRecord);
 
   useEffect(() => {
     loadRecords();
   }, []);
 
+  // Scroll to top when add or edit form opens
+  useEffect(() => {
+    if (showAddForm || editingRecord) {
+      window.scrollTo({ top: 0, behavior: 'smooth' });
+    }
+  }, [showAddForm, editingRecord]);
+
   const loadRecords = async () => {
     try {
       setIsLoading(true);
-      const stored = localStorage.getItem('employment_records_encrypted');
-      if (stored) {
-        const encryptedData = JSON.parse(stored);
-        const decryptedRecords: EmploymentRecord[] = [];
-
-        for (const encryptedRecord of encryptedData) {
-          try {
-            const decryptedJson = await decrypt(encryptedRecord.data, masterPassword);
-            const record = JSON.parse(decryptedJson);
-            decryptedRecords.push(record);
-          } catch (err) {
-            console.error('Failed to decrypt employment record:', err);
-          }
-        }
-
-        setRecords(decryptedRecords);
-      }
+      setError('');
+      const data = await storage.get<EmploymentRecord>('employment_records');
+      setRecords(data);
     } catch (err) {
-      setError('Failed to load encrypted data');
+      setError('Failed to load data');
       console.error(err);
     } finally {
       setIsLoading(false);
     }
   };
 
-  const saveRecords = async (newRecords: EmploymentRecord[]) => {
+  const addRecord = async () => {
+    if (!newRecord.company.trim() || !newRecord.jobTitle.trim()) return;
+
     try {
-      const encryptedRecords = [];
+      setError('');
+      const record: EmploymentRecord = {
+        id: Date.now().toString(),
+        ...newRecord
+      };
 
-      for (const record of newRecords) {
-        const recordJson = JSON.stringify(record);
-        const encryptedData = await encrypt(recordJson, masterPassword);
-        encryptedRecords.push({
-          id: record.id,
-          data: encryptedData
-        });
-      }
-
-      localStorage.setItem('employment_records_encrypted', JSON.stringify(encryptedRecords));
-      setRecords(newRecords);
+      await storage.add('employment_records', record);
+      await loadRecords();
+      setNewRecord(emptyRecord);
+      setShowAddForm(false);
     } catch (err) {
-      setError('Failed to save encrypted data');
+      setError('Failed to add record');
       console.error(err);
     }
   };
 
-  const addRecord = () => {
-    if (!newRecord.company.trim() || !newRecord.jobTitle.trim()) return;
+  const updateRecord = async () => {
+    if (!editingRecord || !editingRecord.company.trim() || !editingRecord.jobTitle.trim()) return;
 
-    const record: EmploymentRecord = {
-      id: Date.now().toString(),
-      ...newRecord
-    };
-
-    saveRecords([record, ...records]);
-    setNewRecord({
-      company: '',
-      jobTitle: '',
-      startDate: '',
-      endDate: '',
-      current: false,
-      responsibilities: '',
-      achievements: '',
-      salary: '',
-      pensionScheme: '',
-      location: '',
-      employmentType: 'full-time'
-    });
-    setShowAddForm(false);
+    try {
+      setError('');
+      await storage.update('employment_records', editingRecord.id, editingRecord);
+      await loadRecords();
+      setEditingRecord(null);
+      setShowEditForm(false);
+    } catch (err) {
+      setError('Failed to update record');
+      console.error(err);
+    }
   };
 
-  const deleteRecord = (id: string) => {
-    saveRecords(records.filter(record => record.id !== id));
+  const deleteRecord = async (id: string) => {
+    try {
+      setError('');
+      await storage.delete('employment_records', id);
+      await loadRecords();
+      if (expandedRecord === id) setExpandedRecord(null);
+    } catch (err) {
+      setError('Failed to delete record');
+      console.error(err);
+    }
+  };
+
+  const startEdit = (record: EmploymentRecord) => {
+    setEditingRecord({ ...record });
+    setShowEditForm(true);
+    setExpandedRecord(null);
   };
 
   const calculateDuration = (startDate: string, endDate: string, current: boolean) => {
@@ -176,6 +176,135 @@ export function EmploymentManagerSecure({ onClose, masterPassword }: EmploymentM
 
   const totalYears = Math.floor(totalYearsWorked / 12);
   const totalMonths = totalYearsWorked % 12;
+
+  const renderRecordForm = (
+    record: typeof newRecord | EmploymentRecord,
+    onChange: (updates: Partial<typeof newRecord>) => void,
+    onSubmit: () => void,
+    onCancel: () => void,
+    isEdit: boolean
+  ) => (
+    <div className={`mb-6 p-6 rounded-xl ${isEdit ? 'bg-gradient-to-br from-green-50 to-blue-50 border-2 border-green-200' : 'bg-gradient-to-br from-blue-50 to-purple-50 border-2 border-blue-200'}`}>
+      <h3 className="mb-4 flex items-center gap-2">
+        {isEdit && <Edit2 className="w-5 h-5 text-green-600" />}
+        {isEdit ? 'Edit Employment Record' : 'Add Employment Record'}
+      </h3>
+      <div className="space-y-4">
+        <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+          <input
+            type="text"
+            value={record.company}
+            onChange={(e) => onChange({ company: e.target.value })}
+            placeholder="Company name..."
+            className="px-4 py-2 border border-gray-300 rounded-lg bg-white"
+          />
+          <input
+            type="text"
+            value={record.jobTitle}
+            onChange={(e) => onChange({ jobTitle: e.target.value })}
+            placeholder="Job title..."
+            className="px-4 py-2 border border-gray-300 rounded-lg bg-white"
+          />
+          <input
+            type="text"
+            value={record.location}
+            onChange={(e) => onChange({ location: e.target.value })}
+            placeholder="Location..."
+            className="px-4 py-2 border border-gray-300 rounded-lg bg-white"
+          />
+          <select
+            value={record.employmentType}
+            onChange={(e) => onChange({ employmentType: e.target.value as any })}
+            className="px-4 py-2 border border-gray-300 rounded-lg bg-white"
+          >
+            <option value="full-time">Full-time</option>
+            <option value="part-time">Part-time</option>
+            <option value="contract">Contract</option>
+            <option value="freelance">Freelance</option>
+          </select>
+          <div>
+            <label className="block text-sm text-gray-600 mb-1">Start Date</label>
+            <input
+              type="date"
+              value={record.startDate}
+              onChange={(e) => onChange({ startDate: e.target.value })}
+              className="w-full px-4 py-2 border border-gray-300 rounded-lg bg-white"
+            />
+          </div>
+          <div>
+            <label className="block text-sm text-gray-600 mb-1">End Date</label>
+            <input
+              type="date"
+              value={record.endDate}
+              onChange={(e) => onChange({ endDate: e.target.value })}
+              disabled={record.current}
+              className="w-full px-4 py-2 border border-gray-300 rounded-lg bg-white disabled:bg-gray-100"
+            />
+          </div>
+        </div>
+
+        <label className="flex items-center gap-2 text-sm">
+          <input
+            type="checkbox"
+            checked={record.current}
+            onChange={(e) => onChange({ current: e.target.checked })}
+            className="rounded"
+          />
+          <span className="text-gray-700">I currently work here</span>
+        </label>
+
+        <textarea
+          value={record.responsibilities}
+          onChange={(e) => onChange({ responsibilities: e.target.value })}
+          placeholder="Roles and responsibilities..."
+          className="w-full px-4 py-2 border border-gray-300 rounded-lg bg-white"
+          rows={4}
+        />
+
+        <textarea
+          value={record.achievements}
+          onChange={(e) => onChange({ achievements: e.target.value })}
+          placeholder="Key achievements..."
+          className="w-full px-4 py-2 border border-gray-300 rounded-lg bg-white"
+          rows={3}
+        />
+
+        <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+          <input
+            type="text"
+            value={record.salary}
+            onChange={(e) => onChange({ salary: e.target.value })}
+            placeholder="Salary (optional)..."
+            className="px-4 py-2 border border-gray-300 rounded-lg bg-white"
+          />
+          <input
+            type="text"
+            value={record.pensionScheme}
+            onChange={(e) => onChange({ pensionScheme: e.target.value })}
+            placeholder="Pension scheme (optional)..."
+            className="px-4 py-2 border border-gray-300 rounded-lg bg-white"
+          />
+        </div>
+
+        <div className="flex items-center gap-2">
+          <button
+            onClick={onSubmit}
+            className={`px-4 py-2 text-white rounded-lg transition-colors ${
+              isEdit ? 'bg-green-600 hover:bg-green-700' : 'bg-indigo-600 hover:bg-indigo-700'
+            }`}
+          >
+            {isEdit ? 'Save Changes' : 'Add Record'}
+          </button>
+          <button
+            onClick={onCancel}
+            className="px-4 py-2 bg-gray-200 text-gray-700 rounded-lg hover:bg-gray-300 transition-colors"
+          >
+            Cancel
+          </button>
+        </div>
+      </div>
+    </div>
+  );
 
   if (isLoading) {
     return (
@@ -267,121 +396,24 @@ export function EmploymentManagerSecure({ onClose, masterPassword }: EmploymentM
 
         <div className="flex-1 overflow-y-auto p-6">
           {showAddForm ? (
-            <div className="mb-6 p-6 bg-gray-50 rounded-xl">
-              <h3 className="mb-4">Add Employment Record</h3>
-              <div className="space-y-4">
-                <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-                  <input
-                    type="text"
-                    value={newRecord.company}
-                    onChange={(e) => setNewRecord({ ...newRecord, company: e.target.value })}
-                    placeholder="Company name..."
-                    className="px-4 py-2 border border-gray-300 rounded-lg"
-                  />
-                  <input
-                    type="text"
-                    value={newRecord.jobTitle}
-                    onChange={(e) => setNewRecord({ ...newRecord, jobTitle: e.target.value })}
-                    placeholder="Job title..."
-                    className="px-4 py-2 border border-gray-300 rounded-lg"
-                  />
-                  <input
-                    type="text"
-                    value={newRecord.location}
-                    onChange={(e) => setNewRecord({ ...newRecord, location: e.target.value })}
-                    placeholder="Location..."
-                    className="px-4 py-2 border border-gray-300 rounded-lg"
-                  />
-                  <select
-                    value={newRecord.employmentType}
-                    onChange={(e) => setNewRecord({ ...newRecord, employmentType: e.target.value as any })}
-                    className="px-4 py-2 border border-gray-300 rounded-lg"
-                  >
-                    <option value="full-time">Full-time</option>
-                    <option value="part-time">Part-time</option>
-                    <option value="contract">Contract</option>
-                    <option value="freelance">Freelance</option>
-                  </select>
-                  <div>
-                    <label className="block text-sm text-gray-600 mb-1">Start Date</label>
-                    <input
-                      type="date"
-                      value={newRecord.startDate}
-                      onChange={(e) => setNewRecord({ ...newRecord, startDate: e.target.value })}
-                      className="w-full px-4 py-2 border border-gray-300 rounded-lg"
-                    />
-                  </div>
-                  <div>
-                    <label className="block text-sm text-gray-600 mb-1">End Date</label>
-                    <input
-                      type="date"
-                      value={newRecord.endDate}
-                      onChange={(e) => setNewRecord({ ...newRecord, endDate: e.target.value })}
-                      disabled={newRecord.current}
-                      className="w-full px-4 py-2 border border-gray-300 rounded-lg disabled:bg-gray-100"
-                    />
-                  </div>
-                </div>
-
-                <label className="flex items-center gap-2 text-sm">
-                  <input
-                    type="checkbox"
-                    checked={newRecord.current}
-                    onChange={(e) => setNewRecord({ ...newRecord, current: e.target.checked })}
-                    className="rounded"
-                  />
-                  <span className="text-gray-700">I currently work here</span>
-                </label>
-
-                <textarea
-                  value={newRecord.responsibilities}
-                  onChange={(e) => setNewRecord({ ...newRecord, responsibilities: e.target.value })}
-                  placeholder="Roles and responsibilities..."
-                  className="w-full px-4 py-2 border border-gray-300 rounded-lg"
-                  rows={4}
-                />
-
-                <textarea
-                  value={newRecord.achievements}
-                  onChange={(e) => setNewRecord({ ...newRecord, achievements: e.target.value })}
-                  placeholder="Key achievements..."
-                  className="w-full px-4 py-2 border border-gray-300 rounded-lg"
-                  rows={3}
-                />
-
-                <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-                  <input
-                    type="text"
-                    value={newRecord.salary}
-                    onChange={(e) => setNewRecord({ ...newRecord, salary: e.target.value })}
-                    placeholder="Salary (optional)..."
-                    className="px-4 py-2 border border-gray-300 rounded-lg"
-                  />
-                  <input
-                    type="text"
-                    value={newRecord.pensionScheme}
-                    onChange={(e) => setNewRecord({ ...newRecord, pensionScheme: e.target.value })}
-                    placeholder="Pension scheme (optional)..."
-                    className="px-4 py-2 border border-gray-300 rounded-lg"
-                  />
-                </div>
-
-                <div className="flex items-center gap-2">
-                  <button
-                    onClick={addRecord}
-                    className="px-4 py-2 bg-indigo-600 text-white rounded-lg hover:bg-indigo-700 transition-colors"
-                  >
-                    Add Record
-                  </button>
-                  <button
-                    onClick={() => setShowAddForm(false)}
-                    className="px-4 py-2 bg-gray-200 text-gray-700 rounded-lg hover:bg-gray-300 transition-colors"
-                  >
-                    Cancel
-                  </button>
-                </div>
-              </div>
-            </div>
+            renderRecordForm(
+              newRecord,
+              (updates) => setNewRecord({ ...newRecord, ...updates }),
+              addRecord,
+              () => setShowAddForm(false),
+              false
+            )
+          ) : showEditForm && editingRecord ? (
+            renderRecordForm(
+              editingRecord,
+              (updates) => setEditingRecord({ ...editingRecord!, ...updates }),
+              updateRecord,
+              () => {
+                setShowEditForm(false);
+                setEditingRecord(null);
+              },
+              true
+            )
           ) : (
             <button
               onClick={() => setShowAddForm(true)}
@@ -443,8 +475,15 @@ export function EmploymentManagerSecure({ onClose, masterPassword }: EmploymentM
                         <button
                           onClick={() => setExpandedRecord(expandedRecord === record.id ? null : record.id)}
                           className="p-2 hover:bg-white rounded-lg transition-colors text-gray-600"
+                          title="View details"
                         >
-                          <Edit className="w-4 h-4" />
+                          {expandedRecord === record.id ? <ChevronUp className="w-4 h-4" /> : <ChevronDown className="w-4 h-4" />}
+                        </button>
+                        <button
+                          onClick={() => startEdit(record)}
+                          className="p-2 hover:bg-white rounded-lg transition-colors text-blue-600"
+                        >
+                          <Edit2 className="w-4 h-4" />
                         </button>
                         <button
                           onClick={() => deleteRecord(record.id)}

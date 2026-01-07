@@ -25,7 +25,9 @@ export function CategoryCard({ title, icon: Icon, count, description, onClick }:
           </div>
           <p className="text-gray-500 text-sm mb-3">{description}</p>
           <div className="flex items-center gap-2">
-            <span className="text-sm text-gray-600">{count} items</span>
+            <span className="text-sm text-gray-600">
+              {count === 0 ? 'Click to view' : `${count} items`}
+            </span>
           </div>
         </div>
         <ChevronRight className="w-5 h-5 text-gray-400 group-hover:text-blue-600 transition-colors" />

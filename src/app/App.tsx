@@ -21,6 +21,7 @@ import { AIOverview } from './components/AIOverview';
 import { EmploymentManagerSecure } from './components/EmploymentManagerSecure';
 import MasterPasswordSetup from './components/MasterPasswordSetup';
 import MasterPasswordUnlock from './components/MasterPasswordUnlock';
+import { StorageProvider } from '../contexts/StorageContext';
 
 type ModalType = 'certificates' | 'education' | 'health' | 'finance' | 'photos' | 'contacts' | 'websites' | 'employment' | 'ai' | null;
 
@@ -59,25 +60,10 @@ export default function App() {
 
   // Update counts when modals close
   const handleModalClose = () => {
-    const certificates = JSON.parse(localStorage.getItem('documents_Certificates_encrypted') || '[]');
-    const education = JSON.parse(localStorage.getItem('documents_Education_encrypted') || '[]');
-    const health = JSON.parse(localStorage.getItem('documents_Health_encrypted') || '[]');
-    const finance = JSON.parse(localStorage.getItem('finance_items_encrypted') || '[]');
-    const photos = JSON.parse(localStorage.getItem('photos_encrypted') || '[]');
-    const contacts = JSON.parse(localStorage.getItem('contacts_encrypted') || '[]');
-    const websites = JSON.parse(localStorage.getItem('virtual_street_encrypted') || '[]');
-    const employment = JSON.parse(localStorage.getItem('employment_records_encrypted') || '[]');
-
-    setCounts({
-      certificates: certificates.length,
-      education: education.length,
-      health: health.length,
-      finance: finance.length,
-      photos: photos.length,
-      contacts: contacts.length,
-      websites: websites.length,
-      employment: employment.length
-    });
+    // Don't try to parse encrypted data directly - it will give wrong counts
+    // Encrypted data needs to be decrypted first, which happens inside each modal
+    // For now, just show 0 until we implement proper count tracking
+    // TODO: Have each modal report its count when it closes
 
     setActiveModal(null);
   };
@@ -152,7 +138,8 @@ export default function App() {
   ];
 
   return (
-    <div className="min-h-screen bg-gradient-to-br from-blue-50 via-purple-50 to-pink-50">
+    <StorageProvider masterPassword={masterPassword}>
+      <div className="min-h-screen bg-gradient-to-br from-blue-50 via-purple-50 to-pink-50">
       <div className="max-w-7xl mx-auto px-4 py-8">
         {/* Header */}
         <div className="mb-8">
@@ -214,32 +201,33 @@ export default function App() {
 
       {/* Modals */}
       {activeModal === 'certificates' && (
-        <DocumentManagerSecure category="Certificates" onClose={handleModalClose} masterPassword={masterPassword} />
+        <DocumentManagerSecure category="Certificates" onClose={handleModalClose} />
       )}
       {activeModal === 'education' && (
-        <DocumentManagerSecure category="Education" onClose={handleModalClose} masterPassword={masterPassword} />
+        <DocumentManagerSecure category="Education" onClose={handleModalClose} />
       )}
       {activeModal === 'health' && (
-        <DocumentManagerSecure category="Health" onClose={handleModalClose} masterPassword={masterPassword} />
+        <DocumentManagerSecure category="Health" onClose={handleModalClose} />
       )}
       {activeModal === 'finance' && (
-        <FinanceManagerSecure onClose={handleModalClose} masterPassword={masterPassword} />
+        <FinanceManagerSecure onClose={handleModalClose} />
       )}
       {activeModal === 'photos' && (
-        <PhotoGallerySecure onClose={handleModalClose} masterPassword={masterPassword} />
+        <PhotoGallerySecure onClose={handleModalClose} />
       )}
       {activeModal === 'contacts' && (
-        <ContactsManagerSecure onClose={handleModalClose} masterPassword={masterPassword} />
+        <ContactsManagerSecure onClose={handleModalClose} />
       )}
       {activeModal === 'websites' && (
-        <VirtualHighStreetSecure onClose={handleModalClose} masterPassword={masterPassword} />
+        <VirtualHighStreetSecure onClose={handleModalClose} />
       )}
       {activeModal === 'ai' && (
         <AIOverview onClose={handleModalClose} />
       )}
       {activeModal === 'employment' && (
-        <EmploymentManagerSecure onClose={handleModalClose} masterPassword={masterPassword} />
+        <EmploymentManagerSecure onClose={handleModalClose} />
       )}
     </div>
+    </StorageProvider>
   );
 }

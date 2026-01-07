@@ -1,6 +1,7 @@
 import { useState, useEffect } from 'react';
-import { X, Plus, Trash, Eye, EyeOff, Store, Grid3x3, List, Download, Upload, Key, RefreshCw, Copy, Check } from 'lucide-react';
-import { encrypt, decrypt, generatePassword, calculatePasswordStrength, getPasswordStrengthLabel, getPasswordStrengthColor } from '../../utils/crypto';
+import { X, Plus, Trash, Eye, EyeOff, Store, Grid3x3, List, Download, Upload, Key, RefreshCw, Copy, Check, Edit, Search, Filter, CheckSquare, Square } from 'lucide-react';
+import { generatePassword, calculatePasswordStrength, getPasswordStrengthLabel, getPasswordStrengthColor } from '../../utils/crypto';
+import { useStorage } from '../../contexts/StorageContext';
 
 interface WebsiteEntry {
   id: string;
@@ -16,7 +17,6 @@ interface WebsiteEntry {
 
 interface VirtualHighStreetSecureProps {
   onClose: () => void;
-  masterPassword: string;
 }
 
 const categories = [
@@ -26,6 +26,8 @@ const categories = [
   { id: 'utilities', name: 'Utilities & Bills', color: '#8B5CF6' },
   { id: 'entertainment', name: 'Entertainment', color: '#EC4899' },
   { id: 'health', name: 'Health & Wellness', color: '#EF4444' },
+  { id: 'news', name: 'News & Media', color: '#06B6D4' },
+  { id: 'transport', name: 'Transport & Travel', color: '#14B8A6' },
   { id: 'other', name: 'Other', color: '#6B7280' }
 ];
 
@@ -37,15 +39,22 @@ const websiteExamples = [
   { name: 'Amazon', category: 'shopping', domain: 'amazon.co.uk' }
 ];
 
-export function VirtualHighStreetSecure({ onClose, masterPassword }: VirtualHighStreetSecureProps) {
+export function VirtualHighStreetSecure({ onClose }: VirtualHighStreetSecureProps) {
+  const storage = useStorage();
   const [entries, setEntries] = useState<WebsiteEntry[]>([]);
   const [showAddForm, setShowAddForm] = useState(false);
+  // showEditForm removed - now using modal for editing
+  const [editingEntry, setEditingEntry] = useState<WebsiteEntry | null>(null);
   const [viewMode, setViewMode] = useState<'street' | 'list'>('street');
   const [selectedEntry, setSelectedEntry] = useState<WebsiteEntry | null>(null);
   const [visiblePasswords, setVisiblePasswords] = useState<Set<string>>(new Set());
   const [copiedId, setCopiedId] = useState<string | null>(null);
   const [isLoading, setIsLoading] = useState(true);
   const [error, setError] = useState('');
+  const [searchQuery, setSearchQuery] = useState('');
+  const [filterCategory, setFilterCategory] = useState('all');
+  const [selectionMode, setSelectionMode] = useState(false);
+  const [selectedIds, setSelectedIds] = useState<Set<string>>(new Set());
   const [newEntry, setNewEntry] = useState({
     name: '',
     url: '',
@@ -55,61 +64,40 @@ export function VirtualHighStreetSecure({ onClose, masterPassword }: VirtualHigh
     notes: ''
   });
 
-  const passwordStrength = calculatePasswordStrength(newEntry.password);
+  const passwordStrength = calculatePasswordStrength(editingEntry ? editingEntry.password : newEntry.password);
 
   useEffect(() => {
     loadEntries();
   }, []);
 
+  // Scroll to top when add form opens (edit is now in modal)
+  useEffect(() => {
+    if (showAddForm) {
+      window.scrollTo({ top: 0, behavior: 'smooth' });
+    }
+  }, [showAddForm]);
+
   const loadEntries = async () => {
     try {
       setIsLoading(true);
-      const stored = localStorage.getItem('virtual_street_encrypted');
-      if (stored) {
-        const encryptedData = JSON.parse(stored);
-        const decryptedEntries: WebsiteEntry[] = [];
+      setError('');
+      const data = await storage.get<WebsiteEntry>('virtual_street');
 
-        for (const encryptedEntry of encryptedData) {
-          try {
-            // Decrypt the entire entry (it's stored as an encrypted JSON string)
-            const decryptedJson = await decrypt(encryptedEntry.data, masterPassword);
-            const entry = JSON.parse(decryptedJson);
-            decryptedEntries.push(entry);
-          } catch (err) {
-            console.error('Failed to decrypt entry:', err);
-            // Skip corrupted entries
-          }
-        }
-
-        setEntries(decryptedEntries);
+      // Defensive: ensure we always set a valid array
+      if (Array.isArray(data)) {
+        setEntries(data);
+        console.log(`Loaded ${data.length} websites`);
+      } else {
+        console.error('Storage returned non-array:', typeof data, data);
+        setEntries([]);
+        setError('Data format error - please try re-importing');
       }
     } catch (err) {
-      setError('Failed to load encrypted data');
-      console.error(err);
+      console.error('Failed to load virtual street:', err);
+      setError(`Failed to load data: ${err instanceof Error ? err.message : 'Unknown error'}`);
+      setEntries([]); // Set empty array as fallback
     } finally {
       setIsLoading(false);
-    }
-  };
-
-  const saveEntries = async (newEntries: WebsiteEntry[]) => {
-    try {
-      const encryptedEntries = [];
-
-      for (const entry of newEntries) {
-        // Encrypt the entire entry as a JSON string
-        const entryJson = JSON.stringify(entry);
-        const encryptedData = await encrypt(entryJson, masterPassword);
-        encryptedEntries.push({
-          id: entry.id, // Keep ID for reference
-          data: encryptedData // Everything else is encrypted
-        });
-      }
-
-      localStorage.setItem('virtual_street_encrypted', JSON.stringify(encryptedEntries));
-      setEntries(newEntries);
-    } catch (err) {
-      setError('Failed to save encrypted data');
-      console.error(err);
     }
   };
 
@@ -122,25 +110,160 @@ export function VirtualHighStreetSecure({ onClose, masterPassword }: VirtualHigh
     }
   };
 
-  const addEntry = () => {
+  const addEntry = async () => {
     if (!newEntry.name.trim() || !newEntry.url.trim()) return;
 
-    const category = categories.find(c => c.id === newEntry.category);
-    const entry: WebsiteEntry = {
-      id: Date.now().toString(),
-      ...newEntry,
-      color: category?.color || '#6B7280',
-      favicon: getFavicon(newEntry.url)
-    };
+    try {
+      setError('');
+      const category = categories.find(c => c.id === newEntry.category);
+      const entry: WebsiteEntry = {
+        id: Date.now().toString(),
+        ...newEntry,
+        color: category?.color || '#6B7280',
+        favicon: getFavicon(newEntry.url)
+      };
 
-    saveEntries([...entries, entry]);
-    setNewEntry({ name: '', url: '', username: '', password: '', category: 'other', notes: '' });
-    setShowAddForm(false);
+      await storage.add('virtual_street', entry);
+      await loadEntries(); // Refresh list
+      setNewEntry({ name: '', url: '', username: '', password: '', category: 'other', notes: '' });
+      setShowAddForm(false);
+    } catch (err) {
+      setError('Failed to add entry');
+      console.error(err);
+    }
   };
 
-  const deleteEntry = (id: string) => {
-    saveEntries(entries.filter(entry => entry.id !== id));
-    setSelectedEntry(null);
+  const updateEntry = async () => {
+    if (!editingEntry || !editingEntry.name.trim() || !editingEntry.url.trim()) return;
+
+    try {
+      setError('');
+      const category = categories.find(c => c.id === editingEntry.category);
+      const updatedEntry: WebsiteEntry = {
+        ...editingEntry,
+        color: category?.color || '#6B7280',
+        favicon: getFavicon(editingEntry.url)
+      };
+
+      await storage.update('virtual_street', editingEntry.id, updatedEntry);
+      await loadEntries(); // Refresh list
+      setEditingEntry(null); // This closes the modal
+    } catch (err) {
+      setError('Failed to update entry');
+      console.error(err);
+    }
+  };
+
+  const deleteEntry = async (id: string, fromModal: boolean = false) => {
+    try {
+      setError('');
+
+      await storage.delete('virtual_street', id);
+
+      // Instead of reloading, just remove from state - preserves scroll position perfectly
+      setEntries(prevEntries => prevEntries.filter(entry => entry.id !== id));
+
+      setSelectedEntry(null);
+
+      if (fromModal) {
+        setEditingEntry(null); // Close modal
+      }
+    } catch (err) {
+      setError('Failed to delete entry');
+      console.error(err);
+    }
+  };
+
+  const toggleSelection = (id: string) => {
+    setSelectedIds(prev => {
+      const newSet = new Set(prev);
+      if (newSet.has(id)) {
+        newSet.delete(id);
+      } else {
+        newSet.add(id);
+      }
+      return newSet;
+    });
+  };
+
+  const selectAll = () => {
+    setSelectedIds(new Set(filteredEntries.map(e => e.id)));
+  };
+
+  const deselectAll = () => {
+    setSelectedIds(new Set());
+  };
+
+  const deleteSelected = async () => {
+    if (selectedIds.size === 0) return;
+
+    const confirmed = window.confirm(
+      `Delete ${selectedIds.size} selected websites? This cannot be undone.`
+    );
+
+    if (!confirmed) return;
+
+    try {
+      setError('');
+
+      // Delete all selected entries from storage
+      for (const id of selectedIds) {
+        await storage.delete('virtual_street', id);
+      }
+
+      // Remove from state - preserves scroll position
+      setEntries(prevEntries => prevEntries.filter(entry => !selectedIds.has(entry.id)));
+
+      // Clear selection and exit selection mode
+      setSelectedIds(new Set());
+      setSelectionMode(false);
+    } catch (err) {
+      setError('Failed to delete selected entries');
+      console.error(err);
+    }
+  };
+
+  const cleanupEmptyEntries = async () => {
+    // Find entries with no meaningful data (empty name AND empty url)
+    const emptyEntries = entries.filter(entry =>
+      (!entry.name || entry.name.trim() === '') &&
+      (!entry.url || entry.url.trim() === '')
+    );
+
+    if (emptyEntries.length === 0) {
+      alert('No empty entries found!');
+      return;
+    }
+
+    const confirmed = window.confirm(
+      `Found ${emptyEntries.length} empty entries (no name and no URL). Delete them all?`
+    );
+
+    if (!confirmed) return;
+
+    try {
+      setError('');
+
+      // Delete all empty entries from storage
+      for (const entry of emptyEntries) {
+        await storage.delete('virtual_street', entry.id);
+      }
+
+      // Remove from state - preserves scroll position
+      setEntries(prevEntries => prevEntries.filter(entry =>
+        entry.name.trim() !== '' || entry.url.trim() !== ''
+      ));
+
+      alert(`Successfully deleted ${emptyEntries.length} empty entries!`);
+    } catch (err) {
+      setError('Failed to delete empty entries');
+      console.error(err);
+    }
+  };
+
+  const startEdit = (entry: WebsiteEntry) => {
+    setEditingEntry({ ...entry });
+    setSelectedEntry(null); // Close detail modal when opening edit modal
   };
 
   const togglePasswordVisibility = (id: string) => {
@@ -167,7 +290,11 @@ export function VirtualHighStreetSecure({ onClose, masterPassword }: VirtualHigh
 
   const generateNewPassword = () => {
     const newPassword = generatePassword(16);
-    setNewEntry({ ...newEntry, password: newPassword });
+    if (editingEntry) {
+      setEditingEntry({ ...editingEntry, password: newPassword });
+    } else {
+      setNewEntry({ ...newEntry, password: newPassword });
+    }
   };
 
   const exportData = async () => {
@@ -197,11 +324,13 @@ export function VirtualHighStreetSecure({ onClose, masterPassword }: VirtualHigh
     if (!file) return;
 
     try {
+      setError('');
       const text = await file.text();
       const importedData = JSON.parse(text);
 
       if (importedData.entries && Array.isArray(importedData.entries)) {
-        await saveEntries(importedData.entries);
+        await storage.save('virtual_street', importedData.entries);
+        await loadEntries(); // Refresh list
         alert(`Successfully imported ${importedData.entries.length} entries!`);
       } else {
         setError('Invalid backup file format');
@@ -215,6 +344,27 @@ export function VirtualHighStreetSecure({ onClose, masterPassword }: VirtualHigh
   const getInitials = (name: string) => {
     return name.split(' ').map(word => word[0]).join('').toUpperCase().slice(0, 2);
   };
+
+  // Filter entries based on search and category
+  const filteredEntries = (Array.isArray(entries) ? entries : []).filter(entry => {
+    // Category filter
+    if (filterCategory !== 'all' && entry.category !== filterCategory) {
+      return false;
+    }
+
+    // Search filter
+    if (searchQuery.trim()) {
+      const query = searchQuery.toLowerCase();
+      return (
+        entry.name.toLowerCase().includes(query) ||
+        entry.url.toLowerCase().includes(query) ||
+        entry.username.toLowerCase().includes(query) ||
+        entry.notes.toLowerCase().includes(query)
+      );
+    }
+
+    return true;
+  });
 
   if (isLoading) {
     return (
@@ -283,6 +433,32 @@ export function VirtualHighStreetSecure({ onClose, masterPassword }: VirtualHigh
               >
                 <List className="w-5 h-5" />
               </button>
+              <div className="w-px h-8 bg-gray-300 mx-2"></div>
+              <button
+                onClick={cleanupEmptyEntries}
+                className="p-2 rounded-lg transition-colors flex items-center gap-2 px-3 bg-white text-gray-600 hover:bg-red-50 hover:text-red-600"
+                title="Delete all entries with no name and no URL"
+              >
+                <Trash className="w-4 h-4" />
+                <span className="text-sm">Clean Up</span>
+              </button>
+              <button
+                onClick={() => {
+                  setSelectionMode(!selectionMode);
+                  if (selectionMode) {
+                    setSelectedIds(new Set()); // Clear selection when exiting
+                  }
+                }}
+                className={`p-2 rounded-lg transition-colors flex items-center gap-2 px-3 ${
+                  selectionMode
+                    ? 'bg-purple-600 text-white'
+                    : 'bg-white text-gray-600 hover:bg-gray-100'
+                }`}
+                title={selectionMode ? 'Exit selection mode' : 'Select multiple'}
+              >
+                <CheckSquare className="w-4 h-4" />
+                <span className="text-sm">{selectionMode ? 'Done' : 'Select'}</span>
+              </button>
               <button
                 onClick={onClose}
                 className="p-2 hover:bg-white rounded-lg transition-colors ml-2"
@@ -291,6 +467,98 @@ export function VirtualHighStreetSecure({ onClose, masterPassword }: VirtualHigh
               </button>
             </div>
           </div>
+        </div>
+
+        {/* Search/Filter Bar OR Selection Controls */}
+        <div className="px-6 pt-4 pb-2 border-b border-gray-200 bg-gray-50">
+          {selectionMode ? (
+            /* Selection Controls */
+            <div className="flex flex-col gap-3">
+              <div className="flex items-center justify-between">
+                <div className="flex items-center gap-3">
+                  <button
+                    onClick={selectAll}
+                    className="px-4 py-2 bg-purple-600 text-white rounded-lg hover:bg-purple-700 transition-colors text-sm"
+                  >
+                    Select All
+                  </button>
+                  <button
+                    onClick={deselectAll}
+                    className="px-4 py-2 bg-gray-200 text-gray-700 rounded-lg hover:bg-gray-300 transition-colors text-sm"
+                  >
+                    Deselect All
+                  </button>
+                </div>
+                {selectedIds.size > 0 && (
+                  <button
+                    onClick={deleteSelected}
+                    className="px-4 py-2 bg-red-600 text-white rounded-lg hover:bg-red-700 transition-colors flex items-center gap-2"
+                  >
+                    <Trash className="w-4 h-4" />
+                    Delete {selectedIds.size} Selected
+                  </button>
+                )}
+              </div>
+              <div className="text-sm text-gray-600">
+                {selectedIds.size === 0 ? (
+                  'Click on items to select them'
+                ) : (
+                  <span>
+                    <span className="font-semibold text-purple-600">{selectedIds.size}</span> of{' '}
+                    <span className="font-semibold">{filteredEntries.length}</span> selected
+                  </span>
+                )}
+              </div>
+            </div>
+          ) : (
+            /* Normal Search and Filter */
+            <>
+              <div className="flex flex-col md:flex-row gap-3">
+                {/* Search Input */}
+                <div className="flex-1 relative">
+                  <Search className="absolute left-3 top-1/2 -translate-y-1/2 w-5 h-5 text-gray-400" />
+                  <input
+                    type="text"
+                    value={searchQuery}
+                    onChange={(e) => setSearchQuery(e.target.value)}
+                    placeholder="Search websites, usernames, urls..."
+                    className="w-full pl-10 pr-4 py-2.5 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent bg-white"
+                  />
+                  {searchQuery && (
+                    <button
+                      onClick={() => setSearchQuery('')}
+                      className="absolute right-3 top-1/2 -translate-y-1/2 text-gray-400 hover:text-gray-600"
+                      title="Clear search"
+                    >
+                      <X className="w-4 h-4" />
+                    </button>
+                  )}
+                </div>
+
+                {/* Category Filter */}
+                <div className="relative">
+                  <Filter className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-gray-400" />
+                  <select
+                    value={filterCategory}
+                    onChange={(e) => setFilterCategory(e.target.value)}
+                    className="pl-9 pr-8 py-2.5 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent bg-white appearance-none cursor-pointer"
+                  >
+                    <option value="all">All Categories</option>
+                    {categories.map(cat => (
+                      <option key={cat.id} value={cat.id}>{cat.name}</option>
+                    ))}
+                  </select>
+                </div>
+              </div>
+
+              {/* Results Count */}
+              <div className="mt-2 text-sm text-gray-600">
+                Showing <span className="font-semibold">{filteredEntries.length}</span> of <span className="font-semibold">{entries.length}</span> websites
+                {searchQuery && <span className="text-blue-600 ml-1">• Searching for "{searchQuery}"</span>}
+                {filterCategory !== 'all' && <span className="text-blue-600 ml-1">• {categories.find(c => c.id === filterCategory)?.name}</span>}
+              </div>
+            </>
+          )}
         </div>
 
         {/* Error Message */}
@@ -401,6 +669,11 @@ export function VirtualHighStreetSecure({ onClose, masterPassword }: VirtualHigh
               </div>
             </div>
           ) : (
+            /* Edit form now in modal below */
+            null
+          )}
+
+          {!showAddForm && (
             <button
               onClick={() => setShowAddForm(true)}
               className="w-full mb-6 p-6 border-2 border-dashed border-gray-300 rounded-2xl hover:border-blue-400 hover:bg-blue-50 transition-all flex items-center justify-center gap-3 text-gray-600 hover:text-blue-600 group"
@@ -436,7 +709,7 @@ export function VirtualHighStreetSecure({ onClose, masterPassword }: VirtualHigh
           ) : viewMode === 'street' ? (
             <div>
               {categories.map(category => {
-                const categoryEntries = entries.filter(e => e.category === category.id);
+                const categoryEntries = filteredEntries.filter(e => e.category === category.id);
                 if (categoryEntries.length === 0) return null;
 
                 return (
@@ -450,13 +723,15 @@ export function VirtualHighStreetSecure({ onClose, masterPassword }: VirtualHigh
                     </h3>
                     <div className="grid grid-cols-2 sm:grid-cols-3 md:grid-cols-4 lg:grid-cols-5 gap-4">
                       {categoryEntries.map((entry) => (
-                        <button
+                        <div
                           key={entry.id}
-                          onClick={() => setSelectedEntry(entry)}
-                          className="group relative"
+                          onClick={() => selectionMode ? toggleSelection(entry.id) : setSelectedEntry(entry)}
+                          className="group relative cursor-pointer"
                         >
                           <div
-                            className="aspect-square rounded-2xl p-6 flex flex-col items-center justify-center gap-3 shadow-md hover:shadow-xl transition-all transform hover:-translate-y-1"
+                            className={`aspect-square rounded-2xl p-6 flex flex-col items-center justify-center gap-3 shadow-md hover:shadow-xl transition-all transform hover:-translate-y-1 ${
+                              selectionMode && selectedIds.has(entry.id) ? 'ring-4 ring-purple-500' : ''
+                            }`}
                             style={{
                               backgroundColor: `${entry.color}15`,
                               borderColor: entry.color,
@@ -484,18 +759,34 @@ export function VirtualHighStreetSecure({ onClose, masterPassword }: VirtualHigh
                               <p className="font-medium text-gray-900 text-sm line-clamp-2">{entry.name}</p>
                             </div>
                           </div>
-                          <div className="absolute -top-2 -right-2 opacity-0 group-hover:opacity-100 transition-opacity">
-                            <button
-                              onClick={(e) => {
-                                e.stopPropagation();
-                                deleteEntry(entry.id);
-                              }}
-                              className="p-2 bg-red-600 text-white rounded-lg shadow-lg hover:bg-red-700"
-                            >
-                              <Trash className="w-4 h-4" />
-                            </button>
-                          </div>
-                        </button>
+                          {selectionMode ? (
+                            <div className="absolute -top-2 -right-2">
+                              <div className={`w-8 h-8 rounded-lg flex items-center justify-center ${
+                                selectedIds.has(entry.id) ? 'bg-purple-600 text-white' : 'bg-white border-2 border-gray-300 text-gray-400'
+                              }`}>
+                                {selectedIds.has(entry.id) ? (
+                                  <Check className="w-5 h-5" />
+                                ) : (
+                                  <Square className="w-5 h-5" />
+                                )}
+                              </div>
+                            </div>
+                          ) : (
+                            <div className="absolute -top-2 -right-2 opacity-0 group-hover:opacity-100 transition-opacity">
+                              <button
+                                onClick={(e) => {
+                                  e.stopPropagation();
+                                  if (window.confirm(`Delete ${entry.name}? This cannot be undone.`)) {
+                                    deleteEntry(entry.id);
+                                  }
+                                }}
+                                className="p-2 bg-red-600 text-white rounded-lg shadow-lg hover:bg-red-700"
+                              >
+                                <Trash className="w-4 h-4" />
+                              </button>
+                            </div>
+                          )}
+                        </div>
                       ))}
                     </div>
                   </div>
@@ -503,102 +794,84 @@ export function VirtualHighStreetSecure({ onClose, masterPassword }: VirtualHigh
               })}
             </div>
           ) : (
-            <div className="space-y-3">
-              {entries.map((entry) => (
+            <div className="space-y-1">
+              {filteredEntries.map((entry) => (
                 <div
                   key={entry.id}
-                  className="p-4 bg-gray-50 rounded-xl hover:bg-gray-100 transition-colors"
+                  onClick={() => selectionMode ? toggleSelection(entry.id) : setSelectedEntry(entry)}
+                  className={`px-3 py-2 bg-gray-50 rounded-lg hover:bg-gray-100 transition-colors cursor-pointer ${
+                    selectionMode && selectedIds.has(entry.id) ? 'ring-2 ring-purple-500 bg-purple-50' : ''
+                  }`}
                 >
-                  <div className="flex items-start justify-between">
-                    <div className="flex items-center gap-3 flex-1">
-                      {entry.favicon ? (
-                        <img
-                          src={entry.favicon}
-                          alt={entry.name}
-                          className="w-12 h-12 rounded-lg"
-                          onError={(e) => {
-                            e.currentTarget.style.display = 'none';
-                          }}
-                        />
-                      ) : (
-                        <div
-                          className="w-12 h-12 rounded-lg flex items-center justify-center text-white"
-                          style={{ backgroundColor: entry.color }}
-                        >
-                          {getInitials(entry.name)}
-                        </div>
-                      )}
-                      <div className="flex-1">
-                        <h3 className="text-gray-900">{entry.name}</h3>
-                        <a
-                          href={entry.url.startsWith('http') ? entry.url : `https://${entry.url}`}
-                          target="_blank"
-                          rel="noopener noreferrer"
-                          className="text-sm text-blue-600 hover:underline"
-                          onClick={(e) => e.stopPropagation()}
-                        >
-                          {entry.url}
-                        </a>
+                  <div className="flex items-center gap-3">
+                    {selectionMode && (
+                      <div className={`w-6 h-6 rounded flex items-center justify-center flex-shrink-0 ${
+                        selectedIds.has(entry.id) ? 'bg-purple-600 text-white' : 'bg-white border-2 border-gray-300 text-gray-400'
+                      }`}>
+                        {selectedIds.has(entry.id) ? (
+                          <Check className="w-4 h-4" />
+                        ) : (
+                          <Square className="w-4 h-4" />
+                        )}
                       </div>
-                    </div>
-                    <button
-                      onClick={() => deleteEntry(entry.id)}
-                      className="p-2 hover:bg-white rounded-lg transition-colors text-red-600"
-                    >
-                      <Trash className="w-4 h-4" />
-                    </button>
-                  </div>
-                  {(entry.username || entry.password) && (
-                    <div className="mt-3 ml-15 space-y-2 pt-3 border-t border-gray-200">
+                    )}
+                    {entry.favicon ? (
+                      <img
+                        src={entry.favicon}
+                        alt={entry.name}
+                        className="w-8 h-8 rounded flex-shrink-0"
+                        onError={(e) => {
+                          e.currentTarget.style.display = 'none';
+                        }}
+                      />
+                    ) : (
+                      <div
+                        className="w-8 h-8 rounded flex items-center justify-center text-white text-xs flex-shrink-0"
+                        style={{ backgroundColor: entry.color }}
+                      >
+                        {getInitials(entry.name)}
+                      </div>
+                    )}
+                    <div className="flex-1 min-w-0 flex items-center gap-4">
+                      <span className="font-medium text-gray-900 truncate" style={{ minWidth: '200px', maxWidth: '200px' }}>
+                        {entry.name}
+                      </span>
+                      <span className="text-sm text-gray-500 truncate flex-1">
+                        {entry.url}
+                      </span>
                       {entry.username && (
-                        <div className="flex items-center gap-2">
-                          <span className="text-sm text-gray-500">Username: </span>
-                          <span className="text-sm text-gray-900">{entry.username}</span>
-                          <button
-                            onClick={() => copyToClipboard(entry.username, `${entry.id}-user`)}
-                            className="p-1 hover:bg-white rounded transition-colors text-gray-600"
-                            title="Copy username"
-                          >
-                            {copiedId === `${entry.id}-user` ? (
-                              <Check className="w-3 h-3 text-green-600" />
-                            ) : (
-                              <Copy className="w-3 h-3" />
-                            )}
-                          </button>
-                        </div>
-                      )}
-                      {entry.password && (
-                        <div className="flex items-center gap-2">
-                          <span className="text-sm text-gray-500">Password: </span>
-                          <code className="text-sm text-gray-900 font-mono">
-                            {visiblePasswords.has(entry.id) ? entry.password : '••••••••'}
-                          </code>
-                          <button
-                            onClick={() => togglePasswordVisibility(entry.id)}
-                            className="p-1 hover:bg-white rounded transition-colors text-gray-600"
-                            title="Toggle visibility"
-                          >
-                            {visiblePasswords.has(entry.id) ? (
-                              <EyeOff className="w-4 h-4" />
-                            ) : (
-                              <Eye className="w-4 h-4" />
-                            )}
-                          </button>
-                          <button
-                            onClick={() => copyToClipboard(entry.password, `${entry.id}-pass`)}
-                            className="p-1 hover:bg-white rounded transition-colors text-gray-600"
-                            title="Copy password"
-                          >
-                            {copiedId === `${entry.id}-pass` ? (
-                              <Check className="w-3 h-3 text-green-600" />
-                            ) : (
-                              <Copy className="w-3 h-3" />
-                            )}
-                          </button>
-                        </div>
+                        <span className="text-xs text-gray-400 truncate" style={{ maxWidth: '150px' }}>
+                          {entry.username}
+                        </span>
                       )}
                     </div>
-                  )}
+                    {!selectionMode && (
+                      <div className="flex items-center gap-1 flex-shrink-0">
+                        <button
+                          onClick={(e) => {
+                            e.stopPropagation();
+                            startEdit(entry);
+                          }}
+                          className="p-1.5 hover:bg-white rounded transition-colors text-blue-600"
+                          title="Edit"
+                        >
+                          <Edit className="w-4 h-4" />
+                        </button>
+                        <button
+                          onClick={(e) => {
+                            e.stopPropagation();
+                            if (window.confirm(`Delete ${entry.name}?`)) {
+                              deleteEntry(entry.id);
+                            }
+                          }}
+                          className="p-1.5 hover:bg-white rounded transition-colors text-red-600"
+                          title="Delete"
+                        >
+                          <Trash className="w-4 h-4" />
+                        </button>
+                      </div>
+                    )}
+                  </div>
                 </div>
               ))}
             </div>
@@ -709,13 +982,170 @@ export function VirtualHighStreetSecure({ onClose, masterPassword }: VirtualHigh
                 </div>
               )}
 
-              <div className="pt-4 border-t border-gray-200">
+              <div className="pt-4 border-t border-gray-200 space-y-2">
                 <button
-                  onClick={() => deleteEntry(selectedEntry.id)}
+                  onClick={() => startEdit(selectedEntry)}
+                  className="w-full px-4 py-2 bg-blue-600 text-white rounded-lg hover:bg-blue-700 transition-colors flex items-center justify-center gap-2"
+                >
+                  <Edit className="w-4 h-4" />
+                  Edit Website
+                </button>
+                <button
+                  onClick={() => {
+                    if (window.confirm('Are you sure you want to delete this website? This cannot be undone.')) {
+                      deleteEntry(selectedEntry.id, true); // Close detail modal and preserve scroll
+                    }
+                  }}
                   className="w-full px-4 py-2 bg-red-600 text-white rounded-lg hover:bg-red-700 transition-colors flex items-center justify-center gap-2"
                 >
                   <Trash className="w-4 h-4" />
                   Delete Website
+                </button>
+              </div>
+            </div>
+          </div>
+        </div>
+      )}
+
+      {/* Edit Modal */}
+      {editingEntry && (
+        <div className="fixed inset-0 bg-black/60 flex items-center justify-center z-[60] p-4">
+          <div className="bg-white rounded-2xl max-w-2xl w-full p-6 shadow-2xl max-h-[90vh] overflow-y-auto">
+            <div className="flex items-center justify-between mb-6">
+              <h3 className="text-xl font-semibold text-gray-900 flex items-center gap-2">
+                <Edit className="w-5 h-5 text-green-600" />
+                Edit Website
+              </h3>
+              <button
+                onClick={() => setEditingEntry(null)}
+                className="p-2 hover:bg-gray-100 rounded-lg transition-colors"
+              >
+                <X className="w-5 h-5" />
+              </button>
+            </div>
+
+            <div className="space-y-4">
+              <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                <div>
+                  <label className="block text-sm font-medium text-gray-700 mb-1">Website Name</label>
+                  <input
+                    type="text"
+                    value={editingEntry.name}
+                    onChange={(e) => setEditingEntry({ ...editingEntry, name: e.target.value })}
+                    placeholder="Website name (e.g., Monzo, Tesco)..."
+                    className="w-full px-4 py-2 border border-gray-300 rounded-lg bg-white focus:ring-2 focus:ring-green-500 focus:border-transparent"
+                  />
+                </div>
+                <div>
+                  <label className="block text-sm font-medium text-gray-700 mb-1">Website URL</label>
+                  <input
+                    type="url"
+                    value={editingEntry.url}
+                    onChange={(e) => setEditingEntry({ ...editingEntry, url: e.target.value })}
+                    placeholder="Website URL (e.g., monzo.com)..."
+                    className="w-full px-4 py-2 border border-gray-300 rounded-lg bg-white focus:ring-2 focus:ring-green-500 focus:border-transparent"
+                  />
+                </div>
+                <div>
+                  <label className="block text-sm font-medium text-gray-700 mb-1">Category</label>
+                  <select
+                    value={editingEntry.category}
+                    onChange={(e) => setEditingEntry({ ...editingEntry, category: e.target.value })}
+                    className="w-full px-4 py-2 border border-gray-300 rounded-lg bg-white focus:ring-2 focus:ring-green-500 focus:border-transparent"
+                  >
+                    {categories.map(cat => (
+                      <option key={cat.id} value={cat.id}>{cat.name}</option>
+                    ))}
+                  </select>
+                </div>
+                <div>
+                  <label className="block text-sm font-medium text-gray-700 mb-1">Username/Email</label>
+                  <input
+                    type="text"
+                    value={editingEntry.username}
+                    onChange={(e) => setEditingEntry({ ...editingEntry, username: e.target.value })}
+                    placeholder="Username/Email (optional)..."
+                    className="w-full px-4 py-2 border border-gray-300 rounded-lg bg-white focus:ring-2 focus:ring-green-500 focus:border-transparent"
+                  />
+                </div>
+              </div>
+
+              <div>
+                <label className="block text-sm font-medium text-gray-700 mb-1">Password</label>
+                <div className="relative">
+                  <input
+                    type="text"
+                    value={editingEntry.password}
+                    onChange={(e) => setEditingEntry({ ...editingEntry, password: e.target.value })}
+                    placeholder="Password (optional)..."
+                    className="w-full px-4 py-2 border border-gray-300 rounded-lg bg-white pr-12 focus:ring-2 focus:ring-green-500 focus:border-transparent"
+                  />
+                  <button
+                    type="button"
+                    onClick={generateNewPassword}
+                    className="absolute right-2 top-1/2 -translate-y-1/2 p-2 text-blue-600 hover:bg-blue-50 rounded transition-colors"
+                    title="Generate strong password"
+                  >
+                    <RefreshCw className="w-4 h-4" />
+                  </button>
+                </div>
+                {editingEntry.password && (
+                  <div className="mt-2 space-y-1">
+                    <div className="flex items-center justify-between text-sm">
+                      <span className="text-gray-600">Password Strength:</span>
+                      <span style={{ color: getPasswordStrengthColor(passwordStrength) }} className="font-medium">
+                        {getPasswordStrengthLabel(passwordStrength)}
+                      </span>
+                    </div>
+                    <div className="h-2 bg-gray-200 rounded-full overflow-hidden">
+                      <div
+                        className="h-full transition-all duration-300"
+                        style={{
+                          width: `${(passwordStrength / 4) * 100}%`,
+                          backgroundColor: getPasswordStrengthColor(passwordStrength),
+                        }}
+                      />
+                    </div>
+                  </div>
+                )}
+              </div>
+
+              <div>
+                <label className="block text-sm font-medium text-gray-700 mb-1">Notes</label>
+                <textarea
+                  value={editingEntry.notes}
+                  onChange={(e) => setEditingEntry({ ...editingEntry, notes: e.target.value })}
+                  placeholder="Notes (optional)..."
+                  className="w-full px-4 py-2 border border-gray-300 rounded-lg bg-white focus:ring-2 focus:ring-green-500 focus:border-transparent"
+                  rows={3}
+                />
+              </div>
+
+              <div className="flex items-center justify-between pt-4 border-t border-gray-200">
+                <div className="flex items-center gap-2">
+                  <button
+                    onClick={updateEntry}
+                    className="px-6 py-2 bg-green-600 text-white rounded-lg hover:bg-green-700 transition-colors"
+                  >
+                    Save Changes
+                  </button>
+                  <button
+                    onClick={() => setEditingEntry(null)}
+                    className="px-6 py-2 bg-gray-200 text-gray-700 rounded-lg hover:bg-gray-300 transition-colors"
+                  >
+                    Cancel
+                  </button>
+                </div>
+                <button
+                  onClick={() => {
+                    if (window.confirm('Are you sure you want to delete this website? This cannot be undone.')) {
+                      deleteEntry(editingEntry.id, true); // true = from modal, will close modal and preserve scroll
+                    }
+                  }}
+                  className="px-6 py-2 bg-red-600 text-white rounded-lg hover:bg-red-700 transition-colors flex items-center gap-2"
+                >
+                  <Trash className="w-4 h-4" />
+                  Delete
                 </button>
               </div>
             </div>

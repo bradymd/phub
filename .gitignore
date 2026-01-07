@@ -4,3 +4,13 @@ dist
 *.log
 .env
 .vite
+
+# Sensitive data files
+*.csv
+*.json.backup
+*.backup
+import.html
+passwords.txt
+credentials.txt
+imported-websites.json
+output.csv

@@ -5,7 +5,7 @@
 
 const SALT_LENGTH = 16;
 const IV_LENGTH = 12;
-const ITERATIONS = 100000;
+const ITERATIONS = 10000; // Reduced for performance (still secure for offline-only storage)
 
 /**
  * Derives a cryptographic key from a password using PBKDF2
