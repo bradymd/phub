@@ -1,12 +1,7 @@
 import { useState, useEffect } from 'react';
-import { X, Plus, Trash, GraduationCap, Calendar, Edit2, Award, Key, ChevronDown, ChevronUp, FileText, ExternalLink } from 'lucide-react';
-import { useStorage } from '../../contexts/StorageContext';
-
-interface MedicalDocument {
-  filename: string;
-  fileData: string; // Base64 encoded document data
-  uploadDate: string;
-}
+import { X, Plus, Trash, GraduationCap, Calendar, Edit2, Award, Key, ChevronDown, ChevronUp, FileText, ExternalLink, Upload } from 'lucide-react';
+import { useStorage, useDocumentService } from '../../contexts/StorageContext';
+import { DocumentReference } from '../../services/document-service';
 
 interface EducationRecord {
   id: string;
@@ -17,7 +12,7 @@ interface EducationRecord {
   type: 'degree' | 'a-level' | 'o-level' | 'certification' | 'training';
   notes: string;
   documentPaths?: string[]; // Legacy: Filenames only
-  documents?: MedicalDocument[]; // New: Embedded document data
+  documents?: DocumentReference[]; // Document references (stored separately, loaded on-demand)
 }
 
 interface EducationManagerSecureProps {
@@ -31,47 +26,15 @@ const emptyRecord = {
   grade: '',
   type: 'certification' as const,
   notes: '',
-  documentPaths: [] as string[]
+  documents: [] as DocumentReference[]
 };
 
-// Available education documents
-const availableDocuments = [
-  // Degrees
-  { value: 'documents/education/BA Psych Warwick.pdf', label: 'BA Psychology - Warwick (1982)', category: 'Degrees' },
-  { value: 'documents/education/Msc Hatfield Polytechnic.pdf', label: 'MSc - Hatfield Polytechnic', category: 'Degrees' },
-
-  // A-Levels & O-Levels
-  { value: 'documents/education/Four A Levels 1979.pdf', label: 'Four A Levels 1979', category: 'A/O-Levels' },
-  { value: 'documents/education/Seven GCE 1977.pdf', label: 'Seven GCE O-Levels 1977', category: 'A/O-Levels' },
-  { value: 'documents/education/Three CSE 1977.pdf', label: 'Three CSE 1977', category: 'A/O-Levels' },
-  { value: 'documents/education/GCE Music 1977.pdf', label: 'GCE Music 1977', category: 'A/O-Levels' },
-  { value: 'documents/education/GCE General Studies.pdf', label: 'GCE General Studies', category: 'A/O-Levels' },
-  { value: 'documents/education/French Credit Level 2.pdf', label: 'French Credit Level 2', category: 'Languages' },
-
-  // Sun Certifications (split)
-  { value: 'documents/education/Sun-Java-for-Programmers-1997.pdf', label: 'Sun Java for Programmers (1997)', category: 'Sun/Solaris' },
-  { value: 'documents/education/Sun-Solaris-2x-SA-Update-1995.pdf', label: 'Sun Solaris 2.x SA Update (1995)', category: 'Sun/Solaris' },
-  { value: 'documents/education/Sun-Certified-Network-Admin-Solaris8-2003.pdf', label: 'Sun Certified Network Admin Solaris 8 (2003)', category: 'Sun/Solaris' },
-  { value: 'documents/education/Sun-Certified-System-Admin-Solaris8-2002.pdf', label: 'Sun Certified System Admin Solaris 8 (2002)', category: 'Sun/Solaris' },
-  { value: 'documents/education/Sun-Certified-System-Admin-Solaris10-2006.pdf', label: 'Sun Certified System Admin Solaris 10 (2006)', category: 'Sun/Solaris' },
-  { value: 'documents/education/Sun-Volume-Manager-StorEdge-2000.pdf', label: 'Sun Volume Manager with StorEdge (2000)', category: 'Sun/Solaris' },
-  { value: 'documents/education/Sun-Cluster-3-Admin-Veritas-2001.pdf', label: 'Sun Cluster 3.0 Admin - Veritas (2001)', category: 'Sun/Solaris' },
-  { value: 'documents/education/Sun-Ultra-Enterprise-10000-Admin-1999.pdf', label: 'Sun Ultra Enterprise 10000 Admin (1999)', category: 'Sun/Solaris' },
-  { value: 'documents/education/Sun-Solaris-26-Update-Seminar-1997.pdf', label: 'Sun Solaris 2.6 Update Seminar (1997)', category: 'Sun/Solaris' },
-
-  // Sequent Certifications (split)
-  { value: 'documents/education/Sequent-DYNIX-ptx-System-Admin-1993.pdf', label: 'Sequent DYNIX/ptx System Admin (1993)', category: 'Other IT' },
-  { value: 'documents/education/Sequent-ptx-SVM-20-Differences-1998.pdf', label: 'Sequent ptx/SVM 2.0 Differences (1998)', category: 'Other IT' },
-
-  // Other IT Certifications
-  { value: 'documents/education/ACE Load Balancer 1999.pdf', label: 'ACE Load Balancer (1999)', category: 'Other IT' },
-  { value: 'documents/education/Checkpoint Firewall 2001.pdf', label: 'Checkpoint Firewall (2001)', category: 'Other IT' },
-  { value: 'documents/education/Legato backup 2002.pdf', label: 'Legato Backup (2002)', category: 'Other IT' },
-  { value: 'documents/education/Veritas Backup 2004.pdf', label: 'Veritas Backup (2004)', category: 'Other IT' },
-];
+// Note: availableDocuments array removed - documents are now stored as references
+// and loaded on-demand from separate encrypted files
 
 export function EducationManagerSecure({ onClose }: EducationManagerSecureProps) {
   const storage = useStorage();
+  const documentService = useDocumentService();
   const [records, setRecords] = useState<EducationRecord[]>([]);
   const [showAddForm, setShowAddForm] = useState(false);
   const [editingRecord, setEditingRecord] = useState<EducationRecord | null>(null);
@@ -79,7 +42,8 @@ export function EducationManagerSecure({ onClose }: EducationManagerSecureProps)
   const [isLoading, setIsLoading] = useState(true);
   const [error, setError] = useState('');
   const [newRecord, setNewRecord] = useState(emptyRecord);
-  const [viewingDocument, setViewingDocument] = useState<MedicalDocument | null>(null);
+  const [viewingDocument, setViewingDocument] = useState<{ docRef: DocumentReference; dataUrl: string } | null>(null);
+  const [loadingDocument, setLoadingDocument] = useState(false);
 
   useEffect(() => {
     loadRecords();
@@ -143,6 +107,16 @@ export function EducationManagerSecure({ onClose }: EducationManagerSecureProps)
   const deleteRecord = async (id: string) => {
     try {
       setError('');
+
+      // Find the record to get its documents
+      const record = records.find(r => r.id === id);
+
+      // Delete associated document files
+      if (record && record.documents && record.documents.length > 0) {
+        await documentService.deleteDocuments('education', record.documents);
+      }
+
+      // Delete the record
       await storage.delete('education_records', id);
       await loadRecords();
       if (expandedRecord === id) setExpandedRecord(null);
@@ -191,12 +165,97 @@ export function EducationManagerSecure({ onClose }: EducationManagerSecureProps)
     }
   };
 
-  const viewFile = (doc: MedicalDocument) => {
-    if (!doc || !doc.fileData) {
-      console.error('No document data available');
+  const handleFileUpload = async (file: File, isEditing: boolean) => {
+    try {
+      setError('');
+
+      // Convert file to base64
+      const reader = new FileReader();
+      reader.onload = async () => {
+        try {
+          const base64 = reader.result as string;
+          const uploadDate = new Date().toISOString();
+
+          // Save document to separate encrypted file
+          const docRef = await documentService.saveDocument('education', file.name, base64, uploadDate);
+
+          if (isEditing && editingRecord) {
+            setEditingRecord({
+              ...editingRecord,
+              documents: [...(editingRecord.documents || []), docRef]
+            });
+          } else {
+            setNewRecord({
+              ...newRecord,
+              documents: [...(newRecord.documents || []), docRef]
+            });
+          }
+        } catch (err) {
+          console.error('Failed to save document:', err);
+          setError('Failed to save document');
+        }
+      };
+      reader.readAsDataURL(file);
+    } catch (err) {
+      console.error('Failed to upload file:', err);
+      setError('Failed to upload document');
+    }
+  };
+
+  const removeDocument = async (index: number, isEditing: boolean) => {
+    try {
+      setError('');
+
+      if (isEditing && editingRecord) {
+        const docs = [...(editingRecord.documents || [])];
+        const docToRemove = docs[index];
+
+        // Delete the document file
+        if (docToRemove) {
+          await documentService.deleteDocument('education', docToRemove);
+        }
+
+        docs.splice(index, 1);
+        setEditingRecord({ ...editingRecord, documents: docs });
+      } else {
+        const docs = [...(newRecord.documents || [])];
+        const docToRemove = docs[index];
+
+        // Delete the document file
+        if (docToRemove) {
+          await documentService.deleteDocument('education', docToRemove);
+        }
+
+        docs.splice(index, 1);
+        setNewRecord({ ...newRecord, documents: docs });
+      }
+    } catch (err) {
+      console.error('Failed to remove document:', err);
+      setError('Failed to remove document');
+    }
+  };
+
+  const viewFile = async (docRef: DocumentReference) => {
+    if (!docRef) {
+      console.error('No document reference available');
+      setError('Document reference is missing');
       return;
     }
-    setViewingDocument(doc);
+
+    try {
+      setLoadingDocument(true);
+      setError('');
+
+      // Load document on-demand from separate encrypted file
+      const dataUrl = await documentService.loadDocument('education', docRef);
+
+      setViewingDocument({ docRef, dataUrl });
+    } catch (err) {
+      console.error('Failed to load document:', err);
+      setError(`Failed to load document: ${err instanceof Error ? err.message : 'Unknown error'}`);
+    } finally {
+      setLoadingDocument(false);
+    }
   };
 
   const counts = {
@@ -340,35 +399,43 @@ export function EducationManagerSecure({ onClose }: EducationManagerSecureProps)
                   </select>
                 </div>
                 <div className="col-span-2">
-                  <label className="block text-sm font-medium text-gray-700 mb-2">Attach Documents (optional) - select all that apply</label>
-                  <div className="max-h-48 overflow-y-auto border border-gray-300 rounded-lg p-3 bg-gray-50">
-                    {['Degrees', 'A/O-Levels', 'Languages', 'Sun/Solaris', 'Other IT'].map(category => {
-                      const docsInCategory = availableDocuments.filter(doc => doc.category === category);
-                      if (docsInCategory.length === 0) return null;
-                      return (
-                        <div key={category} className="mb-3">
-                          <p className="text-xs font-semibold text-gray-600 uppercase mb-1">{category}</p>
-                          {docsInCategory.map((doc) => (
-                            <label key={doc.value} className="flex items-center gap-2 py-1 hover:bg-gray-100 rounded px-2 cursor-pointer">
-                              <input
-                                type="checkbox"
-                                checked={newRecord.documentPaths.includes(doc.value)}
-                                onChange={(e) => {
-                                  if (e.target.checked) {
-                                    setNewRecord({ ...newRecord, documentPaths: [...newRecord.documentPaths, doc.value] });
-                                  } else {
-                                    setNewRecord({ ...newRecord, documentPaths: newRecord.documentPaths.filter(p => p !== doc.value) });
-                                  }
-                                }}
-                                className="rounded border-gray-300"
-                              />
-                              <span className="text-sm text-gray-700">{doc.label}</span>
-                            </label>
-                          ))}
+                  <label className="block text-sm font-medium text-gray-700 mb-2">Documents (optional)</label>
+
+                  {/* Show existing documents */}
+                  {newRecord.documents && newRecord.documents.length > 0 && (
+                    <div className="mb-3 space-y-2">
+                      {newRecord.documents.map((doc, idx) => (
+                        <div key={idx} className="flex items-center justify-between bg-green-50 p-2 rounded">
+                          <div className="flex items-center gap-2">
+                            <FileText className="w-4 h-4 text-green-600" />
+                            <span className="text-sm">{doc.filename}</span>
+                          </div>
+                          <button
+                            type="button"
+                            onClick={() => removeDocument(idx, false)}
+                            className="text-red-600 hover:text-red-700"
+                          >
+                            <Trash className="w-4 h-4" />
+                          </button>
                         </div>
-                      );
-                    })}
-                  </div>
+                      ))}
+                    </div>
+                  )}
+
+                  {/* Upload new document */}
+                  <label className="flex items-center justify-center gap-2 px-4 py-3 border-2 border-dashed border-gray-300 rounded-lg cursor-pointer hover:border-green-500 hover:bg-green-50 transition-colors">
+                    <Upload className="w-4 h-4" />
+                    <span className="text-sm">Upload Document (PDF)</span>
+                    <input
+                      type="file"
+                      accept="application/pdf"
+                      onChange={(e) => {
+                        const file = e.target.files?.[0];
+                        if (file) handleFileUpload(file, false);
+                      }}
+                      className="hidden"
+                    />
+                  </label>
                 </div>
                 <textarea
                   value={newRecord.notes}
@@ -588,41 +655,43 @@ export function EducationManagerSecure({ onClose }: EducationManagerSecureProps)
               </div>
 
               <div>
-                <label className="block text-sm font-medium text-gray-700 mb-2">Attach Documents (optional) - select all that apply</label>
-                <div className="max-h-48 overflow-y-auto border border-gray-300 rounded-lg p-3 bg-gray-50">
-                  {['Degrees', 'A/O-Levels', 'Languages', 'Sun/Solaris', 'Other IT'].map(category => {
-                    const docsInCategory = availableDocuments.filter(doc => doc.category === category);
-                    if (docsInCategory.length === 0) return null;
-                    return (
-                      <div key={category} className="mb-3">
-                        <p className="text-xs font-semibold text-gray-600 uppercase mb-1">{category}</p>
-                        {docsInCategory.map((doc) => (
-                          <label key={doc.value} className="flex items-center gap-2 py-1 hover:bg-gray-100 rounded px-2 cursor-pointer">
-                            <input
-                              type="checkbox"
-                              checked={editingRecord.documentPaths?.includes(doc.value) || false}
-                              onChange={(e) => {
-                                const currentPaths = editingRecord.documentPaths || [];
-                                if (e.target.checked) {
-                                  setEditingRecord({ ...editingRecord, documentPaths: [...currentPaths, doc.value] });
-                                } else {
-                                  setEditingRecord({ ...editingRecord, documentPaths: currentPaths.filter(p => p !== doc.value) });
-                                }
-                              }}
-                              className="rounded border-gray-300"
-                            />
-                            <span className="text-sm text-gray-700">{doc.label}</span>
-                          </label>
-                        ))}
+                <label className="block text-sm font-medium text-gray-700 mb-2">Documents (optional)</label>
+
+                {/* Show existing documents */}
+                {editingRecord.documents && editingRecord.documents.length > 0 && (
+                  <div className="mb-3 space-y-2">
+                    {editingRecord.documents.map((doc, idx) => (
+                      <div key={idx} className="flex items-center justify-between bg-green-50 p-2 rounded">
+                        <div className="flex items-center gap-2">
+                          <FileText className="w-4 h-4 text-green-600" />
+                          <span className="text-sm">{doc.filename}</span>
+                        </div>
+                        <button
+                          type="button"
+                          onClick={() => removeDocument(idx, true)}
+                          className="text-red-600 hover:text-red-700"
+                        >
+                          <Trash className="w-4 h-4" />
+                        </button>
                       </div>
-                    );
-                  })}
-                </div>
-                {editingRecord.documentPaths && editingRecord.documentPaths.length > 0 && (
-                  <div className="mt-2">
-                    <p className="text-xs text-gray-500 mb-1">{editingRecord.documentPaths.length} document(s) attached</p>
+                    ))}
                   </div>
                 )}
+
+                {/* Upload new document */}
+                <label className="flex items-center justify-center gap-2 px-4 py-3 border-2 border-dashed border-gray-300 rounded-lg cursor-pointer hover:border-green-500 hover:bg-green-50 transition-colors">
+                  <Upload className="w-4 h-4" />
+                  <span className="text-sm">Upload Document (PDF)</span>
+                  <input
+                    type="file"
+                    accept="application/pdf"
+                    onChange={(e) => {
+                      const file = e.target.files?.[0];
+                      if (file) handleFileUpload(file, true);
+                    }}
+                    className="hidden"
+                  />
+                </label>
               </div>
 
               <div>
@@ -687,7 +756,7 @@ export function EducationManagerSecure({ onClose }: EducationManagerSecureProps)
             alignItems: 'center',
             background: '#1a1a1a'
           }}>
-            <h3 style={{ color: 'white', margin: 0 }}>{viewingDocument.filename}</h3>
+            <h3 style={{ color: 'white', margin: 0 }}>{viewingDocument.docRef.filename}</h3>
             <button
               onClick={() => setViewingDocument(null)}
               style={{
@@ -705,12 +774,20 @@ export function EducationManagerSecure({ onClose }: EducationManagerSecureProps)
             </button>
           </div>
           <iframe
-            src={viewingDocument.fileData.includes('base64,')
-              ? viewingDocument.fileData
-              : `data:application/pdf;base64,${viewingDocument.fileData}`}
+            src={viewingDocument.dataUrl}
             style={{ flex: 1, border: 'none', width: '100%' }}
-            title={viewingDocument.filename}
+            title={viewingDocument.docRef.filename}
           />
+        </div>
+      )}
+
+      {/* Loading Document Modal */}
+      {loadingDocument && (
+        <div className="fixed inset-0 bg-black/50 flex items-center justify-center z-50">
+          <div className="bg-white rounded-lg p-6 flex items-center gap-3">
+            <div className="animate-spin rounded-full h-6 w-6 border-b-2 border-green-600"></div>
+            <span>Loading document...</span>
+          </div>
         </div>
       )}
     </div>

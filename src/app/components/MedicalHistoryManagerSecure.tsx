@@ -1,12 +1,7 @@
 import { useState, useEffect } from 'react';
 import { X, Plus, Trash, Heart, Calendar, Edit2, Key, FileText, ExternalLink, Hospital, Stethoscope, Search, AlertCircle, Upload } from 'lucide-react';
-import { useStorage } from '../../contexts/StorageContext';
-
-interface MedicalDocument {
-  filename: string;
-  fileData: string; // Base64 encoded document data
-  uploadDate: string;
-}
+import { useStorage, useDocumentService } from '../../contexts/StorageContext';
+import { DocumentReference } from '../../services/document-service';
 
 interface MedicalRecord {
   id: string;
@@ -19,7 +14,7 @@ interface MedicalRecord {
   treatment: string;
   outcome: string;
   attachments: string[]; // Legacy: Filenames only (for backwards compatibility)
-  documents?: MedicalDocument[]; // New: Embedded document data
+  documents?: DocumentReference[]; // Document references (stored separately, loaded on-demand)
 }
 
 interface MedicalHistoryManagerSecureProps {
@@ -41,6 +36,7 @@ const emptyRecord = {
 
 export function MedicalHistoryManagerSecure({ onClose }: MedicalHistoryManagerSecureProps) {
   const storage = useStorage();
+  const documentService = useDocumentService();
   const [records, setRecords] = useState<MedicalRecord[]>([]);
   const [showAddForm, setShowAddForm] = useState(false);
   const [editingRecord, setEditingRecord] = useState<MedicalRecord | null>(null);
@@ -50,7 +46,8 @@ export function MedicalHistoryManagerSecure({ onClose }: MedicalHistoryManagerSe
   const [expandedRecord, setExpandedRecord] = useState<string | null>(null);
   const [scrollPosition, setScrollPosition] = useState(0);
   const [searchQuery, setSearchQuery] = useState('');
-  const [viewingDocument, setViewingDocument] = useState<MedicalDocument | null>(null);
+  const [viewingDocument, setViewingDocument] = useState<{ docRef: DocumentReference; dataUrl: string } | null>(null);
+  const [loadingDocument, setLoadingDocument] = useState(false);
 
   useEffect(() => {
     loadRecords();
@@ -153,6 +150,16 @@ export function MedicalHistoryManagerSecure({ onClose }: MedicalHistoryManagerSe
   const deleteRecord = async (id: string) => {
     try {
       setError('');
+
+      // Find the record to get its documents
+      const record = records.find(r => r.id === id);
+
+      // Delete associated document files
+      if (record && record.documents && record.documents.length > 0) {
+        await documentService.deleteDocuments('medical', record.documents);
+      }
+
+      // Delete the record
       await storage.delete('medical_history', id);
       await loadRecords();
       if (expandedRecord === id) setExpandedRecord(null);
@@ -177,39 +184,57 @@ export function MedicalHistoryManagerSecure({ onClose }: MedicalHistoryManagerSe
     return new Blob([byteArray], { type: mimeType });
   };
 
-  const viewFile = (doc: MedicalDocument) => {
-    if (!doc || !doc.fileData) {
-      console.error('No document data available');
-      setError('Document data is missing');
+  const viewFile = async (docRef: DocumentReference) => {
+    if (!docRef) {
+      console.error('No document reference available');
+      setError('Document reference is missing');
       return;
     }
 
-    // Open in modal viewer instead of new window
-    setViewingDocument(doc);
+    try {
+      setLoadingDocument(true);
+      setError('');
+
+      // Load document on-demand from separate encrypted file
+      const dataUrl = await documentService.loadDocument('medical', docRef);
+
+      setViewingDocument({ docRef, dataUrl });
+    } catch (err) {
+      console.error('Failed to load document:', err);
+      setError(`Failed to load document: ${err instanceof Error ? err.message : 'Unknown error'}`);
+    } finally {
+      setLoadingDocument(false);
+    }
   };
 
   const handleFileUpload = async (file: File, isEditing: boolean) => {
     try {
+      setError('');
+
       // Convert file to base64
       const reader = new FileReader();
-      reader.onload = () => {
-        const base64 = reader.result as string;
-        const newDoc: MedicalDocument = {
-          filename: file.name,
-          fileData: base64,
-          uploadDate: new Date().toISOString()
-        };
+      reader.onload = async () => {
+        try {
+          const base64 = reader.result as string;
+          const uploadDate = new Date().toISOString();
 
-        if (isEditing && editingRecord) {
-          setEditingRecord({
-            ...editingRecord,
-            documents: [...(editingRecord.documents || []), newDoc]
-          });
-        } else {
-          setNewRecord({
-            ...newRecord,
-            documents: [...(newRecord.documents || []), newDoc]
-          });
+          // Save document to separate encrypted file
+          const docRef = await documentService.saveDocument('medical', file.name, base64, uploadDate);
+
+          if (isEditing && editingRecord) {
+            setEditingRecord({
+              ...editingRecord,
+              documents: [...(editingRecord.documents || []), docRef]
+            });
+          } else {
+            setNewRecord({
+              ...newRecord,
+              documents: [...(newRecord.documents || []), docRef]
+            });
+          }
+        } catch (err) {
+          console.error('Failed to save document:', err);
+          setError('Failed to save document');
         }
       };
       reader.readAsDataURL(file);
@@ -219,15 +244,36 @@ export function MedicalHistoryManagerSecure({ onClose }: MedicalHistoryManagerSe
     }
   };
 
-  const removeDocument = (index: number, isEditing: boolean) => {
-    if (isEditing && editingRecord) {
-      const docs = [...(editingRecord.documents || [])];
-      docs.splice(index, 1);
-      setEditingRecord({ ...editingRecord, documents: docs });
-    } else {
-      const docs = [...(newRecord.documents || [])];
-      docs.splice(index, 1);
-      setNewRecord({ ...newRecord, documents: docs });
+  const removeDocument = async (index: number, isEditing: boolean) => {
+    try {
+      setError('');
+
+      if (isEditing && editingRecord) {
+        const docs = [...(editingRecord.documents || [])];
+        const docToRemove = docs[index];
+
+        // Delete the document file
+        if (docToRemove) {
+          await documentService.deleteDocument('medical', docToRemove);
+        }
+
+        docs.splice(index, 1);
+        setEditingRecord({ ...editingRecord, documents: docs });
+      } else {
+        const docs = [...(newRecord.documents || [])];
+        const docToRemove = docs[index];
+
+        // Delete the document file
+        if (docToRemove) {
+          await documentService.deleteDocument('medical', docToRemove);
+        }
+
+        docs.splice(index, 1);
+        setNewRecord({ ...newRecord, documents: docs });
+      }
+    } catch (err) {
+      console.error('Failed to remove document:', err);
+      setError('Failed to remove document');
     }
   };
 
@@ -330,7 +376,7 @@ export function MedicalHistoryManagerSecure({ onClose }: MedicalHistoryManagerSe
 
   return (
     <div className="fixed inset-0 bg-black/50 flex items-center justify-center z-50 p-4">
-      <div className="bg-white rounded-2xl max-w-6xl w-full max-h-[90vh] overflow-hidden flex flex-col">
+      <div className="bg-white rounded-2xl max-w-6xl w-full max-h-[95vh] overflow-hidden flex flex-col">
         <div className="p-6 border-b border-gray-200 bg-gradient-to-r from-red-50 to-pink-50">
           <div className="flex items-center justify-between">
             <div className="flex items-center gap-3">
@@ -363,9 +409,9 @@ export function MedicalHistoryManagerSecure({ onClose }: MedicalHistoryManagerSe
           </div>
         )}
 
-        <div className="p-6 bg-gradient-to-br from-red-50 to-pink-50 border-b border-gray-200">
-          <div className="grid grid-cols-1 md:grid-cols-4 gap-4">
-            <div className="bg-white rounded-xl p-4 shadow-sm">
+        <div className="px-6 py-3 bg-gradient-to-br from-red-50 to-pink-50 border-b border-gray-200">
+          <div className="grid grid-cols-1 md:grid-cols-4 gap-3">
+            <div className="bg-white rounded-lg p-3 shadow-sm">
               <div className="flex items-center gap-3 mb-2">
                 <div className="p-2 bg-red-100 text-red-600 rounded-lg">
                   <Heart className="w-5 h-5" />
@@ -374,7 +420,7 @@ export function MedicalHistoryManagerSecure({ onClose }: MedicalHistoryManagerSe
               </div>
               <p className="text-gray-900">{filteredRecords.length}</p>
             </div>
-            <div className="bg-white rounded-xl p-4 shadow-sm">
+            <div className="bg-white rounded-lg p-3 shadow-sm">
               <div className="flex items-center gap-3 mb-2">
                 <div className="p-2 bg-purple-100 text-purple-600 rounded-lg">
                   <Stethoscope className="w-5 h-5" />
@@ -383,7 +429,7 @@ export function MedicalHistoryManagerSecure({ onClose }: MedicalHistoryManagerSe
               </div>
               <p className="text-gray-900">{specialties.length}</p>
             </div>
-            <div className="bg-white rounded-xl p-4 shadow-sm">
+            <div className="bg-white rounded-lg p-3 shadow-sm">
               <div className="flex items-center gap-3 mb-2">
                 <div className="p-2 bg-blue-100 text-blue-600 rounded-lg">
                   <Hospital className="w-5 h-5" />
@@ -392,19 +438,19 @@ export function MedicalHistoryManagerSecure({ onClose }: MedicalHistoryManagerSe
               </div>
               <p className="text-gray-900">{facilities.length}</p>
             </div>
-            <div className="bg-white rounded-xl p-4 shadow-sm">
+            <div className="bg-white rounded-lg p-3 shadow-sm">
               <div className="flex items-center gap-3 mb-2">
                 <div className="p-2 bg-green-100 text-green-600 rounded-lg">
                   <FileText className="w-5 h-5" />
                 </div>
                 <p className="text-sm text-gray-600">Attachments</p>
               </div>
-              <p className="text-gray-900">{filteredRecords.reduce((sum, r) => sum + r.attachments.length, 0)}</p>
+              <p className="text-gray-900">{filteredRecords.reduce((sum, r) => sum + ((r.documents?.length || 0) + (r.attachments?.length || 0)), 0)}</p>
             </div>
           </div>
         </div>
 
-        <div className="px-6 pt-4 pb-2 border-b border-gray-200">
+        <div className="px-6 py-3 border-b border-gray-200">
           <div className="relative">
             <Search className="absolute left-3 top-1/2 transform -translate-y-1/2 text-gray-400 w-5 h-5" />
             <input
@@ -889,7 +935,7 @@ export function MedicalHistoryManagerSecure({ onClose }: MedicalHistoryManagerSe
           }}
         >
           <div style={{ padding: '20px', display: 'flex', justifyContent: 'space-between', alignItems: 'center', background: '#1a1a1a' }}>
-            <h3 style={{ color: 'white', margin: 0 }}>{viewingDocument.filename}</h3>
+            <h3 style={{ color: 'white', margin: 0 }}>{viewingDocument.docRef.filename}</h3>
             <button
               onClick={() => setViewingDocument(null)}
               style={{ color: 'white', background: '#333', border: 'none', padding: '10px 20px', borderRadius: '4px', cursor: 'pointer' }}
@@ -898,10 +944,20 @@ export function MedicalHistoryManagerSecure({ onClose }: MedicalHistoryManagerSe
             </button>
           </div>
           <iframe
-            src={`data:application/pdf;base64,${viewingDocument.fileData.split(',')[1] || viewingDocument.fileData}`}
+            src={viewingDocument.dataUrl}
             style={{ flex: 1, border: 'none', width: '100%' }}
-            title={viewingDocument.filename}
+            title={viewingDocument.docRef.filename}
           />
+        </div>
+      )}
+
+      {/* Loading Document Modal */}
+      {loadingDocument && (
+        <div className="fixed inset-0 bg-black/50 flex items-center justify-center z-50">
+          <div className="bg-white rounded-lg p-6 flex items-center gap-3">
+            <div className="animate-spin rounded-full h-6 w-6 border-b-2 border-green-600"></div>
+            <span>Loading document...</span>
+          </div>
         </div>
       )}
     </div>

@@ -6,9 +6,11 @@
 
 import { createContext, useContext, ReactNode } from 'react';
 import { StorageService, createStorageService } from '../services/storage';
+import { DocumentService, createDocumentService } from '../services/document-service';
 
 interface StorageContextType {
   storage: StorageService;
+  documentService: DocumentService;
   masterPassword: string;
 }
 
@@ -21,9 +23,10 @@ interface StorageProviderProps {
 
 export function StorageProvider({ masterPassword, children }: StorageProviderProps) {
   const storage = createStorageService(masterPassword);
+  const documentService = createDocumentService(masterPassword);
 
   return (
-    <StorageContext.Provider value={{ storage, masterPassword }}>
+    <StorageContext.Provider value={{ storage, documentService, masterPassword }}>
       {children}
     </StorageContext.Provider>
   );
@@ -38,6 +41,17 @@ export function useStorage(): StorageService {
   }
 
   return context.storage;
+}
+
+// Custom hook to get document service
+export function useDocumentService(): DocumentService {
+  const context = useContext(StorageContext);
+
+  if (!context) {
+    throw new Error('useDocumentService must be used within a StorageProvider');
+  }
+
+  return context.documentService;
 }
 
 // Custom hook to get master password (for backup encryption)
