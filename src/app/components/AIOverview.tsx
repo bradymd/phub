@@ -1,5 +1,6 @@
 import { X, Brain, Sparkles, Calendar } from 'lucide-react';
 import { useEffect, useState } from 'react';
+import { useStorage } from '../../contexts/StorageContext';
 
 interface AIOverviewProps {
   onClose: () => void;
@@ -13,6 +14,7 @@ interface LifeStage {
 }
 
 export function AIOverview({ onClose }: AIOverviewProps) {
+  const storage = useStorage();
   const [insights, setInsights] = useState({
     documentsCount: 0,
     financialAccounts: 0,
@@ -20,25 +22,39 @@ export function AIOverview({ onClose }: AIOverviewProps) {
     contactsCount: 0,
     passwordsCount: 0
   });
+  const [isLoading, setIsLoading] = useState(true);
 
   useEffect(() => {
-    // Gather data from localStorage
-    const certificates = JSON.parse(localStorage.getItem('documents_Certificates') || '[]');
-    const school = JSON.parse(localStorage.getItem('documents_Education') || '[]');
-    const health = JSON.parse(localStorage.getItem('documents_Health') || '[]');
-    const finance = JSON.parse(localStorage.getItem('finance_items') || '[]');
-    const photos = JSON.parse(localStorage.getItem('photos') || '[]');
-    const contacts = JSON.parse(localStorage.getItem('contacts') || '[]');
-    const passwords = JSON.parse(localStorage.getItem('passwords') || '[]');
+    // Gather data from encrypted storage
+    async function loadInsights() {
+      try {
+        setIsLoading(true);
+        const [certificates, education, medical, finance, photos, contacts, passwords] = await Promise.all([
+          storage.get('documents_certificates').catch(() => []),
+          storage.get('education_records').catch(() => []),
+          storage.get('medical_history').catch(() => []),
+          storage.get('finance_items').catch(() => []),
+          storage.get('photos').catch(() => []),
+          storage.get('contacts').catch(() => []),
+          storage.get('virtual_street').catch(() => []),
+        ]);
 
-    setInsights({
-      documentsCount: certificates.length + school.length + health.length,
-      financialAccounts: finance.length,
-      photosCount: photos.length,
-      contactsCount: contacts.length,
-      passwordsCount: passwords.length
-    });
-  }, []);
+        setInsights({
+          documentsCount: certificates.length + education.length + medical.length,
+          financialAccounts: finance.length,
+          photosCount: photos.length,
+          contactsCount: contacts.length,
+          passwordsCount: passwords.length
+        });
+      } catch (err) {
+        console.error('Failed to load insights:', err);
+      } finally {
+        setIsLoading(false);
+      }
+    }
+
+    loadInsights();
+  }, [storage]);
 
   const lifeStages: LifeStage[] = [
     {

@@ -1,52 +1,81 @@
 import { useState, useEffect } from 'react';
-import { X, Plus, Trash, DollarSign, PiggyBank, CreditCard, Key, Edit } from 'lucide-react';
+import { X, Plus, Trash, Wallet, TrendingUp, PiggyBank, Edit2, Search, ExternalLink } from 'lucide-react';
 import { useStorage } from '../../contexts/StorageContext';
 
-interface FinanceItem {
+interface FinanceAccount {
   id: string;
   name: string;
-  type: 'pension' | 'savings' | 'other';
-  amount: string;
-  description: string;
-  date: string;
+  type: 'savings' | 'investment-isa' | 'cash-isa' | 'salary-sacrifice' | 'other';
+  currentValue: string; // Current value (includes growth)
+  contributions: string; // What you put in (for ISAs, counts against allowance)
+  taxYear: string; // e.g., "2024-2025", "2025-2026" (for ISAs)
+  provider: string;
+  accountNumber: string;
+  website: string;
+  monthlyContribution: string; // For salary sacrifice
+  notes: string;
 }
 
 interface FinanceManagerSecureProps {
   onClose: () => void;
 }
 
+const emptyAccount = {
+  name: '',
+  type: 'savings' as const,
+  currentValue: '',
+  contributions: '',
+  taxYear: '2025-2026', // Current tax year
+  provider: '',
+  accountNumber: '',
+  website: '',
+  monthlyContribution: '',
+  notes: ''
+};
+
 export function FinanceManagerSecure({ onClose }: FinanceManagerSecureProps) {
   const storage = useStorage();
-  const [items, setItems] = useState<FinanceItem[]>([]);
+  const [accounts, setAccounts] = useState<FinanceAccount[]>([]);
   const [showAddForm, setShowAddForm] = useState(false);
-  const [showEditForm, setShowEditForm] = useState(false);
-  const [editingItem, setEditingItem] = useState<FinanceItem | null>(null);
+  const [editingAccount, setEditingAccount] = useState<FinanceAccount | null>(null);
   const [isLoading, setIsLoading] = useState(true);
   const [error, setError] = useState('');
-  const [newItem, setNewItem] = useState({
-    name: '',
-    type: 'savings' as 'pension' | 'savings' | 'other',
-    amount: '',
-    description: ''
-  });
+  const [newAccount, setNewAccount] = useState(emptyAccount);
+  const [searchQuery, setSearchQuery] = useState('');
 
   useEffect(() => {
-    loadItems();
+    loadAccounts();
   }, []);
 
-  // Scroll to top when add or edit form opens
   useEffect(() => {
-    if (showAddForm || editingItem) {
+    if (showAddForm) {
       window.scrollTo({ top: 0, behavior: 'smooth' });
     }
-  }, [showAddForm, editingItem]);
+  }, [showAddForm]);
 
-  const loadItems = async () => {
+  const loadAccounts = async () => {
     try {
       setIsLoading(true);
       setError('');
-      const data = await storage.get<FinanceItem>('finance_items');
-      setItems(data);
+      const data = await storage.get<any>('finance_items');
+
+      // Migrate old data format to new format
+      const migratedData = data.map((item: any) => ({
+        id: item.id,
+        name: item.name || '',
+        type: item.type || 'savings',
+        // Map old field names to new ones
+        currentValue: item.currentValue || item.balance || item.amount || '',
+        contributions: item.contributions || item.annualContribution || '',
+        taxYear: item.taxYear || '2024-2025', // Default for old data
+        provider: item.provider || item.description || '',
+        accountNumber: item.accountNumber || '',
+        website: item.website || '',
+        monthlyContribution: item.monthlyContribution || '',
+        notes: item.notes || ''
+      }));
+
+      setAccounts(migratedData);
     } catch (err) {
       setError('Failed to load data');
       console.error(err);
@@ -55,80 +84,132 @@ export function FinanceManagerSecure({ onClose }: FinanceManagerSecureProps) {
     }
   };
 
-  const addItem = async () => {
-    if (!newItem.name.trim()) return;
+  const addAccount = async () => {
+    if (!newAccount.name.trim()) return;
 
     try {
       setError('');
-      const item: FinanceItem = {
+      const account: FinanceAccount = {
         id: Date.now().toString(),
-        ...newItem,
-        date: new Date().toLocaleDateString()
+        ...newAccount
       };
 
-      await storage.add('finance_items', item);
-      await loadItems();
-      setNewItem({ name: '', type: 'savings', amount: '', description: '' });
+      await storage.add('finance_items', account);
+      await loadAccounts();
+      setNewAccount(emptyAccount);
       setShowAddForm(false);
     } catch (err) {
-      setError('Failed to add item');
+      setError('Failed to add account');
       console.error(err);
     }
   };
 
-  const updateItem = async () => {
-    if (!editingItem || !editingItem.name.trim()) return;
+  const updateAccount = async () => {
+    if (!editingAccount || !editingAccount.name.trim()) return;
 
     try {
       setError('');
-      await storage.update('finance_items', editingItem.id, editingItem);
-      await loadItems();
-      setEditingItem(null);
-      setShowEditForm(false);
+      await storage.update('finance_items', editingAccount.id, editingAccount);
+      await loadAccounts();
+      setEditingAccount(null);
     } catch (err) {
-      setError('Failed to update item');
+      setError('Failed to update account');
       console.error(err);
     }
   };
 
-  const deleteItem = async (id: string) => {
+  const deleteAccount = async (id: string) => {
     try {
       setError('');
       await storage.delete('finance_items', id);
-      await loadItems();
+      await loadAccounts();
     } catch (err) {
-      setError('Failed to delete item');
+      setError('Failed to delete account');
       console.error(err);
     }
   };
 
-  const startEdit = (item: FinanceItem) => {
-    setEditingItem({ ...item });
-    setShowEditForm(true);
+  const formatCurrency = (value: string) => {
+    if (!value) return '£0.00';
+    const num = parseFloat(value.replace(/,/g, ''));
+    return isNaN(num) ? value : `£${num.toLocaleString('en-GB', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}`;
   };
 
-  const getIcon = (type: string) => {
+  const getTypeLabel = (type: string) => {
     switch (type) {
-      case 'pension': return CreditCard;
-      case 'savings': return PiggyBank;
-      default: return DollarSign;
+      case 'savings':
+        return 'Savings Account';
+      case 'investment-isa':
+        return 'Investment ISA';
+      case 'cash-isa':
+        return 'Cash ISA';
+      case 'salary-sacrifice':
+        return 'Salary Sacrifice / AVC';
+      default:
+        return 'Other';
     }
   };
 
-  const totalSavings = items
-    .filter(item => item.type === 'savings')
-    .reduce((sum, item) => sum + (parseFloat(item.amount) || 0), 0);
+  const getTypeColor = (type: string) => {
+    switch (type) {
+      case 'savings':
+        return 'bg-blue-50 border-blue-200';
+      case 'investment-isa':
+        return 'bg-green-50 border-green-200';
+      case 'cash-isa':
+        return 'bg-purple-50 border-purple-200';
+      case 'salary-sacrifice':
+        return 'bg-orange-50 border-orange-200';
+      default:
+        return 'bg-gray-50 border-gray-200';
+    }
+  };
 
-  const totalPensions = items
-    .filter(item => item.type === 'pension')
-    .reduce((sum, item) => sum + (parseFloat(item.amount) || 0), 0);
+  const filteredAccounts = accounts.filter(account => {
+    if (!searchQuery) return true;
+    const query = searchQuery.toLowerCase();
+    return (
+      account.name.toLowerCase().includes(query) ||
+      account.provider.toLowerCase().includes(query) ||
+      account.type.toLowerCase().includes(query) ||
+      getTypeLabel(account.type).toLowerCase().includes(query) ||
+      account.notes.toLowerCase().includes(query)
+    );
+  });
+
+  const currentTaxYear = '2025-2026'; // April 2025 to April 2026
+
+  const totalValue = filteredAccounts.reduce((sum, a) => {
+    if (!a.currentValue) return sum;
+    const value = parseFloat(a.currentValue.replace(/,/g, ''));
+    return sum + (isNaN(value) ? 0 : value);
+  }, 0);
+
+  const totalISAValue = filteredAccounts
+    .filter(a => a.type === 'investment-isa' || a.type === 'cash-isa')
+    .reduce((sum, a) => {
+      if (!a.currentValue) return sum;
+      const value = parseFloat(a.currentValue.replace(/,/g, ''));
+      return sum + (isNaN(value) ? 0 : value);
+    }, 0);
+
+  const currentYearISAContributions = filteredAccounts
+    .filter(a => (a.type === 'investment-isa' || a.type === 'cash-isa') && a.taxYear === currentTaxYear)
+    .reduce((sum, a) => {
+      if (!a.contributions) return sum;
+      const value = parseFloat(a.contributions.replace(/,/g, ''));
+      return sum + (isNaN(value) ? 0 : value);
+    }, 0);
+
+  const isaAllowance = 20000;
+  const isaRemaining = isaAllowance - currentYearISAContributions;
 
   if (isLoading) {
     return (
       <div className="fixed inset-0 bg-black/50 flex items-center justify-center z-50">
         <div className="bg-white rounded-2xl p-8 text-center">
           <div className="animate-spin rounded-full h-12 w-12 border-b-2 border-blue-600 mx-auto mb-4"></div>
-          <p className="text-gray-600">Decrypting your financial data...</p>
+          <p className="text-gray-600">Decrypting your finance data...</p>
         </div>
       </div>
     );
@@ -136,27 +217,23 @@ export function FinanceManagerSecure({ onClose }: FinanceManagerSecureProps) {
 
   return (
     <div className="fixed inset-0 bg-black/50 flex items-center justify-center z-50 p-4">
-      <div className="bg-white rounded-2xl max-w-4xl w-full max-h-[90vh] overflow-hidden flex flex-col">
-        <div className="p-6 border-b border-gray-200 bg-gradient-to-r from-green-50 to-blue-50">
-          <div className="flex items-center justify-between">
-            <div className="flex items-center gap-3">
-              <div className="p-3 bg-gradient-to-br from-green-600 to-blue-600 text-white rounded-xl relative">
-                <DollarSign className="w-6 h-6" />
-                <div className="absolute -top-1 -right-1 bg-green-500 rounded-full p-1">
-                  <Key className="w-3 h-3 text-white" />
-                </div>
-              </div>
-              <div>
-                <h2 className="text-gray-900 flex items-center gap-2">
-                  Finance
-                  <span className="text-xs px-2 py-1 bg-green-100 text-green-700 rounded-full">Encrypted</span>
-                </h2>
-                <p className="text-sm text-gray-500 mt-1">Track your savings, pensions, and financial accounts</p>
-              </div>
-            </div>
+      <div className="bg-white rounded-2xl w-full max-w-6xl h-[90vh] flex flex-col shadow-2xl">
+        <div className="p-6 border-b border-gray-200 flex items-center justify-between bg-gradient-to-r from-blue-600 to-purple-600 text-white rounded-t-2xl">
+          <div className="flex items-center gap-3">
+            <Wallet className="w-6 h-6" />
+            <h2 className="text-xl font-semibold">Finance Manager</h2>
+          </div>
+          <div className="flex items-center gap-2">
+            <button
+              onClick={() => setShowAddForm(!showAddForm)}
+              className="flex items-center gap-2 px-4 py-2 bg-white text-blue-600 rounded-lg hover:bg-blue-50 transition-colors"
+            >
+              <Plus className="w-4 h-4" />
+              Add Account
+            </button>
             <button
               onClick={onClose}
-              className="p-2 hover:bg-white rounded-lg transition-colors"
+              className="p-2 hover:bg-blue-700 rounded-lg transition-colors"
             >
               <X className="w-5 h-5" />
             </button>
@@ -170,72 +247,186 @@ export function FinanceManagerSecure({ onClose }: FinanceManagerSecureProps) {
         )}
 
         <div className="p-6 bg-gradient-to-br from-blue-50 to-purple-50 border-b border-gray-200">
-          <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-            <div className="bg-white rounded-xl p-4 shadow-sm">
+          <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-4">
+            <div className="bg-gradient-to-br from-blue-600 to-purple-600 text-white rounded-xl p-4 shadow-lg">
               <div className="flex items-center gap-3 mb-2">
-                <div className="p-2 bg-green-100 text-green-600 rounded-lg">
-                  <PiggyBank className="w-5 h-5" />
+                <div className="p-2 bg-white/20 rounded-lg">
+                  <TrendingUp className="w-5 h-5" />
                 </div>
-                <p className="text-sm text-gray-600">Total Savings</p>
+                <p className="text-sm text-white/90">Total Net Worth</p>
               </div>
-              <p className="text-gray-900">${totalSavings.toLocaleString()}</p>
+              <p className="text-3xl font-bold">
+                {formatCurrency(totalValue.toString())}
+              </p>
+              <p className="text-xs text-white/80 mt-1">{filteredAccounts.length} accounts</p>
             </div>
             <div className="bg-white rounded-xl p-4 shadow-sm">
               <div className="flex items-center gap-3 mb-2">
                 <div className="p-2 bg-blue-100 text-blue-600 rounded-lg">
-                  <CreditCard className="w-5 h-5" />
+                  <Wallet className="w-5 h-5" />
                 </div>
-                <p className="text-sm text-gray-600">Total Pensions</p>
+                <p className="text-sm text-gray-600">Total ISA Value</p>
               </div>
-              <p className="text-gray-900">${totalPensions.toLocaleString()}</p>
+              <p className="text-2xl font-semibold text-gray-900">
+                {formatCurrency(totalISAValue.toString())}
+              </p>
+              <p className="text-xs text-gray-500 mt-1">{filteredAccounts.filter(a => a.type === 'investment-isa' || a.type === 'cash-isa').length} ISAs</p>
+            </div>
+            <div className="bg-white rounded-xl p-4 shadow-sm">
+              <div className="flex items-center gap-3 mb-2">
+                <div className="p-2 bg-green-100 text-green-600 rounded-lg">
+                  <TrendingUp className="w-5 h-5" />
+                </div>
+                <p className="text-sm text-gray-600">Contributed {currentTaxYear}</p>
+              </div>
+              <p className="text-2xl font-semibold text-gray-900">
+                {formatCurrency(currentYearISAContributions.toString())}
+              </p>
+              <p className="text-xs text-gray-500 mt-1">of £20,000 allowance</p>
+            </div>
+            <div className="bg-white rounded-xl p-4 shadow-sm">
+              <div className="flex items-center gap-3 mb-2">
+                <div className="p-2 bg-purple-100 text-purple-600 rounded-lg">
+                  <PiggyBank className="w-5 h-5" />
+                </div>
+                <p className="text-sm text-gray-600">Allowance Remaining</p>
+              </div>
+              <p className="text-2xl font-semibold text-gray-900">
+                {formatCurrency(isaRemaining.toString())}
+              </p>
+              <p className="text-xs text-gray-500 mt-1">{((currentYearISAContributions / isaAllowance) * 100).toFixed(1)}% used</p>
             </div>
           </div>
         </div>
 
+        <div className="px-6 pt-4 pb-2 border-b border-gray-200">
+          <div className="relative">
+            <Search className="absolute left-3 top-1/2 transform -translate-y-1/2 text-gray-400 w-5 h-5" />
+            <input
+              type="text"
+              placeholder="Search accounts..."
+              value={searchQuery}
+              onChange={(e) => setSearchQuery(e.target.value)}
+              className="w-full pl-10 pr-4 py-2 border border-gray-300 rounded-lg bg-white focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-transparent"
+            />
+            {searchQuery && (
+              <button
+                onClick={() => setSearchQuery('')}
+                className="absolute right-3 top-1/2 transform -translate-y-1/2 text-gray-400 hover:text-gray-600"
+              >
+                <X className="w-4 h-4" />
+              </button>
+            )}
+          </div>
+        </div>
+
         <div className="flex-1 overflow-y-auto p-6">
-          {showAddForm ? (
-            <div className="mb-6 p-4 bg-gradient-to-br from-blue-50 to-purple-50 rounded-xl border-2 border-blue-200">
-              <h3 className="mb-3">Add New Item</h3>
-              <div className="space-y-3">
-                <input
-                  type="text"
-                  value={newItem.name}
-                  onChange={(e) => setNewItem({ ...newItem, name: e.target.value })}
-                  placeholder="Account name..."
-                  className="w-full px-4 py-2 border border-gray-300 rounded-lg bg-white"
-                />
-                <select
-                  value={newItem.type}
-                  onChange={(e) => setNewItem({ ...newItem, type: e.target.value as any })}
-                  className="w-full px-4 py-2 border border-gray-300 rounded-lg bg-white"
-                >
-                  <option value="savings">Savings</option>
-                  <option value="pension">Pension</option>
-                  <option value="other">Other</option>
-                </select>
-                <input
-                  type="number"
-                  value={newItem.amount}
-                  onChange={(e) => setNewItem({ ...newItem, amount: e.target.value })}
-                  placeholder="Amount..."
-                  className="w-full px-4 py-2 border border-gray-300 rounded-lg bg-white"
-                />
-                <input
-                  type="text"
-                  value={newItem.description}
-                  onChange={(e) => setNewItem({ ...newItem, description: e.target.value })}
-                  placeholder="Description (optional)..."
-                  className="w-full px-4 py-2 border border-gray-300 rounded-lg bg-white"
-                />
-                <div className="flex items-center gap-2">
-                  <button
-                    onClick={addItem}
-                    className="px-4 py-2 bg-blue-600 text-white rounded-lg hover:bg-blue-700 transition-colors"
+          {showAddForm && (
+            <div className="mb-6 p-6 rounded-xl bg-gradient-to-br from-blue-50 to-purple-50 border-2 border-blue-200">
+              <h3 className="mb-4 text-lg font-semibold text-gray-900">Add Account</h3>
+              <div className="space-y-4">
+                <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                  <input
+                    type="text"
+                    value={newAccount.name}
+                    onChange={(e) => setNewAccount({ ...newAccount, name: e.target.value })}
+                    placeholder="Account name..."
+                    className="px-4 py-2 border border-gray-300 rounded-lg bg-white"
+                  />
+                  <select
+                    value={newAccount.type}
+                    onChange={(e) => setNewAccount({ ...newAccount, type: e.target.value as any })}
+                    className="px-4 py-2 border border-gray-300 rounded-lg bg-white"
                   >
-                    Add Item
+                    <option value="savings">Savings Account</option>
+                    <option value="investment-isa">Investment ISA</option>
+                    <option value="cash-isa">Cash ISA</option>
+                    <option value="salary-sacrifice">Salary Sacrifice / AVC</option>
+                    <option value="other">Other</option>
+                  </select>
+                </div>
+                <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                  <input
+                    type="text"
+                    value={newAccount.currentValue}
+                    onChange={(e) => setNewAccount({ ...newAccount, currentValue: e.target.value })}
+                    placeholder="Current value (£)..."
+                    className="px-4 py-2 border border-gray-300 rounded-lg bg-white"
+                  />
+                  {(newAccount.type === 'investment-isa' || newAccount.type === 'cash-isa') && (
+                    <input
+                      type="text"
+                      value={newAccount.contributions}
+                      onChange={(e) => setNewAccount({ ...newAccount, contributions: e.target.value })}
+                      placeholder="Contributions (what you put in)..."
+                      className="px-4 py-2 border border-gray-300 rounded-lg bg-white"
+                    />
+                  )}
+                  {newAccount.type === 'salary-sacrifice' && (
+                    <input
+                      type="text"
+                      value={newAccount.monthlyContribution}
+                      onChange={(e) => setNewAccount({ ...newAccount, monthlyContribution: e.target.value })}
+                      placeholder="Monthly contribution (£)..."
+                      className="px-4 py-2 border border-gray-300 rounded-lg bg-white"
+                    />
+                  )}
+                </div>
+                {(newAccount.type === 'investment-isa' || newAccount.type === 'cash-isa') && (
+                  <select
+                    value={newAccount.taxYear}
+                    onChange={(e) => setNewAccount({ ...newAccount, taxYear: e.target.value })}
+                    className="px-4 py-2 border border-gray-300 rounded-lg bg-white"
+                  >
+                    <option value="2025-2026">2025-2026 Tax Year (Current)</option>
+                    <option value="2024-2025">2024-2025 Tax Year</option>
+                    <option value="2023-2024">2023-2024 Tax Year</option>
+                    <option value="2022-2023">2022-2023 Tax Year</option>
+                    <option value="2021-2022">2021-2022 Tax Year</option>
+                  </select>
+                )}
+                <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                  <input
+                    type="text"
+                    value={newAccount.provider}
+                    onChange={(e) => setNewAccount({ ...newAccount, provider: e.target.value })}
+                    placeholder="Provider (e.g., Trading212, Barclays)..."
+                    className="px-4 py-2 border border-gray-300 rounded-lg bg-white"
+                  />
+                  <input
+                    type="text"
+                    value={newAccount.accountNumber}
+                    onChange={(e) => setNewAccount({ ...newAccount, accountNumber: e.target.value })}
+                    placeholder="Account number - optional..."
+                    className="px-4 py-2 border border-gray-300 rounded-lg bg-white"
+                  />
+                </div>
+                <input
+                  type="text"
+                  value={newAccount.website}
+                  onChange={(e) => setNewAccount({ ...newAccount, website: e.target.value })}
+                  placeholder="Website URL - optional..."
+                  className="px-4 py-2 border border-gray-300 rounded-lg bg-white"
+                />
+                <textarea
+                  value={newAccount.notes}
+                  onChange={(e) => setNewAccount({ ...newAccount, notes: e.target.value })}
+                  placeholder="Notes (optional)..."
+                  className="w-full px-4 py-2 border border-gray-300 rounded-lg bg-white resize-none"
+                  rows={2}
+                />
+                <div className="flex gap-2">
+                  <button
+                    onClick={addAccount}
+                    className="flex-1 px-4 py-2 bg-blue-600 text-white rounded-lg hover:bg-blue-700 transition-colors"
+                  >
+                    Add Account
                   </button>
                   <button
-                    onClick={() => setShowAddForm(false)}
+                    onClick={() => {
+                      setShowAddForm(false);
+                      setNewAccount(emptyAccount);
+                    }}
                     className="px-4 py-2 bg-gray-200 text-gray-700 rounded-lg hover:bg-gray-300 transition-colors"
                   >
                     Cancel
@@ -243,126 +434,243 @@ export function FinanceManagerSecure({ onClose }: FinanceManagerSecureProps) {
                 </div>
               </div>
             </div>
-          ) : showEditForm && editingItem ? (
-            <div className="mb-6 p-4 bg-gradient-to-br from-green-50 to-blue-50 rounded-xl border-2 border-green-200">
-              <h3 className="mb-3 flex items-center gap-2">
-                <Edit className="w-5 h-5 text-green-600" />
-                Edit Item
-              </h3>
-              <div className="space-y-3">
-                <input
-                  type="text"
-                  value={editingItem.name}
-                  onChange={(e) => setEditingItem({ ...editingItem, name: e.target.value })}
-                  placeholder="Account name..."
-                  className="w-full px-4 py-2 border border-gray-300 rounded-lg bg-white"
-                />
-                <select
-                  value={editingItem.type}
-                  onChange={(e) => setEditingItem({ ...editingItem, type: e.target.value as any })}
-                  className="w-full px-4 py-2 border border-gray-300 rounded-lg bg-white"
-                >
-                  <option value="savings">Savings</option>
-                  <option value="pension">Pension</option>
-                  <option value="other">Other</option>
-                </select>
-                <input
-                  type="number"
-                  value={editingItem.amount}
-                  onChange={(e) => setEditingItem({ ...editingItem, amount: e.target.value })}
-                  placeholder="Amount..."
-                  className="w-full px-4 py-2 border border-gray-300 rounded-lg bg-white"
-                />
-                <input
-                  type="text"
-                  value={editingItem.description}
-                  onChange={(e) => setEditingItem({ ...editingItem, description: e.target.value })}
-                  placeholder="Description (optional)..."
-                  className="w-full px-4 py-2 border border-gray-300 rounded-lg bg-white"
-                />
-                <div className="flex items-center justify-between w-full">
-                  <div className="flex items-center gap-2">
-                    <button
-                      onClick={updateItem}
-                      className="px-4 py-2 bg-green-600 text-white rounded-lg hover:bg-green-700 transition-colors"
-                    >
-                      Save Changes
-                    </button>
-                    <button
-                      onClick={() => {
-                        setShowEditForm(false);
-                        setEditingItem(null);
-                      }}
-                      className="px-4 py-2 bg-gray-200 text-gray-700 rounded-lg hover:bg-gray-300 transition-colors"
-                    >
-                      Cancel
-                    </button>
-                  </div>
-                  <button
-                    onClick={() => {
-                      if (window.confirm('Are you sure you want to delete this item? This cannot be undone.')) {
-                        deleteItem(editingItem.id);
-                        setShowEditForm(false);
-                        setEditingItem(null);
-                      }
-                    }}
-                    className="px-4 py-2 bg-red-600 text-white rounded-lg hover:bg-red-700 transition-colors flex items-center gap-2"
-                  >
-                    <Trash className="w-4 h-4" />
-                    Delete
-                  </button>
-                </div>
-              </div>
-            </div>
-          ) : (
-            <button
-              onClick={() => setShowAddForm(true)}
-              className="w-full mb-6 p-4 border-2 border-dashed border-gray-300 rounded-xl hover:border-blue-400 hover:bg-blue-50 transition-all flex items-center justify-center gap-2 text-gray-600 hover:text-blue-600"
-            >
-              <Plus className="w-5 h-5" />
-              Add Financial Account
-            </button>
           )}
 
-          <div className="space-y-3">
-            {items.map((item) => {
-              const Icon = getIcon(item.type);
-              return (
+          <div className="space-y-4">
+            {filteredAccounts.length === 0 ? (
+              <div className="text-center py-12 text-gray-400">
+                <Wallet className="w-12 h-12 mx-auto mb-3 opacity-50" />
+                <p>No accounts yet</p>
+                <p className="text-sm mt-2">Start tracking your savings and investments</p>
+              </div>
+            ) : (
+              filteredAccounts.map((account) => (
                 <div
-                  key={item.id}
-                  className="flex items-center justify-between p-4 bg-gray-50 rounded-xl hover:bg-gray-100 transition-colors"
+                  key={account.id}
+                  className={`rounded-xl p-5 border-2 ${getTypeColor(account.type)} hover:shadow-md transition-all`}
                 >
-                  <div className="flex items-center gap-3 flex-1">
-                    <div className="p-2 bg-blue-100 text-blue-600 rounded-lg">
-                      <Icon className="w-5 h-5" />
+                  {editingAccount?.id === account.id ? (
+                    <div className="space-y-4">
+                      <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                        <div>
+                          <label className="block text-sm font-medium text-gray-700 mb-1">Account Name</label>
+                          <input
+                            type="text"
+                            value={editingAccount.name}
+                            onChange={(e) => setEditingAccount({ ...editingAccount, name: e.target.value })}
+                            placeholder="Account name..."
+                            className="w-full px-4 py-2 border border-gray-300 rounded-lg bg-white"
+                          />
+                        </div>
+                        <div>
+                          <label className="block text-sm font-medium text-gray-700 mb-1">Account Type</label>
+                          <select
+                            value={editingAccount.type}
+                            onChange={(e) => setEditingAccount({ ...editingAccount, type: e.target.value as any })}
+                            className="w-full px-4 py-2 border border-gray-300 rounded-lg bg-white"
+                          >
+                            <option value="savings">Savings Account</option>
+                            <option value="investment-isa">Investment ISA</option>
+                            <option value="cash-isa">Cash ISA</option>
+                            <option value="salary-sacrifice">Salary Sacrifice / AVC</option>
+                            <option value="other">Other</option>
+                          </select>
+                        </div>
+                      </div>
+                      <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                        <div>
+                          <label className="block text-sm font-medium text-gray-700 mb-1">Current Value (£)</label>
+                          <input
+                            type="text"
+                            value={editingAccount.currentValue}
+                            onChange={(e) => setEditingAccount({ ...editingAccount, currentValue: e.target.value })}
+                            placeholder="Current value (£)..."
+                            className="w-full px-4 py-2 border border-gray-300 rounded-lg bg-white"
+                          />
+                        </div>
+                        {(editingAccount.type === 'investment-isa' || editingAccount.type === 'cash-isa') && (
+                          <div>
+                            <label className="block text-sm font-medium text-gray-700 mb-1">Contributions (£)</label>
+                            <input
+                              type="text"
+                              value={editingAccount.contributions}
+                              onChange={(e) => setEditingAccount({ ...editingAccount, contributions: e.target.value })}
+                              placeholder="Contributions (what you put in)..."
+                              className="w-full px-4 py-2 border border-gray-300 rounded-lg bg-white"
+                            />
+                          </div>
+                        )}
+                        {editingAccount.type === 'salary-sacrifice' && (
+                          <div>
+                            <label className="block text-sm font-medium text-gray-700 mb-1">Monthly Contribution (£)</label>
+                            <input
+                              type="text"
+                              value={editingAccount.monthlyContribution}
+                              onChange={(e) => setEditingAccount({ ...editingAccount, monthlyContribution: e.target.value })}
+                              placeholder="Monthly contribution (£)..."
+                              className="w-full px-4 py-2 border border-gray-300 rounded-lg bg-white"
+                            />
+                          </div>
+                        )}
+                      </div>
+                      {(editingAccount.type === 'investment-isa' || editingAccount.type === 'cash-isa') && (
+                        <div>
+                          <label className="block text-sm font-medium text-gray-700 mb-1">Tax Year</label>
+                          <select
+                            value={editingAccount.taxYear}
+                            onChange={(e) => setEditingAccount({ ...editingAccount, taxYear: e.target.value })}
+                            className="w-full px-4 py-2 border border-gray-300 rounded-lg bg-white"
+                          >
+                            <option value="2025-2026">2025-2026 Tax Year (Current)</option>
+                            <option value="2024-2025">2024-2025 Tax Year</option>
+                            <option value="2023-2024">2023-2024 Tax Year</option>
+                            <option value="2022-2023">2022-2023 Tax Year</option>
+                            <option value="2021-2022">2021-2022 Tax Year</option>
+                          </select>
+                        </div>
+                      )}
+                      <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                        <div>
+                          <label className="block text-sm font-medium text-gray-700 mb-1">Provider</label>
+                          <input
+                            type="text"
+                            value={editingAccount.provider}
+                            onChange={(e) => setEditingAccount({ ...editingAccount, provider: e.target.value })}
+                            placeholder="Provider..."
+                            className="w-full px-4 py-2 border border-gray-300 rounded-lg bg-white"
+                          />
+                        </div>
+                        <div>
+                          <label className="block text-sm font-medium text-gray-700 mb-1">Account Number</label>
+                          <input
+                            type="text"
+                            value={editingAccount.accountNumber}
+                            onChange={(e) => setEditingAccount({ ...editingAccount, accountNumber: e.target.value })}
+                            placeholder="Account number..."
+                            className="w-full px-4 py-2 border border-gray-300 rounded-lg bg-white"
+                          />
+                        </div>
+                      </div>
+                      <div>
+                        <label className="block text-sm font-medium text-gray-700 mb-1">Website URL</label>
+                        <input
+                          type="text"
+                          value={editingAccount.website}
+                          onChange={(e) => setEditingAccount({ ...editingAccount, website: e.target.value })}
+                          placeholder="Website URL..."
+                          className="w-full px-4 py-2 border border-gray-300 rounded-lg bg-white"
+                        />
+                      </div>
+                      <div>
+                        <label className="block text-sm font-medium text-gray-700 mb-1">Notes</label>
+                        <textarea
+                          value={editingAccount.notes}
+                          onChange={(e) => setEditingAccount({ ...editingAccount, notes: e.target.value })}
+                          placeholder="Notes..."
+                          className="w-full px-4 py-2 border border-gray-300 rounded-lg bg-white resize-none"
+                          rows={2}
+                        />
+                      </div>
+                      <div className="flex gap-2">
+                        <button
+                          onClick={updateAccount}
+                          className="flex-1 px-4 py-2 bg-blue-600 text-white rounded-lg hover:bg-blue-700 transition-colors"
+                        >
+                          Save Changes
+                        </button>
+                        <button
+                          onClick={() => setEditingAccount(null)}
+                          className="px-4 py-2 bg-gray-200 text-gray-700 rounded-lg hover:bg-gray-300 transition-colors"
+                        >
+                          Cancel
+                        </button>
+                      </div>
                     </div>
+                  ) : (
                     <div>
-                      <p className="text-gray-900">{item.name}</p>
-                      <p className="text-sm text-gray-500">
-                        {item.type.charAt(0).toUpperCase() + item.type.slice(1)} • ${parseFloat(item.amount).toLocaleString()}
-                      </p>
-                      {item.description && (
-                        <p className="text-sm text-gray-400 mt-1">{item.description}</p>
+                      <div className="flex items-start justify-between mb-3">
+                        <div className="flex-1">
+                          <div className="flex items-center gap-2 mb-2">
+                            <h3 className="font-semibold text-gray-900 text-lg">{account.name}</h3>
+                            <span className="px-2 py-1 rounded-full text-xs font-semibold bg-white">
+                              {getTypeLabel(account.type)}
+                            </span>
+                          </div>
+                          {account.provider && (
+                            <p className="text-sm text-gray-600 mb-2">{account.provider}</p>
+                          )}
+                          {account.accountNumber && (
+                            <p className="text-xs text-gray-500 mb-2">Account: {account.accountNumber}</p>
+                          )}
+                          {account.website && (
+                            <a
+                              href={account.website}
+                              target="_blank"
+                              rel="noopener noreferrer"
+                              className="text-xs text-blue-600 hover:text-blue-800 flex items-center gap-1 mb-2"
+                            >
+                              <ExternalLink className="w-3 h-3" />
+                              Visit website
+                            </a>
+                          )}
+                        </div>
+                        <div className="flex gap-2">
+                          <button
+                            onClick={() => setEditingAccount(account)}
+                            className="p-2 hover:bg-white rounded-lg transition-colors"
+                          >
+                            <Edit2 className="w-4 h-4 text-gray-600" />
+                          </button>
+                          <button
+                            onClick={() => deleteAccount(account.id)}
+                            className="p-2 hover:bg-red-100 rounded-lg transition-colors"
+                          >
+                            <Trash className="w-4 h-4 text-red-600" />
+                          </button>
+                        </div>
+                      </div>
+
+                      <div className="grid grid-cols-2 gap-4">
+                        {account.currentValue && (
+                          <div className="bg-white rounded-lg p-3">
+                            <p className="text-xs text-gray-500 mb-1">Current Value</p>
+                            <p className="text-lg font-semibold text-blue-600">
+                              {formatCurrency(account.currentValue)}
+                            </p>
+                          </div>
+                        )}
+                        {(account.type === 'investment-isa' || account.type === 'cash-isa') && account.contributions && (
+                          <div className="bg-white rounded-lg p-3">
+                            <p className="text-xs text-gray-500 mb-1">Contributions</p>
+                            <p className="text-lg font-semibold text-green-600">
+                              {formatCurrency(account.contributions)}
+                            </p>
+                            {account.taxYear && (
+                              <p className="text-xs text-gray-500 mt-1">{account.taxYear}</p>
+                            )}
+                          </div>
+                        )}
+                        {account.type === 'salary-sacrifice' && account.monthlyContribution && (
+                          <div className="bg-white rounded-lg p-3">
+                            <p className="text-xs text-gray-500 mb-1">Monthly Contribution</p>
+                            <p className="text-lg font-semibold text-green-600">
+                              {formatCurrency(account.monthlyContribution)}
+                            </p>
+                          </div>
+                        )}
+                      </div>
+
+                      {account.notes && (
+                        <div className="bg-white rounded-lg p-3 mt-3">
+                          <p className="text-xs text-gray-500 mb-1">Notes</p>
+                          <p className="text-sm text-gray-700 whitespace-pre-wrap">{account.notes}</p>
+                        </div>
                       )}
                     </div>
-                  </div>
-                  <div className="flex items-center gap-2">
-                    <button
-                      onClick={() => startEdit(item)}
-                      className="p-2 hover:bg-white rounded-lg transition-colors text-blue-600"
-                    >
-                      <Edit className="w-4 h-4" />
-                    </button>
-                    <button
-                      onClick={() => deleteItem(item.id)}
-                      className="p-2 hover:bg-white rounded-lg transition-colors text-red-600"
-                    >
-                      <Trash className="w-4 h-4" />
-                    </button>
-                  </div>
+                  )}
                 </div>
-              );
-            })}
+              ))
+            )}
           </div>
         </div>
       </div>

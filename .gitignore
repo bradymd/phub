@@ -5,12 +5,58 @@ dist
 .env
 .vite
 
-# Sensitive data files
+# Tauri build artifacts
+src-tauri/target
+
+# Claude/session files
+.claude/settings.local.json
+NEXT_SESSION.md
+SESSION_SUMMARY.md
+MIGRATION_GUIDE.md
+TAURI_MIGRATION_PLAN.md
+
+# Sensitive data files - Documents and certificates
 *.csv
+*.xlsx
+*.xls
+*.docx
+*.doc
+*.odt
+*.pdf
 *.json.backup
 *.backup
-import.html
 passwords.txt
 credentials.txt
-imported-websites.json
+OneDrive_*.zip
 output.csv
+Addresses.xlsx
+CV_JUNE_*.docx
+CV_JUNE_*.odt
+
+# User data directories
+public/medical/
+public/documents/
+public/thumbnails/
+public/IMG_*
+
+# Imported data files (contain personal information)
+public/imported-*.json
+imported-*.json
+
+# Debug and development HTML files (moved to scripts/dev/)
+public/*.html
+!public/index.html
+import*.html
+debug*.html
+check-storage.html
+migrate*.html
+test*.html
+
+# Development scripts (moved to scripts/dev/)
+*.cjs
+!scripts/**/*.cjs
+
+# Personal data exports
+birth.pdf
+driving.pdf
+marriage.pdf

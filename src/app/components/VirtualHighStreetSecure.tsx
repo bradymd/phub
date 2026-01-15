@@ -1,5 +1,5 @@
 import { useState, useEffect } from 'react';
-import { X, Plus, Trash, Eye, EyeOff, Store, Grid3x3, List, Download, Upload, Key, RefreshCw, Copy, Check, Edit, Search, Filter, CheckSquare, Square } from 'lucide-react';
+import { X, Plus, Trash, Eye, EyeOff, Store, Grid3x3, List, Download, Upload, Key, RefreshCw, Copy, Check, Edit, Search, Filter, CheckSquare, Square, ArrowUpDown } from 'lucide-react';
 import { generatePassword, calculatePasswordStrength, getPasswordStrengthLabel, getPasswordStrengthColor } from '../../utils/crypto';
 import { useStorage } from '../../contexts/StorageContext';
 
@@ -53,6 +53,7 @@ export function VirtualHighStreetSecure({ onClose }: VirtualHighStreetSecureProp
   const [error, setError] = useState('');
   const [searchQuery, setSearchQuery] = useState('');
   const [filterCategory, setFilterCategory] = useState('all');
+  const [sortBy, setSortBy] = useState<'name-asc' | 'name-desc' | 'date-asc' | 'date-desc'>('name-asc');
   const [selectionMode, setSelectionMode] = useState(false);
   const [selectedIds, setSelectedIds] = useState<Set<string>>(new Set());
   const [newEntry, setNewEntry] = useState({
@@ -345,26 +346,41 @@ export function VirtualHighStreetSecure({ onClose }: VirtualHighStreetSecureProp
     return name.split(' ').map(word => word[0]).join('').toUpperCase().slice(0, 2);
   };
 
-  // Filter entries based on search and category
-  const filteredEntries = (Array.isArray(entries) ? entries : []).filter(entry => {
-    // Category filter
-    if (filterCategory !== 'all' && entry.category !== filterCategory) {
-      return false;
-    }
+  // Filter and sort entries based on search, category, and sort option
+  const filteredEntries = (Array.isArray(entries) ? entries : [])
+    .filter(entry => {
+      // Category filter
+      if (filterCategory !== 'all' && entry.category !== filterCategory) {
+        return false;
+      }
 
-    // Search filter
-    if (searchQuery.trim()) {
-      const query = searchQuery.toLowerCase();
-      return (
-        entry.name.toLowerCase().includes(query) ||
-        entry.url.toLowerCase().includes(query) ||
-        entry.username.toLowerCase().includes(query) ||
-        entry.notes.toLowerCase().includes(query)
-      );
-    }
+      // Search filter
+      if (searchQuery.trim()) {
+        const query = searchQuery.toLowerCase();
+        return (
+          entry.name.toLowerCase().includes(query) ||
+          entry.url.toLowerCase().includes(query) ||
+          entry.username.toLowerCase().includes(query) ||
+          entry.notes.toLowerCase().includes(query)
+        );
+      }
 
-    return true;
-  });
+      return true;
+    })
+    .sort((a, b) => {
+      switch (sortBy) {
+        case 'name-asc':
+          return a.name.toLowerCase().localeCompare(b.name.toLowerCase());
+        case 'name-desc':
+          return b.name.toLowerCase().localeCompare(a.name.toLowerCase());
+        case 'date-asc':
+          return parseInt(a.id) - parseInt(b.id); // Older first (smaller ID)
+        case 'date-desc':
+          return parseInt(b.id) - parseInt(a.id); // Newer first (larger ID)
+        default:
+          return 0;
+      }
+    });
 
   if (isLoading) {
     return (
@@ -547,6 +563,21 @@ export function VirtualHighStreetSecure({ onClose }: VirtualHighStreetSecureProp
                     {categories.map(cat => (
                       <option key={cat.id} value={cat.id}>{cat.name}</option>
                     ))}
+                  </select>
+                </div>
+
+                {/* Sort Dropdown */}
+                <div className="relative">
+                  <ArrowUpDown className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-gray-400" />
+                  <select
+                    value={sortBy}
+                    onChange={(e) => setSortBy(e.target.value as any)}
+                    className="pl-9 pr-8 py-2.5 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent bg-white appearance-none cursor-pointer"
+                  >
+                    <option value="name-asc">A → Z</option>
+                    <option value="name-desc">Z → A</option>
+                    <option value="date-desc">Newest First</option>
+                    <option value="date-asc">Oldest First</option>
                   </select>
                 </div>
               </div>

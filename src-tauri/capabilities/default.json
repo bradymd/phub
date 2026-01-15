@@ -1,0 +1,57 @@
+{
+  "$schema": "../gen/schemas/desktop-schema.json",
+  "identifier": "default",
+  "description": "enables the default permissions",
+  "windows": [
+    "main"
+  ],
+  "permissions": [
+    "core:default",
+    "dialog:allow-open",
+    "dialog:allow-message",
+    "fs:allow-download-read",
+    {
+      "identifier": "fs:allow-read-text-file",
+      "allow": [
+        { "path": "$DOWNLOAD/**" },
+        { "path": "$DOCUMENT/PersonalHub/**" }
+      ]
+    },
+    {
+      "identifier": "fs:allow-write-text-file",
+      "allow": [
+        { "path": "$DOCUMENT/PersonalHub/**" }
+      ]
+    },
+    {
+      "identifier": "fs:allow-read",
+      "allow": [
+        { "path": "$DOCUMENT/PersonalHub/**" }
+      ]
+    },
+    {
+      "identifier": "fs:allow-write",
+      "allow": [
+        { "path": "$DOCUMENT/PersonalHub/**" }
+      ]
+    },
+    {
+      "identifier": "fs:allow-exists",
+      "allow": [
+        { "path": "$DOCUMENT/PersonalHub/**" }
+      ]
+    },
+    {
+      "identifier": "fs:allow-mkdir",
+      "allow": [
+        { "path": "$DOCUMENT/PersonalHub/**" }
+      ]
+    },
+    {
+      "identifier": "fs:allow-remove",
+      "allow": [
+        { "path": "$DOCUMENT/PersonalHub/**" }
+      ]
+    }
+  ]
+}

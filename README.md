@@ -1,6 +1,8 @@
 # Personal Hub - Secure Life Organization
 
-A **private, local-first** personal management system for organizing your entire life. Track your documents, finances, career history, contacts, photos, and passwords - all encrypted and stored securely on your own device.
+A **private, local-first desktop application** for organizing your entire life. Track your documents, finances, career history, contacts, medical records, photos, and passwords - all encrypted and stored securely on your own device.
+
+**Built with [Tauri](https://tauri.app/)** - A secure, native desktop application using Rust + React.
 
 **Original Design:** [Figma](https://www.figma.com/design/oJamv4hjwZZinA3sDmV05W/Personal-Document-Management-Website)
 
@@ -9,10 +11,12 @@ A **private, local-first** personal management system for organizing your entire
 ## 🔒 Security First
 
 - **AES-256-GCM Encryption** for all sensitive data
-- **Master Password Protection** with PBKDF2 key derivation
+- **Master Password Protection** with PBKDF2 key derivation (10,000 iterations)
+- **Filesystem Storage** - Data stored in `~/Documents/PersonalHub/` (not browser)
 - **No Cloud Storage** - everything stays on your device
 - **No Telemetry** - completely private
-- **Open Source** - inspect the code yourself
+- **Native Desktop App** - Built with Tauri (Rust + React) for security and performance
+- **Open Source** - Inspect the code yourself
 
 ---
 
@@ -54,6 +58,16 @@ Dashboard showing aggregated life metrics and planning insights.
 
 ## 🚀 Quick Start
 
+### Prerequisites
+
+1. **Rust** (for Tauri)
+   ```bash
+   curl --proto '=https' --tlsv1.2 -sSf https://sh.rustup.rs | sh
+   source ~/.cargo/env
+   ```
+
+2. **Node.js 18+** and npm
+
 ### Installation
 
 ```bash
@@ -62,42 +76,85 @@ npm install
 
 ### Development
 
+**Desktop App (Recommended):**
+```bash
+source ~/.cargo/env  # Ensure Rust is in PATH
+npm run tauri dev
+```
+
+First compile takes ~40s. Subsequent frontend changes reload in 1-2 seconds.
+
+**Browser Fallback (Testing Only):**
 ```bash
 npm run dev
 ```
-
-Visit http://localhost:5173/
+Visit http://localhost:5173/ - Uses localStorage instead of filesystem
 
 ### First Launch
 
-1. Create a **master password** (strong, memorable, unrecoverable if forgotten)
-2. Start adding your data
-3. Everything is automatically encrypted
+1. **Import Wizard** - Automatically appears if no data exists
+   - Import encrypted backup file, or
+   - Start fresh with empty data
+
+2. Create a **master password** (strong, memorable, unrecoverable if forgotten)
+
+3. Start organizing your life - everything is automatically encrypted
 
 ### Build for Production
 
 ```bash
-npm run build
+npm run tauri build
 ```
+
+Creates native installers in `src-tauri/target/release/bundle/`
+
+---
+
+## 📂 Data Storage
+
+All data is stored locally in encrypted JSON files:
+
+```
+~/Documents/PersonalHub/
+└── data/
+    ├── virtual_street.encrypted.json          (Passwords)
+    ├── finance_items.encrypted.json           (Accounts)
+    ├── pensions.encrypted.json                (Pension records)
+    ├── budget_items.encrypted.json            (Budget tracking)
+    ├── certificates.encrypted.json            (Certificates metadata)
+    ├── documents_certificates.encrypted.json  (Certificate files)
+    ├── education_records.encrypted.json       (Education history)
+    ├── medical_history.encrypted.json         (Medical records)
+    ├── employment_records.encrypted.json      (Career history)
+    ├── contacts.encrypted.json                (Contacts)
+    └── photos.encrypted.json                  (Photos)
+```
+
+Each file is encrypted with **AES-256-GCM** using your master password. The encryption format:
+- **Key Derivation:** PBKDF2 with 10,000 iterations, SHA-256
+- **Format:** `[salt(16 bytes)][iv(12 bytes)][ciphertext][authTag(16 bytes)]` → base64
 
 ---
 
 ## 📖 Documentation
 
+- **[MIGRATION.md](MIGRATION.md)** - Browser to Tauri migration guide
 - **[DEVELOPMENT_PLAN.md](DEVELOPMENT_PLAN.md)** - Full development roadmap and architecture
 - **[TESTING_GUIDE.md](TESTING_GUIDE.md)** - Comprehensive testing instructions
 - **[SPRINT1_SUMMARY.md](SPRINT1_SUMMARY.md)** - Password encryption implementation details
+- **[scripts/dev/README.md](scripts/dev/README.md)** - Development scripts documentation
 
 ---
 
 ## 🏗️ Tech Stack
 
+- **Tauri v2** - Native desktop framework (Rust + WebView)
 - **React 18** + **TypeScript**
 - **Vite** - Lightning-fast build tool
 - **TailwindCSS** - Utility-first styling
-- **shadcn/ui** - Beautiful, accessible components
-- **Web Crypto API** - Browser-native encryption
-- **LocalStorage** - Client-side persistence (IndexedDB migration planned)
+- **Lucide React** - Beautiful icon library
+- **Web Crypto API** - Browser-native AES-256-GCM encryption
+- **Filesystem Storage** - Encrypted data in `~/Documents/PersonalHub/`
 
 ---
 

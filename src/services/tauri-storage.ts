@@ -1,46 +1,58 @@
 /**
- * Storage Service Layer
- * Provides abstraction over storage implementations (localStorage, IndexedDB)
- * Handles encryption/decryption and provides consistent CRUD API
+ * Tauri File System Storage Service
+ * Uses Tauri's file system API to store encrypted data in ~/Documents/PersonalHub/
+ * Preserves all existing data structures and encryption
  */
 
+import { BaseDirectory, exists, readTextFile, writeTextFile, mkdir, remove } from '@tauri-apps/plugin-fs';
 import { encrypt, decrypt } from '../utils/crypto';
+import type { StorageService, ProgressCallback } from './storage';
 
-// Progress callback type for bulk operations
-export type ProgressCallback = (current: number, total: number) => void;
+export class TauriStorageService implements StorageService {
+  private dataDir = 'PersonalHub/data';
 
-// Storage service interface - the contract all implementations must follow
-export interface StorageService {
-  get<T>(key: string): Promise<T[]>;
-  save<T>(key: string, items: T[], onProgress?: ProgressCallback): Promise<void>;
-  add<T>(key: string, item: T): Promise<void>;
-  update<T>(key: string, id: string, item: T): Promise<void>;
-  delete(key: string, id: string): Promise<void>;
-  clear(key: string): Promise<void>;
-  clearAll(): Promise<void>;
-}
+  constructor(private masterPassword: string) {
+    this.ensureDataDir();
+  }
 
-// LocalStorage implementation
-// Used as fallback when running in browser (development/testing)
-// Production desktop app uses TauriStorageService
-export class LocalStorageService implements StorageService {
-  constructor(private masterPassword: string) {}
+  // Ensure the data directory exists
+  private async ensureDataDir(): Promise<void> {
+    try {
+      const dirExists = await exists(this.dataDir, { baseDir: BaseDirectory.Document });
+      if (!dirExists) {
+        await mkdir(this.dataDir, { baseDir: BaseDirectory.Document, recursive: true });
+        console.log('Created data directory:', this.dataDir);
+      }
+    } catch (err) {
+      console.error('Failed to create data directory:', err);
+    }
+  }
+
+  // Get the file path for a storage key
+  private getFilePath(key: string): string {
+    return `${this.dataDir}/${key}.encrypted.json`;
+  }
 
   async get<T>(key: string): Promise<T[]> {
     try {
-      const stored = localStorage.getItem(`${key}_encrypted`);
-      if (!stored) return [];
+      const filePath = this.getFilePath(key);
+      const fileExists = await exists(filePath, { baseDir: BaseDirectory.Document });
 
+      if (!fileExists) {
+        console.log(`File not found: ${filePath}, returning empty array`);
+        return [];
+      }
+
+      const stored = await readTextFile(filePath, { baseDir: BaseDirectory.Document });
       const encryptedData = JSON.parse(stored);
 
-      // Performance optimization: decrypt as single blob if format supports it
+      // Support both blob and individual item formats (same as localStorage version)
       if (typeof encryptedData === 'string') {
         // Single encrypted blob format
         try {
           const decryptedJson = await decrypt(encryptedData, this.masterPassword);
           const parsed = JSON.parse(decryptedJson);
 
-          // Ensure we always return an array
           if (Array.isArray(parsed)) {
             return parsed;
           } else {
@@ -53,7 +65,7 @@ export class LocalStorageService implements StorageService {
         }
       }
 
-      // New format: individual encrypted items (slower but more resilient)
+      // Individual encrypted items format
       const decryptedItems: T[] = [];
       for (const encrypted of encryptedData) {
         try {
@@ -61,7 +73,6 @@ export class LocalStorageService implements StorageService {
           decryptedItems.push(JSON.parse(decryptedJson));
         } catch (err) {
           console.error(`Failed to decrypt item in ${key}:`, err);
-          // Skip corrupted entries but continue processing others
         }
       }
 
@@ -78,22 +89,26 @@ export class LocalStorageService implements StorageService {
     onProgress?: ProgressCallback
   ): Promise<void> {
     try {
-      // Performance optimization: encrypt entire array as single blob
-      // This is MUCH faster than individual encryption for large datasets
+      await this.ensureDataDir();
+
       if (onProgress) onProgress(50, 100);
 
+      // Encrypt entire array as single blob (same as localStorage version)
       const allJson = JSON.stringify(items);
       const encryptedBlob = await encrypt(allJson, this.masterPassword);
 
       if (onProgress) onProgress(75, 100);
 
-      // Store as string blob wrapped in JSON
-      localStorage.setItem(`${key}_encrypted`, JSON.stringify(encryptedBlob));
+      // Write to file
+      const filePath = this.getFilePath(key);
+      await writeTextFile(filePath, JSON.stringify(encryptedBlob), {
+        baseDir: BaseDirectory.Document
+      });
 
       if (onProgress) onProgress(100, 100);
     } catch (err) {
       console.error(`Failed to save ${key}:`, err);
-      throw new Error(`Failed to save ${key}: ${err instanceof Error ? err.message : 'Unknown error'}`);
+      throw new Error(`Failed to save ${key}: ${err instanceof Error ? err.message : String(err)}`);
     }
   }
 
@@ -142,7 +157,12 @@ export class LocalStorageService implements StorageService {
 
   async clear(key: string): Promise<void> {
     try {
-      localStorage.removeItem(`${key}_encrypted`);
+      const filePath = this.getFilePath(key);
+      const fileExists = await exists(filePath, { baseDir: BaseDirectory.Document });
+
+      if (fileExists) {
+        await remove(filePath, { baseDir: BaseDirectory.Document });
+      }
     } catch (err) {
       console.error(`Failed to clear ${key}:`, err);
       throw new Error(`Failed to clear ${key}: ${err instanceof Error ? err.message : 'Unknown error'}`);
@@ -174,23 +194,4 @@ export class LocalStorageService implements StorageService {
       throw new Error(`Failed to clear all data: ${err instanceof Error ? err.message : 'Unknown error'}`);
     }
   }
-}
-
-// Import Tauri storage (only used when running as desktop app)
-import { TauriStorageService } from './tauri-storage';
-
-// Factory function - automatically detects environment and uses appropriate storage
-export function createStorageService(masterPassword: string): StorageService {
-  // Detect if running in Tauri (desktop app)
-  const isTauri = typeof window !== 'undefined' && '__TAURI__' in window;
-
-  if (isTauri) {
-    // Use Tauri file system storage (desktop app)
-    console.log('Using Tauri file system storage: ~/Documents/PersonalHub/');
-    return new TauriStorageService(masterPassword);
-  }
-
-  // Use localStorage (browser/development)
-  console.log('Using browser localStorage');
-  return new LocalStorageService(masterPassword);
 }
