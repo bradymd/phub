@@ -38,6 +38,7 @@ public/medical/
 public/documents/
 public/thumbnails/
 public/IMG_*
+scripts/dev/IMG_*
 
 # Imported data files (contain personal information)
 public/imported-*.json
