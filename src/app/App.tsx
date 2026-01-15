@@ -13,7 +13,8 @@ import {
   PiggyBank,
   Receipt,
   Download,
-  Upload
+  Upload,
+  HardDrive
 } from 'lucide-react';
 import { CategoryCard } from './components/CategoryCard';
 import { DocumentManagerSecure } from './components/DocumentManagerSecure';
@@ -32,8 +33,9 @@ import MasterPasswordSetup from './components/MasterPasswordSetup';
 import MasterPasswordUnlock from './components/MasterPasswordUnlock';
 import { StorageProvider } from '../contexts/StorageContext';
 import { ImportWizard } from './components/ImportWizard';
+import { BackupManager } from './components/BackupManager';
 
-type ModalType = 'certificates' | 'education' | 'health' | 'finance' | 'pensions' | 'budget' | 'photos' | 'contacts' | 'websites' | 'employment' | 'ai' | null;
+type ModalType = 'certificates' | 'education' | 'health' | 'finance' | 'pensions' | 'budget' | 'photos' | 'contacts' | 'websites' | 'employment' | 'ai' | 'backup' | null;
 
 export default function App() {
   const [isUnlocked, setIsUnlocked] = useState(false);
@@ -308,20 +310,12 @@ export default function App() {
             </div>
             <div className="flex items-center gap-2">
               <button
-                onClick={handleExportData}
-                className="flex items-center gap-2 px-4 py-2 bg-green-600 text-white rounded-lg hover:bg-green-700 transition-colors shadow-md"
-                title="Export all data to a backup file"
+                onClick={() => setActiveModal('backup')}
+                className="flex items-center gap-2 px-4 py-2 bg-gradient-to-r from-blue-600 to-indigo-600 text-white rounded-lg hover:from-blue-700 hover:to-indigo-700 transition-colors shadow-md"
+                title="Backup & Restore your encrypted data"
               >
-                <Download className="w-4 h-4" />
-                Export Data
-              </button>
-              <button
-                onClick={handleImportData}
-                className="flex items-center gap-2 px-4 py-2 bg-blue-600 text-white rounded-lg hover:bg-blue-700 transition-colors shadow-md"
-                title="Import data from a backup file"
-              >
-                <Upload className="w-4 h-4" />
-                Import Data
+                <HardDrive className="w-4 h-4" />
+                Backup & Restore
               </button>
             </div>
           </div>
@@ -406,6 +400,9 @@ export default function App() {
       )}
       {activeModal === 'employment' && (
         <EmploymentManagerSecure onClose={handleModalClose} />
+      )}
+      {activeModal === 'backup' && (
+        <BackupManager onClose={handleModalClose} />
       )}
     </div>
     </StorageProvider>

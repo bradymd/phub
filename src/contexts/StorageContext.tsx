@@ -9,6 +9,7 @@ import { StorageService, createStorageService } from '../services/storage';
 
 interface StorageContextType {
   storage: StorageService;
+  masterPassword: string;
 }
 
 const StorageContext = createContext<StorageContextType | null>(null);
@@ -22,7 +23,7 @@ export function StorageProvider({ masterPassword, children }: StorageProviderPro
   const storage = createStorageService(masterPassword);
 
   return (
-    <StorageContext.Provider value={{ storage }}>
+    <StorageContext.Provider value={{ storage, masterPassword }}>
       {children}
     </StorageContext.Provider>
   );
@@ -37,4 +38,15 @@ export function useStorage(): StorageService {
   }
 
   return context.storage;
+}
+
+// Custom hook to get master password (for backup encryption)
+export function useMasterPassword(): string {
+  const context = useContext(StorageContext);
+
+  if (!context) {
+    throw new Error('useMasterPassword must be used within a StorageProvider');
+  }
+
+  return context.masterPassword;
 }
