@@ -451,14 +451,6 @@ export function VirtualHighStreetSecure({ onClose }: VirtualHighStreetSecureProp
               </button>
               <div className="w-px h-8 bg-gray-300 mx-2"></div>
               <button
-                onClick={cleanupEmptyEntries}
-                className="p-2 rounded-lg transition-colors flex items-center gap-2 px-3 bg-white text-gray-600 hover:bg-red-50 hover:text-red-600"
-                title="Delete all entries with no name and no URL"
-              >
-                <Trash className="w-4 h-4" />
-                <span className="text-sm">Clean Up</span>
-              </button>
-              <button
                 onClick={() => {
                   setSelectionMode(!selectionMode);
                   if (selectionMode) {
@@ -474,6 +466,14 @@ export function VirtualHighStreetSecure({ onClose }: VirtualHighStreetSecureProp
               >
                 <CheckSquare className="w-4 h-4" />
                 <span className="text-sm">{selectionMode ? 'Done' : 'Select'}</span>
+              </button>
+              <button
+                onClick={() => setShowAddForm(!showAddForm)}
+                className="flex items-center gap-2 px-4 py-2 bg-white text-blue-600 rounded-lg hover:bg-blue-50 transition-colors"
+                title="Add website"
+              >
+                <Plus className="w-4 h-4" />
+                <span className="text-sm">Add</span>
               </button>
               <button
                 onClick={onClose}
@@ -601,7 +601,7 @@ export function VirtualHighStreetSecure({ onClose }: VirtualHighStreetSecureProp
 
         {/* Content */}
         <div className="flex-1 overflow-y-auto p-6">
-          {showAddForm ? (
+          {showAddForm && (
             <div className="mb-6 p-6 bg-gradient-to-br from-blue-50 to-purple-50 rounded-2xl border-2 border-blue-200">
               <h3 className="mb-4 flex items-center gap-2">
                 <Store className="w-5 h-5 text-blue-600" />
@@ -699,24 +699,6 @@ export function VirtualHighStreetSecure({ onClose }: VirtualHighStreetSecureProp
                 </button>
               </div>
             </div>
-          ) : (
-            /* Edit form now in modal below */
-            null
-          )}
-
-          {!showAddForm && (
-            <button
-              onClick={() => setShowAddForm(true)}
-              className="w-full mb-6 p-6 border-2 border-dashed border-gray-300 rounded-2xl hover:border-blue-400 hover:bg-blue-50 transition-all flex items-center justify-center gap-3 text-gray-600 hover:text-blue-600 group"
-            >
-              <div className="p-3 bg-blue-100 text-blue-600 rounded-xl group-hover:bg-blue-600 group-hover:text-white transition-colors">
-                <Plus className="w-6 h-6" />
-              </div>
-              <div className="text-left">
-                <p className="font-medium">Add New Shop to Your High Street</p>
-                <p className="text-sm text-gray-500">Add websites like Monzo, Tesco, Facebook, etc.</p>
-              </div>
-            </button>
           )}
 
           {entries.length === 0 ? (

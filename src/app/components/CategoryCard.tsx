@@ -4,12 +4,11 @@ import { ChevronRight } from 'lucide-react';
 interface CategoryCardProps {
   title: string;
   icon: LucideIcon;
-  count: number;
   description: string;
   onClick: () => void;
 }
 
-export function CategoryCard({ title, icon: Icon, count, description, onClick }: CategoryCardProps) {
+export function CategoryCard({ title, icon: Icon, description, onClick }: CategoryCardProps) {
   return (
     <button
       onClick={onClick}
@@ -23,12 +22,7 @@ export function CategoryCard({ title, icon: Icon, count, description, onClick }:
             </div>
             <h3 className="text-gray-900">{title}</h3>
           </div>
-          <p className="text-gray-500 text-sm mb-3">{description}</p>
-          <div className="flex items-center gap-2">
-            <span className="text-sm text-gray-600">
-              {count === 0 ? 'Click to view' : `${count} items`}
-            </span>
-          </div>
+          <p className="text-gray-500 text-sm">{description}</p>
         </div>
         <ChevronRight className="w-5 h-5 text-gray-400 group-hover:text-blue-600 transition-colors" />
       </div>

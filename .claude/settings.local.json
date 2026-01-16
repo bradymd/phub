@@ -57,7 +57,8 @@
       "Bash(git restore:*)",
       "Bash(git rm:*)",
       "Bash(du:*)",
-      "Bash(source:*)"
+      "Bash(source:*)",
+      "Bash(xargs ls:*)"
     ],
     "deny": [],
     "ask": []

@@ -1,5 +1,5 @@
 import { useState, useEffect } from 'react';
-import { X, Plus, Trash, GraduationCap, Calendar, Edit2, Award, Key, ChevronDown, ChevronUp, FileText, ExternalLink, Upload } from 'lucide-react';
+import { X, Plus, Trash, GraduationCap, Calendar, Edit2, Award, Key, FileText, ExternalLink, Upload, Search, Eye, EyeOff, Grid3x3, List } from 'lucide-react';
 import { useStorage, useDocumentService } from '../../contexts/StorageContext';
 import { DocumentReference } from '../../services/document-service';
 
@@ -38,12 +38,15 @@ export function EducationManagerSecure({ onClose }: EducationManagerSecureProps)
   const [records, setRecords] = useState<EducationRecord[]>([]);
   const [showAddForm, setShowAddForm] = useState(false);
   const [editingRecord, setEditingRecord] = useState<EducationRecord | null>(null);
-  const [expandedRecord, setExpandedRecord] = useState<string | null>(null);
   const [isLoading, setIsLoading] = useState(true);
   const [error, setError] = useState('');
   const [newRecord, setNewRecord] = useState(emptyRecord);
   const [viewingDocument, setViewingDocument] = useState<{ docRef: DocumentReference; dataUrl: string } | null>(null);
   const [loadingDocument, setLoadingDocument] = useState(false);
+  const [searchQuery, setSearchQuery] = useState('');
+  const [showSummary, setShowSummary] = useState(true);
+  const [viewMode, setViewMode] = useState<'grid' | 'list'>('grid');
+  const [viewingDetails, setViewingDetails] = useState<EducationRecord | null>(null);
 
   useEffect(() => {
     loadRecords();
@@ -119,7 +122,6 @@ export function EducationManagerSecure({ onClose }: EducationManagerSecureProps)
       // Delete the record
       await storage.delete('education_records', id);
       await loadRecords();
-      if (expandedRecord === id) setExpandedRecord(null);
     } catch (err) {
       setError('Failed to delete record');
       console.error(err);
@@ -128,7 +130,6 @@ export function EducationManagerSecure({ onClose }: EducationManagerSecureProps)
 
   const startEdit = (record: EducationRecord) => {
     setEditingRecord({ ...record });
-    setExpandedRecord(null);
   };
 
   const getTypeColor = (type: string) => {
@@ -258,11 +259,23 @@ export function EducationManagerSecure({ onClose }: EducationManagerSecureProps)
     }
   };
 
+  const filteredRecords = records.filter(record => {
+    if (!searchQuery) return true;
+    const query = searchQuery.toLowerCase();
+    return (
+      record.qualification.toLowerCase().includes(query) ||
+      record.institution.toLowerCase().includes(query) ||
+      record.year.toLowerCase().includes(query) ||
+      record.grade.toLowerCase().includes(query) ||
+      record.notes.toLowerCase().includes(query)
+    );
+  });
+
   const counts = {
-    degrees: records.filter(r => r.type === 'degree').length,
-    certifications: records.filter(r => r.type === 'certification').length,
-    training: records.filter(r => r.type === 'training').length,
-    total: records.length
+    degrees: filteredRecords.filter(r => r.type === 'degree').length,
+    certifications: filteredRecords.filter(r => r.type === 'certification').length,
+    training: filteredRecords.filter(r => r.type === 'training').length,
+    total: filteredRecords.length
   };
 
   if (isLoading) {
@@ -296,12 +309,69 @@ export function EducationManagerSecure({ onClose }: EducationManagerSecureProps)
                 <p className="text-sm text-gray-500 mt-1">Track your qualifications, certifications, and training</p>
               </div>
             </div>
-            <button
-              onClick={onClose}
-              className="p-2 hover:bg-white rounded-lg transition-colors"
-            >
-              <X className="w-5 h-5" />
-            </button>
+            <div className="flex items-center gap-2">
+              <div className="relative">
+                <Search className="absolute left-3 top-1/2 transform -translate-y-1/2 text-gray-400 w-4 h-4" />
+                <input
+                  type="text"
+                  placeholder="Search..."
+                  value={searchQuery}
+                  onChange={(e) => setSearchQuery(e.target.value)}
+                  className="pl-9 pr-3 py-2 border border-gray-300 rounded-lg bg-white focus:outline-none focus:ring-2 focus:ring-purple-500 focus:border-transparent w-48"
+                />
+                {searchQuery && (
+                  <button
+                    onClick={() => setSearchQuery('')}
+                    className="absolute right-2 top-1/2 transform -translate-y-1/2 text-gray-400 hover:text-gray-600"
+                  >
+                    <X className="w-3 h-3" />
+                  </button>
+                )}
+              </div>
+              <button
+                onClick={() => setViewMode('grid')}
+                className={`p-2 rounded-lg transition-colors ${
+                  viewMode === 'grid'
+                    ? 'bg-purple-600 text-white'
+                    : 'bg-white text-gray-600 hover:bg-gray-100'
+                }`}
+                title="Grid view"
+              >
+                <Grid3x3 className="w-5 h-5" />
+              </button>
+              <button
+                onClick={() => setViewMode('list')}
+                className={`p-2 rounded-lg transition-colors ${
+                  viewMode === 'list'
+                    ? 'bg-purple-600 text-white'
+                    : 'bg-white text-gray-600 hover:bg-gray-100'
+                }`}
+                title="List view"
+              >
+                <List className="w-5 h-5" />
+              </button>
+              <button
+                onClick={() => setShowSummary(!showSummary)}
+                className="p-2 bg-white rounded-lg hover:bg-purple-50 transition-colors"
+                title={showSummary ? "Hide summary" : "Show summary"}
+              >
+                {showSummary ? <EyeOff className="w-4 h-4" /> : <Eye className="w-4 h-4" />}
+              </button>
+              <div className="w-px h-8 bg-gray-300 mx-1"></div>
+              <button
+                onClick={() => setShowAddForm(!showAddForm)}
+                className="flex items-center gap-2 px-4 py-2 bg-white text-purple-600 rounded-lg hover:bg-purple-50 transition-colors"
+              >
+                <Plus className="w-4 h-4" />
+                Add
+              </button>
+              <button
+                onClick={onClose}
+                className="p-2 hover:bg-white rounded-lg transition-colors"
+              >
+                <X className="w-5 h-5" />
+              </button>
+            </div>
           </div>
         </div>
 
@@ -311,49 +381,51 @@ export function EducationManagerSecure({ onClose }: EducationManagerSecureProps)
           </div>
         )}
 
-        <div className="p-6 bg-gradient-to-br from-purple-50 to-blue-50 border-b border-gray-200">
-          <div className="grid grid-cols-1 md:grid-cols-4 gap-4">
-            <div className="bg-white rounded-xl p-4 shadow-sm">
-              <div className="flex items-center gap-3 mb-2">
-                <div className="p-2 bg-purple-100 text-purple-600 rounded-lg">
-                  <GraduationCap className="w-5 h-5" />
+        {showSummary && (
+          <div className="p-6 bg-gradient-to-br from-purple-50 to-blue-50 border-b border-gray-200">
+            <div className="grid grid-cols-1 md:grid-cols-4 gap-4">
+              <div className="bg-white rounded-xl p-4 shadow-sm">
+                <div className="flex items-center gap-3 mb-2">
+                  <div className="p-2 bg-purple-100 text-purple-600 rounded-lg">
+                    <GraduationCap className="w-5 h-5" />
+                  </div>
+                  <p className="text-sm text-gray-600">Degrees</p>
                 </div>
-                <p className="text-sm text-gray-600">Degrees</p>
+                <p className="text-gray-900">{counts.degrees}</p>
               </div>
-              <p className="text-gray-900">{counts.degrees}</p>
-            </div>
-            <div className="bg-white rounded-xl p-4 shadow-sm">
-              <div className="flex items-center gap-3 mb-2">
-                <div className="p-2 bg-green-100 text-green-600 rounded-lg">
-                  <Award className="w-5 h-5" />
+              <div className="bg-white rounded-xl p-4 shadow-sm">
+                <div className="flex items-center gap-3 mb-2">
+                  <div className="p-2 bg-green-100 text-green-600 rounded-lg">
+                    <Award className="w-5 h-5" />
+                  </div>
+                  <p className="text-sm text-gray-600">Certifications</p>
                 </div>
-                <p className="text-sm text-gray-600">Certifications</p>
+                <p className="text-gray-900">{counts.certifications}</p>
               </div>
-              <p className="text-gray-900">{counts.certifications}</p>
-            </div>
-            <div className="bg-white rounded-xl p-4 shadow-sm">
-              <div className="flex items-center gap-3 mb-2">
-                <div className="p-2 bg-orange-100 text-orange-600 rounded-lg">
-                  <Calendar className="w-5 h-5" />
+              <div className="bg-white rounded-xl p-4 shadow-sm">
+                <div className="flex items-center gap-3 mb-2">
+                  <div className="p-2 bg-orange-100 text-orange-600 rounded-lg">
+                    <Calendar className="w-5 h-5" />
+                  </div>
+                  <p className="text-sm text-gray-600">Training Courses</p>
                 </div>
-                <p className="text-sm text-gray-600">Training Courses</p>
+                <p className="text-gray-900">{counts.training}</p>
               </div>
-              <p className="text-gray-900">{counts.training}</p>
-            </div>
-            <div className="bg-white rounded-xl p-4 shadow-sm">
-              <div className="flex items-center gap-3 mb-2">
-                <div className="p-2 bg-indigo-100 text-indigo-600 rounded-lg">
-                  <Award className="w-5 h-5" />
+              <div className="bg-white rounded-xl p-4 shadow-sm">
+                <div className="flex items-center gap-3 mb-2">
+                  <div className="p-2 bg-indigo-100 text-indigo-600 rounded-lg">
+                    <Award className="w-5 h-5" />
+                  </div>
+                  <p className="text-sm text-gray-600">Total Records</p>
                 </div>
-                <p className="text-sm text-gray-600">Total Records</p>
+                <p className="text-gray-900">{counts.total}</p>
               </div>
-              <p className="text-gray-900">{counts.total}</p>
             </div>
           </div>
-        </div>
+        )}
 
         <div className="flex-1 overflow-y-auto p-6">
-          {showAddForm ? (
+          {showAddForm && (
             <div className="mb-6 p-6 rounded-xl bg-gradient-to-br from-blue-50 to-purple-50 border-2 border-blue-200">
               <h3 className="mb-4 flex items-center gap-2">Add Education Record</h3>
               <div className="space-y-4">
@@ -460,28 +532,21 @@ export function EducationManagerSecure({ onClose }: EducationManagerSecureProps)
                 </div>
               </div>
             </div>
-          ) : (
-            <button
-              onClick={() => setShowAddForm(true)}
-              className="w-full mb-6 p-4 border-2 border-dashed border-gray-300 rounded-xl hover:border-purple-400 hover:bg-purple-50 transition-all flex items-center justify-center gap-2 text-gray-600 hover:text-purple-600"
-            >
-              <Plus className="w-5 h-5" />
-              Add Education Record
-            </button>
           )}
 
-          <div className="space-y-4">
-            {records.length === 0 ? (
-              <div className="text-center py-12 text-gray-400">
-                <GraduationCap className="w-12 h-12 mx-auto mb-3 opacity-50" />
-                <p>No education records yet</p>
-                <p className="text-sm mt-2">Start tracking your qualifications and training</p>
-              </div>
-            ) : (
-              records.map((record) => (
+          {filteredRecords.length === 0 ? (
+            <div className="text-center py-12 text-gray-400">
+              <GraduationCap className="w-12 h-12 mx-auto mb-3 opacity-50" />
+              <p>No education records yet</p>
+              <p className="text-sm mt-2">Start tracking your qualifications and training</p>
+            </div>
+          ) : viewMode === 'grid' ? (
+            <div className="space-y-4">
+              {filteredRecords.map((record) => (
                 <div
                   key={record.id}
-                  className="bg-gray-50 rounded-xl overflow-hidden hover:bg-gray-100 transition-colors"
+                  onClick={() => setViewingDetails(record)}
+                  className="bg-gray-50 rounded-xl overflow-hidden hover:bg-gray-100 transition-colors cursor-pointer"
                 >
                   <div className="p-5">
                     <div className="flex items-start justify-between mb-3">
@@ -501,7 +566,10 @@ export function EducationManagerSecure({ onClose }: EducationManagerSecureProps)
                                   {record.documents.map((doc, idx) => (
                                     <button
                                       key={idx}
-                                      onClick={() => viewFile(doc)}
+                                      onClick={(e) => {
+                                        e.stopPropagation();
+                                        viewFile(doc);
+                                      }}
                                       className="flex items-center gap-1 px-3 py-1 bg-green-100 text-green-700 rounded hover:bg-green-200 transition-colors text-xs"
                                     >
                                       <FileText className="w-3 h-3" />
@@ -545,41 +613,122 @@ export function EducationManagerSecure({ onClose }: EducationManagerSecureProps)
                         </div>
                       </div>
                       <div className="flex items-center gap-2">
-                        {record.notes && (
+                        {record.documents && record.documents.length > 0 && (
                           <button
-                            onClick={() => setExpandedRecord(expandedRecord === record.id ? null : record.id)}
-                            className="p-2 hover:bg-white rounded-lg transition-colors text-gray-600"
-                            title="View notes"
+                            onClick={(e) => {
+                              e.stopPropagation();
+                              viewFile(record.documents[0]);
+                            }}
+                            className="p-2 hover:bg-white rounded-lg transition-colors text-green-600"
+                            title="View document"
                           >
-                            {expandedRecord === record.id ? <ChevronUp className="w-4 h-4" /> : <ChevronDown className="w-4 h-4" />}
+                            <Eye className="w-4 h-4" />
                           </button>
                         )}
                         <button
-                          onClick={() => startEdit(record)}
+                          onClick={(e) => {
+                            e.stopPropagation();
+                            startEdit(record);
+                          }}
                           className="p-2 hover:bg-white rounded-lg transition-colors text-blue-600"
                         >
                           <Edit2 className="w-4 h-4" />
                         </button>
                         <button
-                          onClick={() => deleteRecord(record.id)}
+                          onClick={(e) => {
+                            e.stopPropagation();
+                            deleteRecord(record.id);
+                          }}
                           className="p-2 hover:bg-white rounded-lg transition-colors text-red-600"
                         >
                           <Trash className="w-4 h-4" />
                         </button>
                       </div>
                     </div>
-
-                    {expandedRecord === record.id && record.notes && (
-                      <div className="mt-4 pt-4 border-t border-gray-200">
-                        <p className="text-sm text-gray-500 mb-1">Notes:</p>
-                        <p className="text-sm text-gray-700 whitespace-pre-line">{record.notes}</p>
-                      </div>
-                    )}
                   </div>
                 </div>
-              ))
-            )}
-          </div>
+              ))}
+            </div>
+          ) : (
+            /* List View */
+            <div className="bg-white rounded-xl shadow-sm border border-gray-100 divide-y divide-gray-100">
+              {filteredRecords.map((record) => (
+                <div
+                  key={record.id}
+                  onClick={() => setViewingDetails(record)}
+                  className="px-6 py-3 hover:bg-gray-50 transition-colors cursor-pointer flex items-center justify-between group"
+                >
+                  <div className="flex items-center gap-3 flex-1 min-w-0">
+                    <div className="p-2 rounded-lg bg-purple-50 text-purple-600 flex-shrink-0">
+                      <GraduationCap className="w-5 h-5" />
+                    </div>
+                    <div className="flex-1 min-w-0">
+                      <div className="flex items-center gap-2">
+                        <h3 className="text-gray-900 font-medium truncate">{record.qualification}</h3>
+                        <span className={`inline-block px-2 py-0.5 rounded text-xs flex-shrink-0 ${
+                          record.type === 'degree' ? 'bg-purple-100 text-purple-700' :
+                          record.type === 'certification' ? 'bg-green-100 text-green-700' :
+                          record.type === 'training' ? 'bg-orange-100 text-orange-700' :
+                          'bg-blue-100 text-blue-700'
+                        }`}>
+                          {record.type === 'a-level' ? 'A-Level' :
+                           record.type === 'o-level' ? 'O-Level' :
+                           record.type.charAt(0).toUpperCase() + record.type.slice(1)}
+                        </span>
+                      </div>
+                      <div className="flex items-center gap-4 text-sm text-gray-500 mt-0.5">
+                        <span className="truncate">{record.institution}</span>
+                        {record.year && (
+                          <span className="flex items-center gap-1 flex-shrink-0">
+                            <Calendar className="w-3 h-3" />
+                            {record.year}
+                          </span>
+                        )}
+                        {record.grade && (
+                          <span className="flex-shrink-0">Grade: {record.grade}</span>
+                        )}
+                      </div>
+                    </div>
+                  </div>
+                  <div className="flex items-center gap-1 flex-shrink-0 ml-4">
+                    {record.documents && record.documents.length > 0 && (
+                      <button
+                        onClick={(e) => {
+                          e.stopPropagation();
+                          viewFile(record.documents[0]);
+                        }}
+                        className="p-2 hover:bg-white rounded-lg transition-colors text-green-600"
+                        title="View document"
+                      >
+                        <Eye className="w-4 h-4" />
+                      </button>
+                    )}
+                    <button
+                      onClick={(e) => {
+                        e.stopPropagation();
+                        startEdit(record);
+                      }}
+                      className="p-2 hover:bg-white rounded-lg transition-colors text-blue-600"
+                      title="Edit"
+                    >
+                      <Edit2 className="w-4 h-4" />
+                    </button>
+                    <button
+                      onClick={(e) => {
+                        e.stopPropagation();
+                        deleteRecord(record.id);
+                      }}
+                      className="p-2 hover:bg-white rounded-lg transition-colors text-red-600"
+                      title="Delete"
+                    >
+                      <Trash className="w-4 h-4" />
+                    </button>
+                    <div className="text-gray-400 group-hover:text-purple-600 transition-colors ml-2">→</div>
+                  </div>
+                </div>
+              ))}
+            </div>
+          )}
         </div>
       </div>
 
@@ -787,6 +936,101 @@ export function EducationManagerSecure({ onClose }: EducationManagerSecureProps)
           <div className="bg-white rounded-lg p-6 flex items-center gap-3">
             <div className="animate-spin rounded-full h-6 w-6 border-b-2 border-green-600"></div>
             <span>Loading document...</span>
+          </div>
+        </div>
+      )}
+
+      {/* Education Details Modal */}
+      {viewingDetails && (
+        <div className="fixed inset-0 bg-black/60 flex items-center justify-center z-[60] p-4" onClick={() => setViewingDetails(null)}>
+          <div className="bg-white rounded-2xl max-w-2xl w-full p-6 shadow-2xl max-h-[90vh] overflow-y-auto" onClick={(e) => e.stopPropagation()}>
+            <div className="flex items-center justify-between mb-6">
+              <h3 className="text-xl font-semibold text-gray-900 flex items-center gap-2">
+                <GraduationCap className="w-5 h-5 text-purple-600" />
+                Education Record Details
+              </h3>
+              <button
+                onClick={() => setViewingDetails(null)}
+                className="p-2 hover:bg-gray-100 rounded-lg transition-colors"
+              >
+                <X className="w-5 h-5" />
+              </button>
+            </div>
+
+            <div className="space-y-4">
+              <div>
+                <label className="block text-sm font-medium text-gray-700 mb-1">Qualification</label>
+                <p className="text-gray-900 bg-gray-50 px-4 py-2 rounded-lg">{viewingDetails.qualification}</p>
+              </div>
+
+              <div>
+                <label className="block text-sm font-medium text-gray-700 mb-1">Institution/Provider</label>
+                <p className="text-gray-900 bg-gray-50 px-4 py-2 rounded-lg">{viewingDetails.institution}</p>
+              </div>
+
+              <div className="grid grid-cols-2 gap-4">
+                <div>
+                  <label className="block text-sm font-medium text-gray-700 mb-1">Year</label>
+                  <p className="text-gray-900 bg-gray-50 px-4 py-2 rounded-lg">{viewingDetails.year || '-'}</p>
+                </div>
+                <div>
+                  <label className="block text-sm font-medium text-gray-700 mb-1">Grade/Result</label>
+                  <p className="text-gray-900 bg-gray-50 px-4 py-2 rounded-lg">{viewingDetails.grade || '-'}</p>
+                </div>
+              </div>
+
+              <div>
+                <label className="block text-sm font-medium text-gray-700 mb-1">Type</label>
+                <p className={`inline-block px-3 py-1 rounded-lg text-sm ${
+                  viewingDetails.type === 'degree' ? 'bg-purple-100 text-purple-700' :
+                  viewingDetails.type === 'certification' ? 'bg-green-100 text-green-700' :
+                  viewingDetails.type === 'training' ? 'bg-orange-100 text-orange-700' :
+                  'bg-blue-100 text-blue-700'
+                }`}>
+                  {viewingDetails.type === 'a-level' ? 'A-Level' :
+                   viewingDetails.type === 'o-level' ? 'O-Level' :
+                   viewingDetails.type.charAt(0).toUpperCase() + viewingDetails.type.slice(1)}
+                </p>
+              </div>
+
+              {viewingDetails.documents && viewingDetails.documents.length > 0 && (
+                <div>
+                  <label className="block text-sm font-medium text-gray-700 mb-2">Attached Documents</label>
+                  <div className="flex flex-wrap gap-2">
+                    {viewingDetails.documents.map((doc, idx) => (
+                      <button
+                        key={idx}
+                        onClick={() => viewFile(doc)}
+                        className="flex items-center gap-1 px-3 py-2 bg-green-100 text-green-700 rounded-lg hover:bg-green-200 transition-colors"
+                      >
+                        <FileText className="w-4 h-4" />
+                        {doc.filename}
+                      </button>
+                    ))}
+                  </div>
+                </div>
+              )}
+
+              {viewingDetails.notes && (
+                <div>
+                  <label className="block text-sm font-medium text-gray-700 mb-1">Notes</label>
+                  <p className="text-gray-900 bg-gray-50 px-4 py-3 rounded-lg whitespace-pre-wrap">{viewingDetails.notes}</p>
+                </div>
+              )}
+
+              <div className="flex gap-3 pt-4">
+                <button
+                  onClick={() => {
+                    setViewingDetails(null);
+                    startEdit(viewingDetails);
+                  }}
+                  className="flex-1 px-4 py-2 bg-blue-600 text-white rounded-lg hover:bg-blue-700 transition-colors flex items-center justify-center gap-2"
+                >
+                  <Edit2 className="w-4 h-4" />
+                  Edit
+                </button>
+              </div>
+            </div>
           </div>
         </div>
       )}

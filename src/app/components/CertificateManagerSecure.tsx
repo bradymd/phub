@@ -1,5 +1,5 @@
 import { useState, useEffect } from 'react';
-import { X, Plus, Trash, Award, Calendar, Edit2, Key, FileText, AlertCircle, ExternalLink, Search, Upload, Download, Eye } from 'lucide-react';
+import { X, Plus, Trash, Award, Calendar, Edit2, Key, FileText, AlertCircle, ExternalLink, Search, Upload, Download, Eye, Grid3x3, List } from 'lucide-react';
 import { useStorage } from '../../contexts/StorageContext';
 
 interface Certificate {
@@ -17,7 +17,7 @@ interface Certificate {
   documentPath?: string; // Path to document in public folder
 }
 
-// Available certificate documents
+// Available certificate documents (LEGACY - kept for existing certificates only)
 const availableCertificateDocuments = [
   { value: '', label: 'No document' },
   { value: 'documents/certificates/BCS Chartered Member 2004.pdf', label: 'BCS Chartered Member 2004' },
@@ -26,6 +26,30 @@ const availableCertificateDocuments = [
   { value: 'documents/certificates/Violin Certificates to grade 2.pdf', label: 'Violin Certificates to Grade 2' },
   { value: 'documents/certificates/Nominet fabio.org.uk 2003.pdf', label: 'Nominet Domain Registration 2003' },
 ];
+
+// Format date from YYYY-MM-DD to DD/MM/YYYY for UK display
+const formatDateUK = (dateStr: string): string => {
+  if (!dateStr) return '';
+  const date = new Date(dateStr + 'T00:00:00'); // Add time to avoid timezone issues
+  const day = date.getDate().toString().padStart(2, '0');
+  const month = (date.getMonth() + 1).toString().padStart(2, '0');
+  const year = date.getFullYear();
+  return `${day}/${month}/${year}`;
+};
+
+// Parse date from DD/MM/YYYY to YYYY-MM-DD for storage
+const parseDateUK = (dateStr: string): string => {
+  if (!dateStr) return '';
+  // Handle both DD/MM/YYYY and YYYY-MM-DD formats
+  if (dateStr.includes('/')) {
+    const parts = dateStr.split('/');
+    if (parts.length === 3) {
+      const [day, month, year] = parts;
+      return `${year}-${month.padStart(2, '0')}-${day.padStart(2, '0')}`;
+    }
+  }
+  return dateStr; // Already in YYYY-MM-DD format
+};
 
 interface CertificateManagerSecureProps {
   onClose: () => void;
@@ -48,11 +72,13 @@ export function CertificateManagerSecure({ onClose }: CertificateManagerSecurePr
   const [showAddForm, setShowAddForm] = useState(false);
   const [editingCertificate, setEditingCertificate] = useState<Certificate | null>(null);
   const [viewingCertificate, setViewingCertificate] = useState<Certificate | null>(null);
+  const [viewingDetails, setViewingDetails] = useState<Certificate | null>(null);
   const [selectedFile, setSelectedFile] = useState<File | null>(null);
   const [isLoading, setIsLoading] = useState(true);
   const [error, setError] = useState('');
   const [newCertificate, setNewCertificate] = useState(emptyRecord);
   const [searchQuery, setSearchQuery] = useState('');
+  const [viewMode, setViewMode] = useState<'grid' | 'list'>('grid');
 
   useEffect(() => {
     loadCertificates();
@@ -375,12 +401,62 @@ export function CertificateManagerSecure({ onClose }: CertificateManagerSecurePr
                 <p className="text-sm text-gray-500 mt-1">Manage your important certificates and documents</p>
               </div>
             </div>
-            <button
-              onClick={onClose}
-              className="p-2 hover:bg-white rounded-lg transition-colors"
-            >
-              <X className="w-5 h-5" />
-            </button>
+            <div className="flex items-center gap-2">
+              <div className="relative">
+                <Search className="absolute left-3 top-1/2 transform -translate-y-1/2 text-gray-400 w-4 h-4" />
+                <input
+                  type="text"
+                  placeholder="Search..."
+                  value={searchQuery}
+                  onChange={(e) => setSearchQuery(e.target.value)}
+                  className="pl-9 pr-3 py-2 border border-gray-300 rounded-lg bg-white focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-transparent w-48"
+                />
+                {searchQuery && (
+                  <button
+                    onClick={() => setSearchQuery('')}
+                    className="absolute right-2 top-1/2 transform -translate-y-1/2 text-gray-400 hover:text-gray-600"
+                  >
+                    <X className="w-3 h-3" />
+                  </button>
+                )}
+              </div>
+              <button
+                onClick={() => setViewMode('grid')}
+                className={`p-2 rounded-lg transition-colors ${
+                  viewMode === 'grid'
+                    ? 'bg-blue-600 text-white'
+                    : 'bg-white text-gray-600 hover:bg-gray-100'
+                }`}
+                title="Grid view"
+              >
+                <Grid3x3 className="w-5 h-5" />
+              </button>
+              <button
+                onClick={() => setViewMode('list')}
+                className={`p-2 rounded-lg transition-colors ${
+                  viewMode === 'list'
+                    ? 'bg-blue-600 text-white'
+                    : 'bg-white text-gray-600 hover:bg-gray-100'
+                }`}
+                title="List view"
+              >
+                <List className="w-5 h-5" />
+              </button>
+              <div className="w-px h-8 bg-gray-300 mx-1"></div>
+              <button
+                onClick={() => setShowAddForm(!showAddForm)}
+                className="flex items-center gap-2 px-4 py-2 bg-white text-blue-600 rounded-lg hover:bg-blue-50 transition-colors"
+              >
+                <Plus className="w-4 h-4" />
+                Add
+              </button>
+              <button
+                onClick={onClose}
+                className="p-2 hover:bg-white rounded-lg transition-colors"
+              >
+                <X className="w-5 h-5" />
+              </button>
+            </div>
           </div>
         </div>
 
@@ -422,29 +498,8 @@ export function CertificateManagerSecure({ onClose }: CertificateManagerSecurePr
           </div>
         </div>
 
-        <div className="px-6 pt-4 pb-2 border-b border-gray-200">
-          <div className="relative">
-            <Search className="absolute left-3 top-1/2 transform -translate-y-1/2 text-gray-400 w-5 h-5" />
-            <input
-              type="text"
-              placeholder="Search certificates..."
-              value={searchQuery}
-              onChange={(e) => setSearchQuery(e.target.value)}
-              className="w-full pl-10 pr-4 py-2 border border-gray-300 rounded-lg bg-white focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-transparent"
-            />
-            {searchQuery && (
-              <button
-                onClick={() => setSearchQuery('')}
-                className="absolute right-3 top-1/2 transform -translate-y-1/2 text-gray-400 hover:text-gray-600"
-              >
-                <X className="w-4 h-4" />
-              </button>
-            )}
-          </div>
-        </div>
-
         <div className="flex-1 overflow-y-auto p-6">
-          {showAddForm ? (
+          {showAddForm && (
             <div className="mb-6 p-6 rounded-xl bg-gradient-to-br from-blue-50 to-purple-50 border-2 border-blue-200">
               <h3 className="mb-4 flex items-center gap-2">Add Certificate</h3>
               <div className="space-y-4">
@@ -470,7 +525,7 @@ export function CertificateManagerSecure({ onClose }: CertificateManagerSecurePr
                     <option value="other">Other</option>
                   </select>
                   <div>
-                    <label className="block text-sm text-gray-600 mb-1">Issue Date</label>
+                    <label className="block text-sm text-gray-600 mb-1">Issue Date (type or use calendar)</label>
                     <input
                       type="date"
                       value={newCertificate.issueDate}
@@ -479,7 +534,7 @@ export function CertificateManagerSecure({ onClose }: CertificateManagerSecurePr
                     />
                   </div>
                   <div>
-                    <label className="block text-sm text-gray-600 mb-1">Expiry Date (if applicable)</label>
+                    <label className="block text-sm text-gray-600 mb-1">Expiry Date (type or use calendar)</label>
                     <input
                       type="date"
                       value={newCertificate.expiryDate}
@@ -516,18 +571,6 @@ export function CertificateManagerSecure({ onClose }: CertificateManagerSecurePr
                       </p>
                     )}
                   </div>
-                  <div className="col-span-2">
-                    <label className="block text-sm text-gray-600 mb-1">Or Select from Library</label>
-                    <select
-                      value={newCertificate.documentPath || ''}
-                      onChange={(e) => setNewCertificate({ ...newCertificate, documentPath: e.target.value })}
-                      className="w-full px-4 py-2 border border-gray-300 rounded-lg bg-white"
-                    >
-                      {availableCertificateDocuments.map((doc) => (
-                        <option key={doc.value} value={doc.value}>{doc.label}</option>
-                      ))}
-                    </select>
-                  </div>
                 </div>
                 <textarea
                   value={newCertificate.notes}
@@ -552,28 +595,21 @@ export function CertificateManagerSecure({ onClose }: CertificateManagerSecurePr
                 </div>
               </div>
             </div>
-          ) : (
-            <button
-              onClick={() => setShowAddForm(true)}
-              className="w-full mb-6 p-4 border-2 border-dashed border-gray-300 rounded-xl hover:border-blue-400 hover:bg-blue-50 transition-all flex items-center justify-center gap-2 text-gray-600 hover:text-blue-600"
-            >
-              <Plus className="w-5 h-5" />
-              Add Certificate
-            </button>
           )}
 
-          <div className="space-y-4">
-            {certificates.length === 0 ? (
-              <div className="text-center py-12 text-gray-400">
-                <Award className="w-12 h-12 mx-auto mb-3 opacity-50" />
-                <p>No certificates yet</p>
-                <p className="text-sm mt-2">Start tracking your important documents</p>
-              </div>
-            ) : (
-              filteredCertificates.map((cert) => (
+          {certificates.length === 0 ? (
+            <div className="text-center py-12 text-gray-400">
+              <Award className="w-12 h-12 mx-auto mb-3 opacity-50" />
+              <p>No certificates yet</p>
+              <p className="text-sm mt-2">Start tracking your important documents</p>
+            </div>
+          ) : viewMode === 'grid' ? (
+            <div className="space-y-4">
+              {filteredCertificates.map((cert) => (
                 <div
                   key={cert.id}
-                  className={`bg-gray-50 rounded-xl p-5 hover:bg-gray-100 transition-colors ${
+                  onClick={() => setViewingDetails(cert)}
+                  className={`bg-gray-50 rounded-xl p-5 hover:bg-gray-100 transition-colors cursor-pointer ${
                     isExpired(cert.expiryDate) ? 'border-2 border-red-200' :
                     isExpiringSoon(cert.expiryDate) ? 'border-2 border-orange-200' : ''
                   }`}
@@ -674,13 +710,13 @@ export function CertificateManagerSecure({ onClose }: CertificateManagerSecurePr
                             {cert.issueDate && (
                               <p className="flex items-center gap-1">
                                 <Calendar className="w-3 h-3" />
-                                <span className="text-gray-500">Issued:</span> {cert.issueDate}
+                                <span className="text-gray-500">Issued:</span> {formatDateUK(cert.issueDate)}
                               </p>
                             )}
                             {cert.expiryDate && (
                               <p className="flex items-center gap-1">
                                 <Calendar className="w-3 h-3" />
-                                <span className="text-gray-500">Expires:</span> {cert.expiryDate}
+                                <span className="text-gray-500">Expires:</span> {formatDateUK(cert.expiryDate)}
                               </p>
                             )}
                             {cert.filename && (
@@ -699,7 +735,10 @@ export function CertificateManagerSecure({ onClose }: CertificateManagerSecurePr
                     <div className="flex items-center gap-2">
                       {(cert.fileData || cert.documentPath) && (
                         <button
-                          onClick={() => setViewingCertificate(cert)}
+                          onClick={(e) => {
+                            e.stopPropagation();
+                            setViewingCertificate(cert);
+                          }}
                           className="p-2 hover:bg-white rounded-lg transition-colors text-green-600"
                           title="View certificate"
                         >
@@ -707,13 +746,19 @@ export function CertificateManagerSecure({ onClose }: CertificateManagerSecurePr
                         </button>
                       )}
                       <button
-                        onClick={() => startEdit(cert)}
+                        onClick={(e) => {
+                          e.stopPropagation();
+                          startEdit(cert);
+                        }}
                         className="p-2 hover:bg-white rounded-lg transition-colors text-blue-600"
                       >
                         <Edit2 className="w-4 h-4" />
                       </button>
                       <button
-                        onClick={() => deleteCertificate(cert.id)}
+                        onClick={(e) => {
+                          e.stopPropagation();
+                          deleteCertificate(cert.id);
+                        }}
                         className="p-2 hover:bg-white rounded-lg transition-colors text-red-600"
                       >
                         <Trash className="w-4 h-4" />
@@ -721,9 +766,103 @@ export function CertificateManagerSecure({ onClose }: CertificateManagerSecurePr
                     </div>
                   </div>
                 </div>
-              ))
-            )}
-          </div>
+              ))}
+            </div>
+          ) : (
+            /* List View */
+            <div className="bg-white rounded-xl shadow-sm border border-gray-100 divide-y divide-gray-100">
+              {filteredCertificates.map((cert) => (
+                <div
+                  key={cert.id}
+                  onClick={() => setViewingDetails(cert)}
+                  className={`px-6 py-3 hover:bg-gray-50 transition-colors cursor-pointer flex items-center justify-between group ${
+                    isExpired(cert.expiryDate) ? 'bg-red-50' :
+                    isExpiringSoon(cert.expiryDate) ? 'bg-orange-50' : ''
+                  }`}
+                >
+                  <div className="flex items-center gap-3 flex-1 min-w-0">
+                    <div className="p-2 rounded-lg bg-blue-50 text-blue-600 flex-shrink-0">
+                      <Award className="w-5 h-5" />
+                    </div>
+                    <div className="flex-1 min-w-0">
+                      <div className="flex items-center gap-2">
+                        <h3 className="text-gray-900 font-medium truncate">{cert.name}</h3>
+                        <span className={`inline-block px-2 py-0.5 rounded text-xs flex-shrink-0 ${getTypeColor(cert.type)}`}>
+                          {getTypeLabel(cert.type)}
+                        </span>
+                      </div>
+                      <div className="flex items-center gap-4 text-sm text-gray-500 mt-0.5">
+                        {cert.issuingAuthority && (
+                          <span className="truncate">{cert.issuingAuthority}</span>
+                        )}
+                        {cert.issueDate && (
+                          <span className="flex items-center gap-1 flex-shrink-0">
+                            <Calendar className="w-3 h-3" />
+                            {formatDateUK(cert.issueDate)}
+                          </span>
+                        )}
+                        {cert.expiryDate && (
+                          <span className="flex items-center gap-1 flex-shrink-0">
+                            {isExpired(cert.expiryDate) ? (
+                              <span className="text-red-600 font-medium flex items-center gap-1">
+                                <AlertCircle className="w-3 h-3" />
+                                Expired {formatDateUK(cert.expiryDate)}
+                              </span>
+                            ) : isExpiringSoon(cert.expiryDate) ? (
+                              <span className="text-orange-600 font-medium flex items-center gap-1">
+                                <AlertCircle className="w-3 h-3" />
+                                Expires {formatDateUK(cert.expiryDate)}
+                              </span>
+                            ) : (
+                              <>
+                                <Calendar className="w-3 h-3" />
+                                {formatDateUK(cert.expiryDate)}
+                              </>
+                            )}
+                          </span>
+                        )}
+                      </div>
+                    </div>
+                  </div>
+                  <div className="flex items-center gap-1 flex-shrink-0 ml-4">
+                    {(cert.fileData || cert.documentPath) && (
+                      <button
+                        onClick={(e) => {
+                          e.stopPropagation();
+                          setViewingCertificate(cert);
+                        }}
+                        className="p-2 hover:bg-white rounded-lg transition-colors text-green-600"
+                        title="View certificate"
+                      >
+                        <Eye className="w-4 h-4" />
+                      </button>
+                    )}
+                    <button
+                      onClick={(e) => {
+                        e.stopPropagation();
+                        startEdit(cert);
+                      }}
+                      className="p-2 hover:bg-white rounded-lg transition-colors text-blue-600"
+                      title="Edit"
+                    >
+                      <Edit2 className="w-4 h-4" />
+                    </button>
+                    <button
+                      onClick={(e) => {
+                        e.stopPropagation();
+                        deleteCertificate(cert.id);
+                      }}
+                      className="p-2 hover:bg-white rounded-lg transition-colors text-red-600"
+                      title="Delete"
+                    >
+                      <Trash className="w-4 h-4" />
+                    </button>
+                    <div className="text-gray-400 group-hover:text-blue-600 transition-colors ml-2">→</div>
+                  </div>
+                </div>
+              ))}
+            </div>
+          )}
         </div>
       </div>
 
@@ -772,7 +911,7 @@ export function CertificateManagerSecure({ onClose }: CertificateManagerSecurePr
                   </select>
                 </div>
                 <div>
-                  <label className="block text-sm font-medium text-gray-700 mb-1">Issue Date</label>
+                  <label className="block text-sm font-medium text-gray-700 mb-1">Issue Date (type or use calendar)</label>
                   <input
                     type="date"
                     value={editingCertificate.issueDate}
@@ -781,7 +920,7 @@ export function CertificateManagerSecure({ onClose }: CertificateManagerSecurePr
                   />
                 </div>
                 <div>
-                  <label className="block text-sm font-medium text-gray-700 mb-1">Expiry Date</label>
+                  <label className="block text-sm font-medium text-gray-700 mb-1">Expiry Date (type or use calendar)</label>
                   <input
                     type="date"
                     value={editingCertificate.expiryDate}
@@ -819,28 +958,6 @@ export function CertificateManagerSecure({ onClose }: CertificateManagerSecurePr
                     <p className="text-xs text-gray-500 mt-1">Current: {editingCertificate.filename}</p>
                   )}
                 </div>
-              </div>
-
-              <div>
-                <label className="block text-sm font-medium text-gray-700 mb-1">Or Select from Library</label>
-                <select
-                  value={editingCertificate.documentPath || ''}
-                  onChange={(e) => setEditingCertificate({ ...editingCertificate, documentPath: e.target.value })}
-                  className="w-full px-4 py-2 border border-gray-300 rounded-lg bg-white focus:ring-2 focus:ring-green-500 focus:border-transparent"
-                >
-                  {availableCertificateDocuments.map((doc) => (
-                    <option key={doc.value} value={doc.value}>{doc.label}</option>
-                  ))}
-                </select>
-                {editingCertificate.documentPath && (
-                  <button
-                    onClick={() => setViewingCertificate(editingCertificate)}
-                    className="mt-2 text-sm text-blue-600 hover:text-blue-800 flex items-center gap-1"
-                  >
-                    <Eye className="w-4 h-4" />
-                    View attached document
-                  </button>
-                )}
               </div>
 
               <div>
@@ -967,6 +1084,130 @@ export function CertificateManagerSecure({ onClose }: CertificateManagerSecurePr
                   );
                 }
               })()}
+            </div>
+          </div>
+        </div>
+      )}
+
+      {/* Certificate Details Modal */}
+      {viewingDetails && (
+        <div className="fixed inset-0 bg-black/60 flex items-center justify-center z-[60] p-4" onClick={() => setViewingDetails(null)}>
+          <div className="bg-white rounded-2xl max-w-2xl w-full p-6 shadow-2xl max-h-[90vh] overflow-y-auto" onClick={(e) => e.stopPropagation()}>
+            <div className="flex items-center justify-between mb-6">
+              <h3 className="text-xl font-semibold text-gray-900 flex items-center gap-2">
+                <Award className="w-5 h-5 text-blue-600" />
+                Certificate Details
+              </h3>
+              <button
+                onClick={() => setViewingDetails(null)}
+                className="p-2 hover:bg-gray-100 rounded-lg transition-colors"
+              >
+                <X className="w-5 h-5" />
+              </button>
+            </div>
+
+            <div className="space-y-4">
+              <div>
+                <label className="block text-sm font-medium text-gray-700 mb-1">Name</label>
+                <p className="text-gray-900 bg-gray-50 px-4 py-2 rounded-lg">{viewingDetails.name}</p>
+              </div>
+
+              <div>
+                <label className="block text-sm font-medium text-gray-700 mb-1">Type</label>
+                <p className={`inline-block px-3 py-1 rounded-lg text-sm ${getTypeColor(viewingDetails.type)}`}>
+                  {getTypeLabel(viewingDetails.type)}
+                </p>
+              </div>
+
+              {viewingDetails.issuingAuthority && (
+                <div>
+                  <label className="block text-sm font-medium text-gray-700 mb-1">Issuing Authority</label>
+                  <p className="text-gray-900 bg-gray-50 px-4 py-2 rounded-lg">{viewingDetails.issuingAuthority}</p>
+                </div>
+              )}
+
+              {viewingDetails.referenceNumber && (
+                <div>
+                  <label className="block text-sm font-medium text-gray-700 mb-1">Reference Number</label>
+                  <p className="text-gray-900 bg-gray-50 px-4 py-2 rounded-lg">{viewingDetails.referenceNumber}</p>
+                </div>
+              )}
+
+              {viewingDetails.issueDate && (
+                <div>
+                  <label className="block text-sm font-medium text-gray-700 mb-1">Issue Date</label>
+                  <p className="text-gray-900 bg-gray-50 px-4 py-2 rounded-lg flex items-center gap-2">
+                    <Calendar className="w-4 h-4 text-gray-500" />
+                    {formatDateUK(viewingDetails.issueDate)}
+                  </p>
+                </div>
+              )}
+
+              {viewingDetails.expiryDate && (
+                <div>
+                  <label className="block text-sm font-medium text-gray-700 mb-1">Expiry Date</label>
+                  <div className="flex items-center gap-2">
+                    <p className="text-gray-900 bg-gray-50 px-4 py-2 rounded-lg flex items-center gap-2">
+                      <Calendar className="w-4 h-4 text-gray-500" />
+                      {formatDateUK(viewingDetails.expiryDate)}
+                    </p>
+                    {isExpired(viewingDetails.expiryDate) && (
+                      <span className="px-2 py-1 bg-red-100 text-red-700 rounded text-xs flex items-center gap-1">
+                        <AlertCircle className="w-3 h-3" />
+                        Expired
+                      </span>
+                    )}
+                    {isExpiringSoon(viewingDetails.expiryDate) && !isExpired(viewingDetails.expiryDate) && (
+                      <span className="px-2 py-1 bg-orange-100 text-orange-700 rounded text-xs flex items-center gap-1">
+                        <AlertCircle className="w-3 h-3" />
+                        Expiring Soon
+                      </span>
+                    )}
+                  </div>
+                </div>
+              )}
+
+              {viewingDetails.filename && (
+                <div>
+                  <label className="block text-sm font-medium text-gray-700 mb-1">Filename</label>
+                  <p className="text-gray-900 bg-gray-50 px-4 py-2 rounded-lg flex items-center gap-2">
+                    <FileText className="w-4 h-4 text-gray-500" />
+                    {viewingDetails.filename}
+                  </p>
+                </div>
+              )}
+
+              {viewingDetails.notes && (
+                <div>
+                  <label className="block text-sm font-medium text-gray-700 mb-1">Notes</label>
+                  <p className="text-gray-900 bg-gray-50 px-4 py-3 rounded-lg whitespace-pre-wrap">{viewingDetails.notes}</p>
+                </div>
+              )}
+
+              <div className="flex gap-3 pt-4">
+                {(viewingDetails.fileData || viewingDetails.documentPath) && (
+                  <button
+                    onClick={() => {
+                      setViewingDetails(null);
+                      setViewingCertificate(viewingDetails);
+                    }}
+                    className="flex-1 px-4 py-2 bg-green-600 text-white rounded-lg hover:bg-green-700 transition-colors flex items-center justify-center gap-2"
+                  >
+                    <Eye className="w-4 h-4" />
+                    View Certificate
+                  </button>
+                )}
+                <button
+                  onClick={() => {
+                    setViewingDetails(null);
+                    startEdit(viewingDetails);
+                  }}
+                  className="flex-1 px-4 py-2 bg-blue-600 text-white rounded-lg hover:bg-blue-700 transition-colors flex items-center justify-center gap-2"
+                >
+                  <Edit2 className="w-4 h-4" />
+                  Edit
+                </button>
+              </div>
             </div>
           </div>
         </div>
