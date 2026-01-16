@@ -1,5 +1,5 @@
 import { useState, useEffect } from 'react';
-import { X, Plus, Trash, Heart, Calendar, Edit2, Key, FileText, ExternalLink, Hospital, Stethoscope, Search, AlertCircle, Upload } from 'lucide-react';
+import { X, Plus, Trash, Heart, Calendar, Edit2, Key, FileText, ExternalLink, Hospital, Stethoscope, Search, AlertCircle, Upload, Eye, EyeOff } from 'lucide-react';
 import { useStorage, useDocumentService } from '../../contexts/StorageContext';
 import { DocumentReference } from '../../services/document-service';
 
@@ -48,6 +48,7 @@ export function MedicalHistoryManagerSecure({ onClose }: MedicalHistoryManagerSe
   const [searchQuery, setSearchQuery] = useState('');
   const [viewingDocument, setViewingDocument] = useState<{ docRef: DocumentReference; dataUrl: string } | null>(null);
   const [loadingDocument, setLoadingDocument] = useState(false);
+  const [showSummary, setShowSummary] = useState(true);
 
   useEffect(() => {
     loadRecords();
@@ -375,8 +376,8 @@ export function MedicalHistoryManagerSecure({ onClose }: MedicalHistoryManagerSe
   }
 
   return (
-    <div className="fixed inset-0 bg-black/50 flex items-center justify-center z-50 p-4">
-      <div className="bg-white rounded-2xl max-w-6xl w-full max-h-[95vh] overflow-hidden flex flex-col">
+    <div className="fixed inset-0 bg-black/50 z-50 overflow-hidden">
+      <div className="absolute inset-2 bg-white rounded-2xl flex flex-col shadow-2xl">
         <div className="p-6 border-b border-gray-200 bg-gradient-to-r from-red-50 to-pink-50">
           <div className="flex items-center justify-between">
             <div className="flex items-center gap-3">
@@ -394,12 +395,28 @@ export function MedicalHistoryManagerSecure({ onClose }: MedicalHistoryManagerSe
                 <p className="text-sm text-gray-500 mt-1">Track consultations, tests, treatments, and medical records</p>
               </div>
             </div>
-            <button
-              onClick={onClose}
-              className="p-2 hover:bg-white rounded-lg transition-colors"
-            >
-              <X className="w-5 h-5" />
-            </button>
+            <div className="flex items-center gap-2">
+              <button
+                onClick={() => setShowSummary(!showSummary)}
+                className="flex items-center gap-2 px-3 py-2 bg-white rounded-lg hover:bg-red-50 transition-colors"
+                title={showSummary ? 'Hide summary cards' : 'Show summary cards'}
+              >
+                {showSummary ? <EyeOff className="w-4 h-4 text-red-600" /> : <Eye className="w-4 h-4 text-red-600" />}
+              </button>
+              <button
+                onClick={() => setShowAddForm(!showAddForm)}
+                className="flex items-center gap-2 px-4 py-2 bg-white text-red-600 rounded-lg hover:bg-red-50 transition-colors"
+              >
+                <Plus className="w-4 h-4" />
+                Add Record
+              </button>
+              <button
+                onClick={onClose}
+                className="p-2 hover:bg-white rounded-lg transition-colors"
+              >
+                <X className="w-5 h-5" />
+              </button>
+            </div>
           </div>
         </div>
 
@@ -409,6 +426,7 @@ export function MedicalHistoryManagerSecure({ onClose }: MedicalHistoryManagerSe
           </div>
         )}
 
+        {showSummary && (
         <div className="px-6 py-3 bg-gradient-to-br from-red-50 to-pink-50 border-b border-gray-200">
           <div className="grid grid-cols-1 md:grid-cols-4 gap-3">
             <div className="bg-white rounded-lg p-3 shadow-sm">
@@ -449,6 +467,7 @@ export function MedicalHistoryManagerSecure({ onClose }: MedicalHistoryManagerSe
             </div>
           </div>
         </div>
+        )}
 
         <div className="px-6 py-3 border-b border-gray-200">
           <div className="relative">
@@ -472,7 +491,7 @@ export function MedicalHistoryManagerSecure({ onClose }: MedicalHistoryManagerSe
         </div>
 
         <div className="flex-1 overflow-y-auto p-6 medical-history-list">
-          {showAddForm ? (
+          {showAddForm && (
             <div className="mb-6 p-6 rounded-xl bg-gradient-to-br from-red-50 to-pink-50 border-2 border-red-200">
               <h3 className="mb-4">Add Medical Record</h3>
               <div className="space-y-4">
@@ -597,14 +616,6 @@ export function MedicalHistoryManagerSecure({ onClose }: MedicalHistoryManagerSe
                 </div>
               </div>
             </div>
-          ) : (
-            <button
-              onClick={() => setShowAddForm(true)}
-              className="w-full mb-6 p-4 border-2 border-dashed border-gray-300 rounded-xl hover:border-red-400 hover:bg-red-50 transition-all flex items-center justify-center gap-2 text-gray-600 hover:text-red-600"
-            >
-              <Plus className="w-5 h-5" />
-              Add Medical Record
-            </button>
           )}
 
           <div className="space-y-4">

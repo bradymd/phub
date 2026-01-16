@@ -16,8 +16,8 @@
         "title": "Personal Hub - Encrypted Document Manager",
         "width": 1400,
         "height": 900,
-        "minWidth": 1200,
-        "minHeight": 800,
+        "minWidth": 600,
+        "minHeight": 400,
         "resizable": true,
         "fullscreen": false,
         "center": true

@@ -1,5 +1,5 @@
 import { useState, useEffect } from 'react';
-import { X, Plus, Trash, Receipt, TrendingDown, TrendingUp, Calendar, Edit2, Search, DollarSign, Eye, EyeOff } from 'lucide-react';
+import { X, Plus, Trash, Receipt, TrendingDown, TrendingUp, Calendar, Edit2, Search, DollarSign, Eye, EyeOff, ArrowUpDown, ArrowUp, ArrowDown } from 'lucide-react';
 import { useStorage } from '../../contexts/StorageContext';
 
 interface BudgetItem {
@@ -39,6 +39,8 @@ export function BudgetManagerSecure({ onClose }: BudgetManagerSecureProps) {
   const [searchQuery, setSearchQuery] = useState('');
   const [selectedCategory, setSelectedCategory] = useState<string>('all');
   const [showSummary, setShowSummary] = useState(true);
+  const [sortField, setSortField] = useState<'name' | 'category' | 'frequency' | 'amount'>('name');
+  const [sortDirection, setSortDirection] = useState<'asc' | 'desc'>('asc');
 
   useEffect(() => {
     loadItems();
@@ -240,8 +242,36 @@ export function BudgetManagerSecure({ onClose }: BudgetManagerSecureProps) {
     .sort(([, a], [, b]) => b - a);
 
   // Separate filtered items for display (one-off from recurring)
-  const recurringItems = filteredItems.filter(i => i.frequency !== 'one-off');
-  const oneOffItems = filteredItems.filter(i => i.frequency === 'one-off');
+  let recurringItems = filteredItems.filter(i => i.frequency !== 'one-off');
+  let oneOffItems = filteredItems.filter(i => i.frequency === 'one-off');
+
+  // Sort recurring items
+  const handleSort = (field: 'name' | 'category' | 'frequency' | 'amount') => {
+    if (sortField === field) {
+      setSortDirection(sortDirection === 'asc' ? 'desc' : 'asc');
+    } else {
+      setSortField(field);
+      setSortDirection('asc');
+    }
+  };
+
+  recurringItems = [...recurringItems].sort((a, b) => {
+    let comparison = 0;
+
+    if (sortField === 'name') {
+      comparison = a.name.localeCompare(b.name);
+    } else if (sortField === 'category') {
+      comparison = getCategoryLabel(a.category).localeCompare(getCategoryLabel(b.category));
+    } else if (sortField === 'frequency') {
+      comparison = a.frequency.localeCompare(b.frequency);
+    } else if (sortField === 'amount') {
+      const aAmount = parseFloat(a.monthlyAmount || '0');
+      const bAmount = parseFloat(b.monthlyAmount || '0');
+      comparison = aAmount - bAmount;
+    }
+
+    return sortDirection === 'asc' ? comparison : -comparison;
+  });
 
   if (isLoading) {
     return (
@@ -286,6 +316,7 @@ export function BudgetManagerSecure({ onClose }: BudgetManagerSecureProps) {
           </div>
         </div>
 
+        <div className="flex-1 overflow-y-auto min-h-0">
         {error && (
           <div className="mx-6 mt-4 p-3 bg-red-50 border border-red-200 rounded-lg text-red-700 text-sm">
             {error}
@@ -417,7 +448,7 @@ export function BudgetManagerSecure({ onClose }: BudgetManagerSecureProps) {
           </div>
         )}
 
-        <div className="flex-1 overflow-y-auto p-3 budget-content-area">
+        <div className="p-3 budget-content-area">
           {showAddForm && (
             <div className={`mb-6 p-6 rounded-xl border-2 ${newItem.type === 'income' ? 'bg-gradient-to-br from-green-50 to-emerald-50 border-green-200' : 'bg-gradient-to-br from-red-50 to-orange-50 border-red-200'}`}>
               <h3 className="mb-4 text-lg font-semibold text-gray-900">Add Budget Item</h3>
@@ -531,14 +562,70 @@ export function BudgetManagerSecure({ onClose }: BudgetManagerSecureProps) {
             <>
               {recurringItems.length > 0 && (
                 <div className="mb-4">
-                  <h3 className="text-sm font-semibold text-gray-900 mb-2">Recurring Expenses</h3>
-                  <div className="space-y-1">
+                  <div className="overflow-x-auto -mx-3 px-3">
+                    <table className="w-full text-xs min-w-[600px]">
+                      <thead className="sticky top-0 bg-white z-10">
+                        <tr className="border-b-2 border-gray-300">
+                          <th className="text-left py-2 px-2 font-semibold text-gray-700">
+                            <button
+                              onClick={() => handleSort('name')}
+                              className="flex items-center gap-1 hover:text-gray-900"
+                            >
+                              Name
+                              {sortField === 'name' ? (
+                                sortDirection === 'asc' ? <ArrowUp className="w-3 h-3" /> : <ArrowDown className="w-3 h-3" />
+                              ) : (
+                                <ArrowUpDown className="w-3 h-3 opacity-30" />
+                              )}
+                            </button>
+                          </th>
+                          <th className="text-left py-2 px-2 font-semibold text-gray-700">
+                            <button
+                              onClick={() => handleSort('category')}
+                              className="flex items-center gap-1 hover:text-gray-900"
+                            >
+                              Category
+                              {sortField === 'category' ? (
+                                sortDirection === 'asc' ? <ArrowUp className="w-3 h-3" /> : <ArrowDown className="w-3 h-3" />
+                              ) : (
+                                <ArrowUpDown className="w-3 h-3 opacity-30" />
+                              )}
+                            </button>
+                          </th>
+                          <th className="text-left py-2 px-2 font-semibold text-gray-700">
+                            <button
+                              onClick={() => handleSort('frequency')}
+                              className="flex items-center gap-1 hover:text-gray-900"
+                            >
+                              Frequency
+                              {sortField === 'frequency' ? (
+                                sortDirection === 'asc' ? <ArrowUp className="w-3 h-3" /> : <ArrowDown className="w-3 h-3" />
+                              ) : (
+                                <ArrowUpDown className="w-3 h-3 opacity-30" />
+                              )}
+                            </button>
+                          </th>
+                          <th className="text-right py-2 px-2 font-semibold text-gray-700">
+                            <button
+                              onClick={() => handleSort('amount')}
+                              className="flex items-center gap-1 hover:text-gray-900 ml-auto"
+                            >
+                              Amount
+                              {sortField === 'amount' ? (
+                                sortDirection === 'asc' ? <ArrowUp className="w-3 h-3" /> : <ArrowDown className="w-3 h-3" />
+                              ) : (
+                                <ArrowUpDown className="w-3 h-3 opacity-30" />
+                              )}
+                            </button>
+                          </th>
+                          <th className="text-center py-2 px-2 font-semibold text-gray-700">Actions</th>
+                        </tr>
+                      </thead>
+                      <tbody>
                     {recurringItems.map((item) => (
-                      <div
-                        key={item.id}
-                        className={`rounded px-2 py-1 border ${getCategoryColor(item.category, item.type || 'expense')} hover:shadow-sm transition-all`}
-                      >
-                        {editingItem?.id === item.id ? (
+                      editingItem?.id === item.id ? (
+                        <tr key={item.id} className="border-b border-gray-200">
+                          <td colSpan={5} className="py-3 px-2">
                           <div className="space-y-4">
                             <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
                               <div>
@@ -667,43 +754,45 @@ export function BudgetManagerSecure({ onClose }: BudgetManagerSecureProps) {
                               </button>
                             </div>
                           </div>
-                        ) : (
-                          <div className="flex items-center justify-between gap-2 py-0.5">
-                            <div className="flex-1 flex items-center gap-2 min-w-0">
-                              <h3 className="font-semibold text-gray-900 text-xs truncate" style={{ minWidth: '140px', maxWidth: '180px' }} title={item.name}>
-                                {item.type === 'income' ? '💰 ' : '💸 '}{item.name}
-                              </h3>
-                              <span className={`px-1.5 py-0.5 rounded text-[10px] font-medium flex-shrink-0 ${item.type === 'income' ? 'bg-green-100 text-green-700' : 'bg-white'}`}>
-                                {getCategoryLabel(item.category)}
-                              </span>
-                              <span className="px-1.5 py-0.5 rounded text-[10px] font-medium bg-white text-gray-600 flex-shrink-0">
-                                {getFrequencyLabel(item.frequency)}
-                              </span>
-                              {item.paymentDate && (
-                                <span className="text-[10px] text-gray-600 flex-shrink-0">
-                                  Due: {item.paymentDate}
-                                </span>
-                              )}
-                              {item.notes && (
-                                <span className="text-[10px] text-gray-500 italic truncate max-w-[120px]" title={item.notes}>
-                                  {item.notes}
-                                </span>
-                              )}
+                          </td>
+                        </tr>
+                      ) : (
+                        <tr key={item.id} className="border-b border-gray-200 hover:bg-gray-50">
+                          <td className="py-1.5 px-2">
+                            <div className="flex items-center gap-1">
+                              <span>{item.type === 'income' ? '💰' : '💸'}</span>
+                              <span className="truncate" title={item.name}>{item.name}</span>
                             </div>
-                            <div className="flex items-center gap-2 flex-shrink-0">
-                              <div className="text-right">
-                                <p className={`text-xs font-bold ${item.type === 'income' ? 'text-green-600' : 'text-red-600'}`}>
-                                  {item.type === 'income' ? '+' : ''}{formatCurrency(item.monthlyAmount)}/mo
-                                </p>
-                                {item.frequency === 'annual' && (
-                                  <p className="text-[10px] text-gray-500">
-                                    ({formatCurrency(item.amount)}/yr)
-                                  </p>
-                                )}
+                            {item.notes && (
+                              <div className="text-[10px] text-gray-500 italic truncate" title={item.notes}>
+                                {item.notes}
                               </div>
+                            )}
+                          </td>
+                          <td className="py-1.5 px-2">
+                            {getCategoryLabel(item.category)}
+                          </td>
+                          <td className="py-1.5 px-2">
+                            <div>{getFrequencyLabel(item.frequency)}</div>
+                            {item.paymentDate && (
+                              <div className="text-[10px] text-gray-500">Due: {item.paymentDate}</div>
+                            )}
+                          </td>
+                          <td className="py-1.5 px-2 text-right">
+                            <div className={`font-bold ${item.type === 'income' ? 'text-green-600' : 'text-red-600'}`}>
+                              {item.type === 'income' ? '+' : ''}{formatCurrency(item.monthlyAmount)}/mo
+                            </div>
+                            {item.frequency === 'annual' && (
+                              <div className="text-[10px] text-gray-500">
+                                ({formatCurrency(item.amount)}/yr)
+                              </div>
+                            )}
+                          </td>
+                          <td className="py-1.5 px-2">
+                            <div className="flex items-center justify-center gap-1">
                               <button
                                 onClick={() => setEditingItem(item)}
-                                className="p-1 hover:bg-white rounded transition-colors"
+                                className="p-1 hover:bg-gray-200 rounded transition-colors"
                                 title="Edit"
                               >
                                 <Edit2 className="w-3.5 h-3.5 text-gray-600" />
@@ -716,24 +805,26 @@ export function BudgetManagerSecure({ onClose }: BudgetManagerSecureProps) {
                                 <Trash className="w-3.5 h-3.5 text-red-600" />
                               </button>
                             </div>
-                          </div>
-                        )}
-                      </div>
+                          </td>
+                        </tr>
+                      )
                     ))}
+                      </tbody>
+                    </table>
                   </div>
                 </div>
               )}
 
               {oneOffItems.length > 0 && (
-                <div>
-                  <h3 className="text-sm font-semibold text-gray-900 mb-2">One-off Expenses</h3>
-                  <div className="space-y-1">
+                <div className="mt-6">
+                  <h3 className="text-sm font-semibold text-gray-900 mb-2">One-off Items</h3>
+                  <div className="overflow-x-auto -mx-3 px-3">
+                    <table className="w-full text-xs min-w-[600px]">
+                      <tbody>
                     {oneOffItems.map((item) => (
-                      <div
-                        key={item.id}
-                        className={`rounded px-2 py-1 border ${getCategoryColor(item.category, item.type || 'expense')} hover:shadow-sm transition-all`}
-                      >
-                        {editingItem?.id === item.id ? (
+                      editingItem?.id === item.id ? (
+                        <tr key={item.id} className="border-b border-gray-200">
+                          <td colSpan={5} className="py-3 px-2">
                           <div className="space-y-4">
                             <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
                               <div>
@@ -826,36 +917,40 @@ export function BudgetManagerSecure({ onClose }: BudgetManagerSecureProps) {
                               </button>
                             </div>
                           </div>
-                        ) : (
-                          <div className="flex items-center justify-between gap-2 py-0.5">
-                            <div className="flex-1 flex items-center gap-2 min-w-0">
-                              <h3 className="font-semibold text-gray-900 text-xs truncate" style={{ minWidth: '140px', maxWidth: '180px' }} title={item.name}>
-                                {item.type === 'income' ? '💰 ' : '💸 '}{item.name}
-                              </h3>
-                              <span className={`px-1.5 py-0.5 rounded text-[10px] font-medium flex-shrink-0 ${item.type === 'income' ? 'bg-green-100 text-green-700' : 'bg-white'}`}>
-                                {getCategoryLabel(item.category)}
-                              </span>
-                              <span className="px-1.5 py-0.5 rounded text-[10px] font-medium bg-white text-gray-600 flex-shrink-0">
-                                One-off
-                              </span>
-                              {item.paymentDate && (
-                                <span className="text-[10px] text-gray-600 flex-shrink-0">
-                                  Date: {item.paymentDate}
-                                </span>
-                              )}
-                              {item.notes && (
-                                <span className="text-[10px] text-gray-500 italic truncate max-w-[120px]" title={item.notes}>
-                                  {item.notes}
-                                </span>
-                              )}
+                          </td>
+                        </tr>
+                      ) : (
+                        <tr key={item.id} className="border-b border-gray-200 hover:bg-gray-50">
+                          <td className="py-1.5 px-2 w-1/3">
+                            <div className="flex items-center gap-1">
+                              <span>{item.type === 'income' ? '💰' : '💸'}</span>
+                              <span className="truncate" title={item.name}>{item.name}</span>
                             </div>
-                            <div className="flex items-center gap-2 flex-shrink-0">
-                              <p className={`text-xs font-bold ${item.type === 'income' ? 'text-green-600' : 'text-red-600'}`}>
-                                {item.type === 'income' ? '+' : ''}{formatCurrency(item.amount)}
-                              </p>
+                            {item.notes && (
+                              <div className="text-[10px] text-gray-500 italic truncate" title={item.notes}>
+                                {item.notes}
+                              </div>
+                            )}
+                          </td>
+                          <td className="py-1.5 px-2">
+                            {getCategoryLabel(item.category)}
+                          </td>
+                          <td className="py-1.5 px-2">
+                            <div>One-off</div>
+                            {item.paymentDate && (
+                              <div className="text-[10px] text-gray-500">Date: {item.paymentDate}</div>
+                            )}
+                          </td>
+                          <td className="py-1.5 px-2 text-right">
+                            <div className={`font-bold ${item.type === 'income' ? 'text-green-600' : 'text-red-600'}`}>
+                              {item.type === 'income' ? '+' : ''}{formatCurrency(item.amount)}
+                            </div>
+                          </td>
+                          <td className="py-1.5 px-2">
+                            <div className="flex items-center justify-center gap-1">
                               <button
                                 onClick={() => setEditingItem(item)}
-                                className="p-1 hover:bg-white rounded transition-colors"
+                                className="p-1 hover:bg-gray-200 rounded transition-colors"
                                 title="Edit"
                               >
                                 <Edit2 className="w-3.5 h-3.5 text-gray-600" />
@@ -868,15 +963,18 @@ export function BudgetManagerSecure({ onClose }: BudgetManagerSecureProps) {
                                 <Trash className="w-3.5 h-3.5 text-red-600" />
                               </button>
                             </div>
-                          </div>
-                        )}
-                      </div>
+                          </td>
+                        </tr>
+                      )
                     ))}
+                      </tbody>
+                    </table>
                   </div>
                 </div>
               )}
             </>
           )}
+        </div>
         </div>
       </div>
     </div>
