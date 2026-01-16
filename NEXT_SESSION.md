@@ -1,13 +1,93 @@
 # Next Session Reminder
 
-**Date:** 2026-01-15
-**Status:** ✅ Budget Manager enhanced with income tracking and compact view
+**Date:** 2026-01-16
+**Status:** ✅ Budget Manager tabular layout with sortable columns complete
 **Repository:** https://github.com/bradymd/phub
-**Last Commit:** Pending - Budget Manager UX improvements
+**Last Commit:** 249fd14 - Tabular layout and modal UX improvements
 
 ---
 
-## 🎉 What We Accomplished THIS Session (2026-01-15)
+## 🎉 What We Accomplished THIS Session (2026-01-16)
+
+### 1. **Budget Manager: Professional Tabular Layout** ✅ COMPLETED
+
+**Goal:** Transform Budget Manager from card layout to professional sortable table
+
+**What We Did:**
+1. Converted card-based item display to HTML table format
+2. Implemented sortable columns (click headers to sort):
+   - Name (alphabetical)
+   - Category (alphabetical)
+   - Frequency (alphabetical)
+   - Amount (numerical)
+   - Toggle ascending/descending on repeated clicks
+3. Added sticky table headers that stay visible while scrolling
+4. Horizontal scroll support for narrow viewports (table min-width: 600px)
+5. Removed "Recurring Expenses" heading (misleading with income)
+6. Changed "One-off Expenses" to "One-off Items"
+
+**Files Modified:**
+- `src/app/components/BudgetManagerSecure.tsx` - Complete table redesign
+
+### 2. **Modal Scroll Architecture Fix** ✅ COMPLETED
+
+**Problem:** When window narrowed, stacked summary blocks took all vertical space, no way to scroll to items
+
+**Solution:** Put ALL content (summary + search + categories + items) in ONE scrollable container
+
+**What We Did:**
+1. Wrapped everything except header in single `overflow-y-auto` container
+2. Added `min-h-0` to flex items to enable proper overflow behavior
+3. Summary cards, search, category filters, and items all scroll together now
+4. Applied to both Budget Manager and Medical History Manager
+
+**Result:** Can scroll through entire content area when summary blocks stack on narrow screens
+
+**Files Modified:**
+- `src/app/components/BudgetManagerSecure.tsx` - Scroll container restructure
+- `src/app/components/MedicalHistoryManagerSecure.tsx` - Same scroll fix
+
+### 3. **Medical History Manager: UX Improvements** ✅ COMPLETED
+
+**Applied Best Practices from Budget Manager:**
+1. Added Eye icon (👁️) to toggle summary cards visibility
+2. Moved "Add Medical Record" button to top-right header
+3. Changed button text to just "Add Record" for brevity
+4. Modal fills window with `absolute inset-2` positioning
+5. Fixed scroll container to include all content
+
+**Files Modified:**
+- `src/app/components/MedicalHistoryManagerSecure.tsx`
+
+### 4. **Window Configuration Updates** ✅ COMPLETED
+
+**Changed in `src-tauri/tauri.conf.json`:**
+- Reduced `minWidth`: 1200 → 600 (testing narrow layouts)
+- Reduced `minHeight`: 800 → 400 (better responsive testing)
+
+**Enables:** Testing mobile-like screen sizes and responsive behavior
+
+### 5. **Body Scroll Fix** ✅ COMPLETED
+
+**Removed:** `overflow: hidden` from body element in theme.css
+
+**Why:** Was preventing main dashboard from scrolling when window too small
+
+**Result:** Can now scroll main dashboard when window smaller than content
+
+---
+
+## 🐛 Known Issues
+
+### Horizontal Scrollbar UX (Low Priority)
+- Horizontal scrollbar appears at bottom of table content
+- Must scroll down vertically to find horizontal scrollbar
+- Would need viewport-level restructure to fix properly
+- Functionally works, but UX could be better for narrow screens
+
+---
+
+## 🎉 What We Accomplished PREVIOUS Session (2026-01-15)
 
 ### 1. **Budget Manager: Income & Expense Tracking** ✅ COMPLETED
 
@@ -281,17 +361,32 @@ npm run build
 
 ## 🎯 Recommendation for Next Session
 
-**Budget Manager income/expense tracking complete!** ✅
+**Budget Manager tabular layout complete!** ✅ Professional sortable table with excellent UX
 
-**Current Status:** All major functionality working smoothly. Budget Manager now provides complete financial overview with income tracking, expense tracking, and net calculations.
+**Current Status:** Budget Manager is now production-ready with sortable columns, income/expense tracking, and responsive layout. Medical History has improved UX with eye icon and better scrolling.
 
-**Suggested next features:**
-1. **Scrolling performance optimization** - Consider virtual scrolling for large lists (Health/Education)
-2. **Alphabetic sorting** - Makes all lists easier to navigate
-3. **Duplicate detection** - Clean up the 1,229 websites in Virtual High Street
-4. **Password strength audit** - Identify weak/reused passwords
+**Suggested next tasks:**
 
-**Note:** Scrolling jerkiness remains in some components (Health, Education) with many records. Data loading is fast due to separate document storage, but DOM rendering of many complex cards still causes performance issues. May need virtual scrolling solution in future.
+### High Priority: Apply Budget Manager Patterns to Other Components
+1. **Finance Manager** - Apply same UX improvements:
+   - Eye icon to toggle summary
+   - Add button in top-right header
+   - Fix scroll container structure
+   - Consider tabular layout for transactions
+2. **Education Manager** - Same pattern application
+3. **Employment Manager** - Same pattern application
+
+### Medium Priority: Responsive & Performance
+1. **Fix horizontal scroll UX** - Viewport-level scroll for tables on narrow screens
+2. **Virtual scrolling** - For Health/Education with many records (jerky scrolling issue)
+3. **Mobile responsiveness** - Test all components at 600px width
+
+### Lower Priority
+1. **Alphabetic sorting** - Add to other managers (already in Budget)
+2. **Duplicate detection** - Virtual High Street cleanup
+3. **Password strength audit** - Security improvements
+
+**Note:** Focus on spreading the Budget Manager UX pattern to other components first - it's a proven design that works well.
 
 ---
 
