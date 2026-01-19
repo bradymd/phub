@@ -1,18 +1,47 @@
 import { useState, useEffect } from 'react';
-import { X, Plus, Trash, Receipt, TrendingDown, TrendingUp, Calendar, Edit2, Search, DollarSign, Eye, EyeOff, ArrowUpDown, ArrowUp, ArrowDown } from 'lucide-react';
+import { X, Plus, Trash, Receipt, TrendingDown, TrendingUp, Calendar, Edit2, Search, DollarSign, Eye, EyeOff, ArrowUpDown, ArrowUp, ArrowDown, Tag } from 'lucide-react';
 import { useStorage } from '../../contexts/StorageContext';
 
 interface BudgetItem {
   id: string;
   name: string;
-  type: 'income' | 'expense'; // NEW: Income or expense
-  category: 'housing' | 'utilities' | 'insurance' | 'subscriptions' | 'transport' | 'food' | 'entertainment' | 'healthcare' | 'charity' | 'salary' | 'investments' | 'other';
+  type: 'income' | 'expense';
+  category: string; // Changed to string to allow custom categories
   frequency: 'monthly' | 'annual' | 'variable' | 'one-off';
-  amount: string; // Amount per frequency
-  monthlyAmount: string; // Calculated monthly amount (annual/12, monthly/variable as-is, one-off shown separately)
-  paymentDate: string; // Day of month or date for one-off
+  amount: string;
+  monthlyAmount: string;
+  paymentDate: string;
   notes: string;
 }
+
+interface CustomCategory {
+  id: string;
+  name: string;
+  type: 'income' | 'expense';
+}
+
+// Default built-in categories
+const DEFAULT_EXPENSE_CATEGORIES = [
+  { id: 'housing', name: 'Housing (Rent/Mortgage)' },
+  { id: 'utilities', name: 'Utilities (Gas/Electric/Water)' },
+  { id: 'insurance', name: 'Insurance' },
+  { id: 'subscriptions', name: 'Subscriptions' },
+  { id: 'transport', name: 'Transport' },
+  { id: 'food', name: 'Food & Groceries' },
+  { id: 'eating-out', name: 'Eating Out (Restaurants/Cafes)' },
+  { id: 'entertainment', name: 'Entertainment' },
+  { id: 'healthcare', name: 'Healthcare' },
+  { id: 'charity', name: 'Charity' },
+  { id: 'personal-care', name: 'Personal Care (Gym/Beauty)' },
+  { id: 'shopping', name: 'Shopping (Clothes/Gadgets)' },
+  { id: 'other', name: 'Other' }
+];
+
+const DEFAULT_INCOME_CATEGORIES = [
+  { id: 'salary', name: 'Salary/Wages' },
+  { id: 'investments', name: 'Investments/Dividends' },
+  { id: 'other', name: 'Other Income' }
+];
 
 interface BudgetManagerSecureProps {
   onClose: () => void;
@@ -41,9 +70,14 @@ export function BudgetManagerSecure({ onClose }: BudgetManagerSecureProps) {
   const [showSummary, setShowSummary] = useState(true);
   const [sortField, setSortField] = useState<'name' | 'category' | 'frequency' | 'amount'>('name');
   const [sortDirection, setSortDirection] = useState<'asc' | 'desc'>('asc');
+  const [customCategories, setCustomCategories] = useState<CustomCategory[]>([]);
+  const [showCategoryManager, setShowCategoryManager] = useState(false);
+  const [newCategoryName, setNewCategoryName] = useState('');
+  const [newCategoryType, setNewCategoryType] = useState<'income' | 'expense'>('expense');
 
   useEffect(() => {
     loadItems();
+    loadCustomCategories();
   }, []);
 
   useEffect(() => {
@@ -79,6 +113,53 @@ export function BudgetManagerSecure({ onClose }: BudgetManagerSecureProps) {
     } finally {
       setIsLoading(false);
     }
+  };
+
+  const loadCustomCategories = async () => {
+    try {
+      const data = await storage.get<CustomCategory>('custom_categories');
+      setCustomCategories(data);
+    } catch (err) {
+      console.error('Failed to load custom categories:', err);
+      setCustomCategories([]);
+    }
+  };
+
+  const saveCustomCategories = async (categories: CustomCategory[]) => {
+    try {
+      await storage.set('custom_categories', categories);
+      setCustomCategories(categories);
+    } catch (err) {
+      setError('Failed to save custom categories');
+      console.error(err);
+    }
+  };
+
+  const addCustomCategory = async () => {
+    if (!newCategoryName.trim()) return;
+
+    const newCategory: CustomCategory = {
+      id: `custom-${Date.now()}`,
+      name: newCategoryName.trim(),
+      type: newCategoryType
+    };
+
+    await saveCustomCategories([...customCategories, newCategory]);
+    setNewCategoryName('');
+  };
+
+  const deleteCustomCategory = async (id: string) => {
+    if (!confirm('Delete this category? Budget items using it will show as "Other".')) return;
+
+    const updated = customCategories.filter(c => c.id !== id);
+    await saveCustomCategories(updated);
+  };
+
+  // Get all categories for a type (default + custom)
+  const getAllCategories = (type: 'income' | 'expense') => {
+    const defaults = type === 'income' ? DEFAULT_INCOME_CATEGORIES : DEFAULT_EXPENSE_CATEGORIES;
+    const custom = customCategories.filter(c => c.type === type);
+    return [...defaults, ...custom.map(c => ({ id: c.id, name: c.name }))];
   };
 
   const addItem = async () => {
@@ -138,32 +219,19 @@ export function BudgetManagerSecure({ onClose }: BudgetManagerSecureProps) {
   };
 
   const getCategoryLabel = (category: string) => {
-    switch (category) {
-      case 'housing':
-        return 'Housing';
-      case 'utilities':
-        return 'Utilities';
-      case 'insurance':
-        return 'Insurance';
-      case 'subscriptions':
-        return 'Subscriptions';
-      case 'transport':
-        return 'Transport';
-      case 'food':
-        return 'Food & Groceries';
-      case 'entertainment':
-        return 'Entertainment';
-      case 'healthcare':
-        return 'Healthcare';
-      case 'charity':
-        return 'Charity';
-      case 'salary':
-        return 'Salary/Wages';
-      case 'investments':
-        return 'Investments/Dividends';
-      default:
-        return 'Other';
+    // Check custom categories first
+    const custom = customCategories.find(c => c.id === category);
+    if (custom) return custom.name;
+
+    // Fall back to defaults
+    const allDefaults = [...DEFAULT_EXPENSE_CATEGORIES, ...DEFAULT_INCOME_CATEGORIES];
+    const defaultCat = allDefaults.find(c => c.id === category);
+    if (defaultCat) {
+      // Return shorter name for default categories
+      return defaultCat.name.replace(/\s*\(.*?\)\s*/g, '').trim();
     }
+
+    return 'Other';
   };
 
   const getCategoryColor = (category: string, type?: 'income' | 'expense') => {
@@ -299,6 +367,13 @@ export function BudgetManagerSecure({ onClose }: BudgetManagerSecureProps) {
               title={showSummary ? 'Hide summary cards' : 'Show summary cards'}
             >
               {showSummary ? <EyeOff className="w-4 h-4" /> : <Eye className="w-4 h-4" />}
+            </button>
+            <button
+              onClick={() => setShowCategoryManager(!showCategoryManager)}
+              className="flex items-center gap-2 px-3 py-2 bg-white/90 text-red-600 rounded-lg hover:bg-white transition-colors"
+              title="Manage custom categories"
+            >
+              <Tag className="w-4 h-4" />
             </button>
             <button
               onClick={() => setShowAddForm(!showAddForm)}
@@ -473,29 +548,12 @@ export function BudgetManagerSecure({ onClose }: BudgetManagerSecureProps) {
                 <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
                   <select
                     value={newItem.category}
-                    onChange={(e) => setNewItem({ ...newItem, category: e.target.value as any })}
+                    onChange={(e) => setNewItem({ ...newItem, category: e.target.value })}
                     className="px-4 py-2 border border-gray-300 rounded-lg bg-white"
                   >
-                    {newItem.type === 'income' ? (
-                      <>
-                        <option value="salary">Salary/Wages</option>
-                        <option value="investments">Investments/Dividends</option>
-                        <option value="other">Other Income</option>
-                      </>
-                    ) : (
-                      <>
-                        <option value="housing">Housing (Rent/Mortgage)</option>
-                        <option value="utilities">Utilities (Gas/Electric/Water)</option>
-                        <option value="insurance">Insurance</option>
-                        <option value="subscriptions">Subscriptions</option>
-                        <option value="transport">Transport</option>
-                        <option value="food">Food & Groceries</option>
-                        <option value="entertainment">Entertainment</option>
-                        <option value="healthcare">Healthcare</option>
-                        <option value="charity">Charity</option>
-                        <option value="other">Other</option>
-                      </>
-                    )}
+                    {getAllCategories(newItem.type).map(cat => (
+                      <option key={cat.id} value={cat.id}>{cat.name}</option>
+                    ))}
                   </select>
                   <select
                     value={newItem.frequency}
@@ -655,29 +713,12 @@ export function BudgetManagerSecure({ onClose }: BudgetManagerSecureProps) {
                                 <label className="block text-sm font-medium text-gray-700 mb-1">Category</label>
                                 <select
                                   value={editingItem.category}
-                                  onChange={(e) => setEditingItem({ ...editingItem, category: e.target.value as any })}
+                                  onChange={(e) => setEditingItem({ ...editingItem, category: e.target.value })}
                                   className="w-full px-4 py-2 border border-gray-300 rounded-lg bg-white"
                                 >
-                                  {(editingItem.type || 'expense') === 'income' ? (
-                                    <>
-                                      <option value="salary">Salary/Wages</option>
-                                      <option value="investments">Investments/Dividends</option>
-                                      <option value="other">Other Income</option>
-                                    </>
-                                  ) : (
-                                    <>
-                                      <option value="housing">Housing (Rent/Mortgage)</option>
-                                      <option value="utilities">Utilities (Gas/Electric/Water)</option>
-                                      <option value="insurance">Insurance</option>
-                                      <option value="subscriptions">Subscriptions</option>
-                                      <option value="transport">Transport</option>
-                                      <option value="food">Food & Groceries</option>
-                                      <option value="entertainment">Entertainment</option>
-                                      <option value="healthcare">Healthcare</option>
-                                      <option value="charity">Charity</option>
-                                      <option value="other">Other</option>
-                                    </>
-                                  )}
+                                  {getAllCategories(editingItem.type || 'expense').map(cat => (
+                                    <option key={cat.id} value={cat.id}>{cat.name}</option>
+                                  ))}
                                 </select>
                               </div>
                               <div>
@@ -841,19 +882,12 @@ export function BudgetManagerSecure({ onClose }: BudgetManagerSecureProps) {
                                 <label className="block text-sm font-medium text-gray-700 mb-1">Category</label>
                                 <select
                                   value={editingItem.category}
-                                  onChange={(e) => setEditingItem({ ...editingItem, category: e.target.value as any })}
+                                  onChange={(e) => setEditingItem({ ...editingItem, category: e.target.value })}
                                   className="w-full px-4 py-2 border border-gray-300 rounded-lg bg-white"
                                 >
-                                  <option value="housing">Housing</option>
-                                  <option value="utilities">Utilities</option>
-                                  <option value="insurance">Insurance</option>
-                                  <option value="subscriptions">Subscriptions</option>
-                                  <option value="transport">Transport</option>
-                                  <option value="food">Food & Groceries</option>
-                                  <option value="entertainment">Entertainment</option>
-                                  <option value="healthcare">Healthcare</option>
-                                  <option value="charity">Charity</option>
-                                  <option value="other">Other</option>
+                                  {getAllCategories(editingItem.type || 'expense').map(cat => (
+                                    <option key={cat.id} value={cat.id}>{cat.name}</option>
+                                  ))}
                                 </select>
                               </div>
                             </div>
@@ -976,6 +1010,100 @@ export function BudgetManagerSecure({ onClose }: BudgetManagerSecureProps) {
           )}
         </div>
         </div>
+
+        {/* Category Manager Modal */}
+        {showCategoryManager && (
+          <div className="fixed inset-0 bg-black/60 flex items-center justify-center z-[60] p-4">
+            <div className="bg-white rounded-2xl max-w-2xl w-full p-6 shadow-2xl max-h-[80vh] overflow-y-auto">
+              <div className="flex items-center justify-between mb-6">
+                <h3 className="text-xl font-semibold flex items-center gap-2">
+                  <Tag className="w-5 h-5 text-red-600" />
+                  Manage Categories
+                </h3>
+                <button
+                  onClick={() => setShowCategoryManager(false)}
+                  className="p-2 hover:bg-gray-100 rounded-lg transition-colors"
+                >
+                  <X className="w-5 h-5" />
+                </button>
+              </div>
+
+              {/* Add New Category */}
+              <div className="mb-6 p-4 bg-gradient-to-br from-red-50 to-orange-50 rounded-xl border-2 border-red-200">
+                <h4 className="font-semibold mb-3 text-gray-900">Add Custom Category</h4>
+                <div className="space-y-3">
+                  <div className="flex gap-3">
+                    <input
+                      type="text"
+                      value={newCategoryName}
+                      onChange={(e) => setNewCategoryName(e.target.value)}
+                      placeholder="Category name (e.g., 'Pet Care', 'Education')"
+                      className="flex-1 px-4 py-2 border border-gray-300 rounded-lg bg-white"
+                      onKeyPress={(e) => e.key === 'Enter' && addCustomCategory()}
+                    />
+                    <select
+                      value={newCategoryType}
+                      onChange={(e) => setNewCategoryType(e.target.value as 'income' | 'expense')}
+                      className="px-4 py-2 border border-gray-300 rounded-lg bg-white"
+                    >
+                      <option value="expense">💸 Expense</option>
+                      <option value="income">💰 Income</option>
+                    </select>
+                  </div>
+                  <button
+                    onClick={addCustomCategory}
+                    disabled={!newCategoryName.trim()}
+                    className="w-full px-4 py-2 bg-red-600 text-white rounded-lg hover:bg-red-700 transition-colors disabled:opacity-50 disabled:cursor-not-allowed font-medium"
+                  >
+                    Add Category
+                  </button>
+                </div>
+              </div>
+
+              {/* Custom Categories List */}
+              <div>
+                <h4 className="font-semibold mb-3 text-gray-900">Your Custom Categories</h4>
+                {customCategories.length === 0 ? (
+                  <div className="text-center py-8 text-gray-400">
+                    <Tag className="w-12 h-12 mx-auto mb-3 opacity-50" />
+                    <p>No custom categories yet</p>
+                    <p className="text-sm mt-1">Add categories that fit your budget needs</p>
+                  </div>
+                ) : (
+                  <div className="space-y-2">
+                    {customCategories.map(cat => (
+                      <div
+                        key={cat.id}
+                        className="flex items-center justify-between p-3 bg-gray-50 rounded-lg"
+                      >
+                        <div className="flex items-center gap-3">
+                          <span className="text-xl">{cat.type === 'income' ? '💰' : '💸'}</span>
+                          <div>
+                            <p className="font-medium text-gray-900">{cat.name}</p>
+                            <p className="text-xs text-gray-500">{cat.type === 'income' ? 'Income' : 'Expense'}</p>
+                          </div>
+                        </div>
+                        <button
+                          onClick={() => deleteCustomCategory(cat.id)}
+                          className="p-2 hover:bg-red-100 rounded-lg transition-colors text-red-600"
+                          title="Delete category"
+                        >
+                          <Trash className="w-4 h-4" />
+                        </button>
+                      </div>
+                    ))}
+                  </div>
+                )}
+              </div>
+
+              {/* Info */}
+              <div className="mt-6 p-3 bg-blue-50 border border-blue-200 rounded-lg text-sm text-blue-700">
+                <strong>Note:</strong> Default categories (Housing, Utilities, etc.) cannot be deleted.
+                If you delete a custom category, budget items using it will show as "Other".
+              </div>
+            </div>
+          </div>
+        )}
       </div>
     </div>
   );
