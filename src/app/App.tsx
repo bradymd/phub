@@ -19,7 +19,10 @@ import {
   List,
   Lock,
   X,
-  AlertCircle
+  AlertCircle,
+  Settings,
+  Eye,
+  EyeOff
 } from 'lucide-react';
 import { CategoryCard } from './components/CategoryCard';
 import { DocumentManagerSecure } from './components/DocumentManagerSecure';
@@ -52,6 +55,12 @@ export default function App() {
   const [importChecked, setImportChecked] = useState(false);
   const [viewMode, setViewMode] = useState<'grid' | 'list'>('grid');
   const [showPasswordChange, setShowPasswordChange] = useState(false);
+  const [showCategorySettings, setShowCategorySettings] = useState(false);
+  const [hiddenCategories, setHiddenCategories] = useState<Set<string>>(() => {
+    // Load hidden categories from localStorage
+    const saved = localStorage.getItem('hidden_categories');
+    return saved ? new Set(JSON.parse(saved)) : new Set();
+  });
 
   // Check if user has already set up a master password
   useEffect(() => {
@@ -109,6 +118,23 @@ export default function App() {
     setShowImportWizard(false);
     window.location.reload(); // Reload to show imported data
   };
+
+  // Toggle category visibility
+  const toggleCategoryVisibility = (categoryId: string) => {
+    setHiddenCategories(prev => {
+      const newSet = new Set(prev);
+      if (newSet.has(categoryId)) {
+        newSet.delete(categoryId);
+      } else {
+        newSet.add(categoryId);
+      }
+      // Save to localStorage
+      localStorage.setItem('hidden_categories', JSON.stringify([...newSet]));
+      return newSet;
+    });
+  };
+
+  const isCategoryVisible = (categoryId: string) => !hiddenCategories.has(categoryId);
 
   // Export all data to a file
   const handleExportData = () => {
@@ -319,6 +345,14 @@ export default function App() {
               </button>
               <div className="w-px h-8 bg-gray-300 mx-2"></div>
               <button
+                onClick={() => setShowCategorySettings(true)}
+                className="flex items-center gap-2 px-4 py-2 bg-white text-gray-700 rounded-lg hover:bg-gray-100 transition-colors shadow-md border border-gray-200"
+                title="Customize which panels are visible"
+              >
+                <Settings className="w-4 h-4" />
+                Panel Settings
+              </button>
+              <button
                 onClick={() => setShowPasswordChange(true)}
                 className="flex items-center gap-2 px-4 py-2 bg-white text-gray-700 rounded-lg hover:bg-gray-100 transition-colors shadow-md border border-gray-200"
                 title="Change master password"
@@ -361,7 +395,7 @@ export default function App() {
         {/* Categories Grid or List */}
         {viewMode === 'grid' ? (
           <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
-            {categories.map((category) => (
+            {categories.filter(cat => isCategoryVisible(cat.id)).map((category) => (
               <CategoryCard
                 key={category.id}
                 title={category.title}
@@ -373,7 +407,7 @@ export default function App() {
           </div>
         ) : (
           <div className="bg-white rounded-xl shadow-sm border border-gray-100 divide-y divide-gray-100">
-            {categories.map((category) => {
+            {categories.filter(cat => isCategoryVisible(cat.id)).map((category) => {
               const Icon = category.icon;
               return (
                 <button
@@ -444,6 +478,90 @@ export default function App() {
           onClose={() => setShowPasswordChange(false)}
           currentPassword={masterPassword}
         />
+      )}
+
+      {/* Category Settings Modal */}
+      {showCategorySettings && (
+        <div className="fixed inset-0 bg-black/60 flex items-center justify-center z-[9999] p-4">
+          <div className="bg-white rounded-2xl max-w-2xl w-full p-6 shadow-2xl max-h-[80vh] overflow-y-auto">
+            {/* Header */}
+            <div className="flex items-center justify-between mb-6">
+              <h2 className="text-2xl font-bold text-gray-900 flex items-center gap-2">
+                <Settings className="w-6 h-6 text-blue-600" />
+                Panel Visibility Settings
+              </h2>
+              <button
+                onClick={() => setShowCategorySettings(false)}
+                className="p-2 hover:bg-gray-100 rounded-lg transition-colors"
+                title="Close"
+              >
+                <X className="w-5 h-5" />
+              </button>
+            </div>
+
+            {/* Info */}
+            <div className="mb-6 p-4 bg-blue-50 border border-blue-200 rounded-lg">
+              <p className="text-sm text-blue-800">
+                Hide panels you don't need to declutter your dashboard. You can always show them again later.
+              </p>
+            </div>
+
+            {/* Category List */}
+            <div className="space-y-2">
+              {categories.map((category) => {
+                const Icon = category.icon;
+                const isVisible = isCategoryVisible(category.id);
+
+                return (
+                  <button
+                    key={category.id}
+                    onClick={() => toggleCategoryVisibility(category.id)}
+                    className={`w-full p-4 rounded-xl border-2 transition-all flex items-center justify-between ${
+                      isVisible
+                        ? 'border-blue-200 bg-blue-50 hover:bg-blue-100'
+                        : 'border-gray-200 bg-gray-50 hover:bg-gray-100 opacity-60'
+                    }`}
+                  >
+                    <div className="flex items-center gap-3">
+                      <div className={`p-2 rounded-lg ${isVisible ? 'bg-blue-100 text-blue-600' : 'bg-gray-200 text-gray-500'}`}>
+                        <Icon className="w-5 h-5" />
+                      </div>
+                      <div className="text-left">
+                        <p className={`font-medium ${isVisible ? 'text-gray-900' : 'text-gray-500'}`}>
+                          {category.title}
+                        </p>
+                        <p className="text-sm text-gray-500">{category.description}</p>
+                      </div>
+                    </div>
+                    <div className="flex items-center gap-2">
+                      {isVisible ? (
+                        <>
+                          <Eye className="w-5 h-5 text-blue-600" />
+                          <span className="text-sm font-medium text-blue-600">Visible</span>
+                        </>
+                      ) : (
+                        <>
+                          <EyeOff className="w-5 h-5 text-gray-400" />
+                          <span className="text-sm font-medium text-gray-500">Hidden</span>
+                        </>
+                      )}
+                    </div>
+                  </button>
+                );
+              })}
+            </div>
+
+            {/* Footer */}
+            <div className="mt-6 flex justify-end">
+              <button
+                onClick={() => setShowCategorySettings(false)}
+                className="px-6 py-3 bg-blue-600 text-white rounded-lg hover:bg-blue-700 transition-colors font-medium"
+              >
+                Done
+              </button>
+            </div>
+          </div>
+        </div>
       )}
     </div>
     </StorageProvider>
