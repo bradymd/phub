@@ -16,7 +16,10 @@ import {
   Upload,
   HardDrive,
   Grid3x3,
-  List
+  List,
+  Lock,
+  X,
+  AlertCircle
 } from 'lucide-react';
 import { CategoryCard } from './components/CategoryCard';
 import { DocumentManagerSecure } from './components/DocumentManagerSecure';
@@ -33,9 +36,10 @@ import { PensionManagerSecure } from './components/PensionManagerSecure';
 import { BudgetManagerSecure } from './components/BudgetManagerSecure';
 import MasterPasswordSetup from './components/MasterPasswordSetup';
 import MasterPasswordUnlock from './components/MasterPasswordUnlock';
-import { StorageProvider } from '../contexts/StorageContext';
+import { StorageProvider, useChangePassword } from '../contexts/StorageContext';
 import { ImportWizard } from './components/ImportWizard';
 import { BackupManager } from './components/BackupManager';
+import { PasswordChangeModal } from './components/PasswordChangeModal';
 
 type ModalType = 'certificates' | 'education' | 'health' | 'finance' | 'pensions' | 'budget' | 'photos' | 'contacts' | 'websites' | 'employment' | 'ai' | 'backup' | null;
 
@@ -47,6 +51,7 @@ export default function App() {
   const [showImportWizard, setShowImportWizard] = useState(false);
   const [importChecked, setImportChecked] = useState(false);
   const [viewMode, setViewMode] = useState<'grid' | 'list'>('grid');
+  const [showPasswordChange, setShowPasswordChange] = useState(false);
 
   // Check if user has already set up a master password
   useEffect(() => {
@@ -314,6 +319,14 @@ export default function App() {
               </button>
               <div className="w-px h-8 bg-gray-300 mx-2"></div>
               <button
+                onClick={() => setShowPasswordChange(true)}
+                className="flex items-center gap-2 px-4 py-2 bg-white text-gray-700 rounded-lg hover:bg-gray-100 transition-colors shadow-md border border-gray-200"
+                title="Change master password"
+              >
+                <Lock className="w-4 h-4" />
+                Change Password
+              </button>
+              <button
                 onClick={() => setActiveModal('backup')}
                 className="flex items-center gap-2 px-4 py-2 bg-gradient-to-r from-blue-600 to-indigo-600 text-white rounded-lg hover:from-blue-700 hover:to-indigo-700 transition-colors shadow-md"
                 title="Backup & Restore your encrypted data"
@@ -425,6 +438,12 @@ export default function App() {
       )}
       {activeModal === 'backup' && (
         <BackupManager onClose={handleModalClose} />
+      )}
+      {showPasswordChange && (
+        <PasswordChangeModal
+          onClose={() => setShowPasswordChange(false)}
+          currentPassword={masterPassword}
+        />
       )}
     </div>
     </StorageProvider>
