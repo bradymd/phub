@@ -7,6 +7,7 @@
 import { createContext, useContext, ReactNode, useState } from 'react';
 import { StorageService, createStorageService } from '../services/storage';
 import { DocumentService, createDocumentService } from '../services/document-service';
+import { hashPassword } from '../utils/crypto';
 
 interface StorageContextType {
   storage: StorageService;
@@ -96,7 +97,11 @@ export function StorageProvider({ masterPassword, children }: StorageProviderPro
       throw new Error(`Failed to migrate some data: ${errors.join(', ')}`);
     }
 
-    // 6. Update context with new services
+    // 6. Update the password hash in localStorage
+    const newPasswordHash = await hashPassword(newPassword);
+    localStorage.setItem('master_password_hash', newPasswordHash);
+
+    // 7. Update context with new services
     setStorage(newStorage);
     setDocumentService(newDocumentService);
     setCurrentPassword(newPassword);
