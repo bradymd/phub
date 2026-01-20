@@ -329,6 +329,7 @@ export function FinanceManagerSecure({ onClose }: FinanceManagerSecureProps) {
               <p className="text-xs text-gray-500 mt-1">{((currentYearISAContributions / isaAllowance) * 100).toFixed(1)}% used</p>
             </div>
           </div>
+          </div>
         )}
 
         <div className="px-6 pt-4 pb-2 border-b border-gray-200">
