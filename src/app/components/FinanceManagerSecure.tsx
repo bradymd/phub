@@ -1,5 +1,5 @@
 import { useState, useEffect } from 'react';
-import { X, Plus, Trash, Wallet, TrendingUp, PiggyBank, Edit2, Search, ExternalLink } from 'lucide-react';
+import { X, Plus, Trash, Wallet, TrendingUp, PiggyBank, Edit2, Search, ExternalLink, Eye, EyeOff, Grid3x3, List } from 'lucide-react';
 import { useStorage } from '../../contexts/StorageContext';
 
 interface FinanceAccount {
@@ -42,6 +42,8 @@ export function FinanceManagerSecure({ onClose }: FinanceManagerSecureProps) {
   const [error, setError] = useState('');
   const [newAccount, setNewAccount] = useState(emptyAccount);
   const [searchQuery, setSearchQuery] = useState('');
+  const [showSummary, setShowSummary] = useState(true);
+  const [viewMode, setViewMode] = useState<'grid' | 'list'>('grid');
 
   useEffect(() => {
     loadAccounts();
@@ -221,9 +223,38 @@ export function FinanceManagerSecure({ onClose }: FinanceManagerSecureProps) {
         <div className="p-6 border-b border-gray-200 flex items-center justify-between bg-gradient-to-r from-blue-600 to-purple-600 text-white rounded-t-2xl">
           <div className="flex items-center gap-3">
             <Wallet className="w-6 h-6" />
-            <h2 className="text-xl font-semibold">Finance Manager</h2>
+            <h2 className="text-xl font-semibold">Banks & Savings Manager</h2>
           </div>
           <div className="flex items-center gap-2">
+            <button
+              onClick={() => setViewMode('grid')}
+              className={`p-2 rounded-lg transition-colors ${
+                viewMode === 'grid'
+                  ? 'bg-white/20'
+                  : 'hover:bg-white/10'
+              }`}
+              title="Grid view"
+            >
+              <Grid3x3 className="w-4 h-4" />
+            </button>
+            <button
+              onClick={() => setViewMode('list')}
+              className={`p-2 rounded-lg transition-colors ${
+                viewMode === 'list'
+                  ? 'bg-white/20'
+                  : 'hover:bg-white/10'
+              }`}
+              title="List view"
+            >
+              <List className="w-4 h-4" />
+            </button>
+            <button
+              onClick={() => setShowSummary(!showSummary)}
+              className="p-2 hover:bg-white/10 rounded-lg transition-colors"
+              title={showSummary ? "Hide summary" : "Show summary"}
+            >
+              {showSummary ? <Eye className="w-4 h-4" /> : <EyeOff className="w-4 h-4" />}
+            </button>
             <button
               onClick={() => setShowAddForm(!showAddForm)}
               className="flex items-center gap-2 px-4 py-2 bg-white text-blue-600 rounded-lg hover:bg-blue-50 transition-colors"
@@ -246,8 +277,9 @@ export function FinanceManagerSecure({ onClose }: FinanceManagerSecureProps) {
           </div>
         )}
 
-        <div className="p-6 bg-gradient-to-br from-blue-50 to-purple-50 border-b border-gray-200">
-          <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-4">
+        {showSummary && (
+          <div className="p-6 bg-gradient-to-br from-blue-50 to-purple-50 border-b border-gray-200">
+            <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-4">
             <div className="bg-gradient-to-br from-blue-600 to-purple-600 text-white rounded-xl p-4 shadow-lg">
               <div className="flex items-center gap-3 mb-2">
                 <div className="p-2 bg-white/20 rounded-lg">
@@ -297,7 +329,7 @@ export function FinanceManagerSecure({ onClose }: FinanceManagerSecureProps) {
               <p className="text-xs text-gray-500 mt-1">{((currentYearISAContributions / isaAllowance) * 100).toFixed(1)}% used</p>
             </div>
           </div>
-        </div>
+        )}
 
         <div className="px-6 pt-4 pb-2 border-b border-gray-200">
           <div className="relative">
@@ -436,9 +468,12 @@ export function FinanceManagerSecure({ onClose }: FinanceManagerSecureProps) {
             </div>
           )}
 
-          <div className="space-y-4">
-            {filteredAccounts.length === 0 ? (
-              <div className="text-center py-12 text-gray-400">
+          <>
+            {/* Grid View */}
+            {viewMode === 'grid' && (
+              <div className="space-y-4">
+                {filteredAccounts.length === 0 ? (
+                  <div className="text-center py-12 text-gray-400">
                 <Wallet className="w-12 h-12 mx-auto mb-3 opacity-50" />
                 <p>No accounts yet</p>
                 <p className="text-sm mt-2">Start tracking your savings and investments</p>
@@ -671,7 +706,119 @@ export function FinanceManagerSecure({ onClose }: FinanceManagerSecureProps) {
                 </div>
               ))
             )}
-          </div>
+            </div>
+          )}
+
+          {/* List/Table View */}
+          {viewMode === 'list' && (
+            <div className="bg-white rounded-xl shadow-sm overflow-hidden">
+              {filteredAccounts.length === 0 ? (
+                <div className="text-center py-12 text-gray-400">
+                  <Wallet className="w-12 h-12 mx-auto mb-3 opacity-50" />
+                  <p>No accounts yet</p>
+                  <p className="text-sm mt-2">Start tracking your savings and investments</p>
+                </div>
+              ) : (
+                <table className="w-full">
+                  <thead className="bg-gray-50 border-b border-gray-200">
+                    <tr>
+                      <th className="px-4 py-3 text-left text-xs font-semibold text-gray-600 uppercase tracking-wide">
+                        Account
+                      </th>
+                      <th className="px-4 py-3 text-left text-xs font-semibold text-gray-600 uppercase tracking-wide">
+                        Type
+                      </th>
+                      <th className="px-4 py-3 text-left text-xs font-semibold text-gray-600 uppercase tracking-wide">
+                        Provider
+                      </th>
+                      <th className="px-4 py-3 text-right text-xs font-semibold text-gray-600 uppercase tracking-wide">
+                        Current Value
+                      </th>
+                      <th className="px-4 py-3 text-center text-xs font-semibold text-gray-600 uppercase tracking-wide">
+                        Actions
+                      </th>
+                    </tr>
+                  </thead>
+                  <tbody className="divide-y divide-gray-200">
+                    {filteredAccounts.map((account) => (
+                      <tr key={account.id} className="hover:bg-gray-50 transition-colors">
+                        <td className="px-4 py-3">
+                          <div>
+                            <p className="font-medium text-gray-900">{account.name}</p>
+                            {account.accountNumber && (
+                              <p className="text-xs text-gray-500">Acc: {account.accountNumber}</p>
+                            )}
+                            {account.notes && (
+                              <p className="text-xs text-gray-500 italic truncate mt-1" title={account.notes}>
+                                {account.notes}
+                              </p>
+                            )}
+                          </div>
+                        </td>
+                        <td className="px-4 py-3">
+                          <span className="inline-flex px-2 py-1 rounded-full text-xs font-semibold bg-gray-100">
+                            {getTypeLabel(account.type)}
+                          </span>
+                        </td>
+                        <td className="px-4 py-3">
+                          <div>
+                            <p className="text-sm text-gray-900">{account.provider || '-'}</p>
+                            {account.website && (
+                              <a
+                                href={account.website}
+                                target="_blank"
+                                rel="noopener noreferrer"
+                                className="text-xs text-blue-600 hover:text-blue-800 flex items-center gap-1 mt-1"
+                              >
+                                <ExternalLink className="w-3 h-3" />
+                                Visit
+                              </a>
+                            )}
+                          </div>
+                        </td>
+                        <td className="px-4 py-3 text-right">
+                          <div>
+                            <p className="font-semibold text-blue-600">
+                              {formatCurrency(account.currentValue)}
+                            </p>
+                            {(account.type === 'investment-isa' || account.type === 'cash-isa') && account.contributions && (
+                              <p className="text-xs text-gray-500 mt-1">
+                                Contrib: {formatCurrency(account.contributions)}
+                              </p>
+                            )}
+                            {account.type === 'salary-sacrifice' && account.monthlyContribution && (
+                              <p className="text-xs text-gray-500 mt-1">
+                                {formatCurrency(account.monthlyContribution)}/mo
+                              </p>
+                            )}
+                          </div>
+                        </td>
+                        <td className="px-4 py-3">
+                          <div className="flex items-center justify-center gap-1">
+                            <button
+                              onClick={() => setEditingAccount(account)}
+                              className="p-1.5 hover:bg-gray-200 rounded transition-colors"
+                              title="Edit"
+                            >
+                              <Edit2 className="w-4 h-4 text-gray-600" />
+                            </button>
+                            <button
+                              onClick={() => deleteAccount(account.id)}
+                              className="p-1.5 hover:bg-red-100 rounded transition-colors"
+                              title="Delete"
+                            >
+                              <Trash className="w-4 h-4 text-red-600" />
+                            </button>
+                          </div>
+                        </td>
+                      </tr>
+                    ))}
+                  </tbody>
+                </table>
+              )}
+            </div>
+          )}
+          </>
         </div>
       </div>
     </div>

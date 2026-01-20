@@ -268,9 +268,9 @@ export default function App() {
     },
     {
       id: 'finance' as const,
-      title: 'Finance',
+      title: 'Banks & Savings',
       icon: Wallet,
-      description: 'Savings and financial accounts'
+      description: 'Bank accounts, savings, and ISAs'
     },
     {
       id: 'pensions' as const,
