@@ -38,6 +38,7 @@ export function FinanceManagerSecure({ onClose }: FinanceManagerSecureProps) {
   const [accounts, setAccounts] = useState<FinanceAccount[]>([]);
   const [showAddForm, setShowAddForm] = useState(false);
   const [editingAccount, setEditingAccount] = useState<FinanceAccount | null>(null);
+  const [viewingDetails, setViewingDetails] = useState<FinanceAccount | null>(null);
   const [isLoading, setIsLoading] = useState(true);
   const [error, setError] = useState('');
   const [newAccount, setNewAccount] = useState(emptyAccount);
@@ -483,10 +484,11 @@ export function FinanceManagerSecure({ onClose }: FinanceManagerSecureProps) {
               filteredAccounts.map((account) => (
                 <div
                   key={account.id}
-                  className={`rounded-xl p-5 border-2 ${getTypeColor(account.type)} hover:shadow-md transition-all`}
+                  onClick={() => setViewingDetails(account)}
+                  className={`rounded-xl p-5 border-2 ${getTypeColor(account.type)} hover:shadow-md transition-all cursor-pointer`}
                 >
                   {editingAccount?.id === account.id ? (
-                    <div className="space-y-4">
+                    <div onClick={(e) => e.stopPropagation()} className="space-y-4">
                       <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
                         <div>
                           <label className="block text-sm font-medium text-gray-700 mb-1">Account Name</label>
@@ -652,13 +654,19 @@ export function FinanceManagerSecure({ onClose }: FinanceManagerSecureProps) {
                         </div>
                         <div className="flex gap-2">
                           <button
-                            onClick={() => setEditingAccount(account)}
+                            onClick={(e) => {
+                              e.stopPropagation();
+                              setEditingAccount({ ...account });
+                            }}
                             className="p-2 hover:bg-white rounded-lg transition-colors"
                           >
                             <Edit2 className="w-4 h-4 text-gray-600" />
                           </button>
                           <button
-                            onClick={() => deleteAccount(account.id)}
+                            onClick={(e) => {
+                              e.stopPropagation();
+                              deleteAccount(account.id);
+                            }}
                             className="p-2 hover:bg-red-100 rounded-lg transition-colors"
                           >
                             <Trash className="w-4 h-4 text-red-600" />
@@ -888,7 +896,7 @@ export function FinanceManagerSecure({ onClose }: FinanceManagerSecureProps) {
                     {filteredAccounts.map((account) => (
                       <tr
                         key={account.id}
-                        onClick={() => setEditingAccount(account)}
+                        onClick={() => setViewingDetails(account)}
                         className="hover:bg-blue-50 transition-colors cursor-pointer"
                       >
                         <td className="px-4 py-3">
@@ -942,7 +950,7 @@ export function FinanceManagerSecure({ onClose }: FinanceManagerSecureProps) {
                             <button
                               onClick={(e) => {
                                 e.stopPropagation();
-                                setEditingAccount(account);
+                                setEditingAccount({ ...account });
                               }}
                               className="p-1.5 hover:bg-gray-200 rounded transition-colors"
                               title="Edit"
@@ -972,6 +980,119 @@ export function FinanceManagerSecure({ onClose }: FinanceManagerSecureProps) {
           </>
         </div>
       </div>
+
+      {/* Account Details Modal */}
+      {viewingDetails && (
+        <div className="fixed inset-0 bg-black/60 flex items-center justify-center z-[60] p-4">
+          <div className="bg-white rounded-2xl max-w-2xl w-full p-6 shadow-2xl max-h-[90vh] overflow-y-auto">
+            <div className="flex items-center justify-between mb-6">
+              <h3 className="text-xl font-semibold flex items-center gap-2">
+                <Wallet className="w-5 h-5 text-blue-600" />
+                Account Details
+              </h3>
+              <button
+                onClick={() => setViewingDetails(null)}
+                className="p-2 hover:bg-gray-100 rounded-lg transition-colors"
+              >
+                <X className="w-5 h-5" />
+              </button>
+            </div>
+
+            <div className="space-y-5">
+              <div>
+                <label className="block text-sm font-medium text-gray-500 mb-1">Account Name</label>
+                <div className="flex items-center gap-2">
+                  <p className="text-lg text-gray-900 font-medium">{viewingDetails.name}</p>
+                  <span className="px-2 py-1 rounded-full text-xs font-semibold bg-gray-100">
+                    {getTypeLabel(viewingDetails.type)}
+                  </span>
+                </div>
+              </div>
+
+              {viewingDetails.provider && (
+                <div>
+                  <label className="block text-sm font-medium text-gray-500 mb-1">Provider</label>
+                  <p className="text-gray-900">{viewingDetails.provider}</p>
+                </div>
+              )}
+
+              {viewingDetails.accountNumber && (
+                <div>
+                  <label className="block text-sm font-medium text-gray-500 mb-1">Account Number</label>
+                  <p className="text-gray-900">{viewingDetails.accountNumber}</p>
+                </div>
+              )}
+
+              {viewingDetails.currentValue && (
+                <div>
+                  <label className="block text-sm font-medium text-gray-500 mb-1">Current Value</label>
+                  <p className="text-2xl font-semibold text-blue-600">{formatCurrency(viewingDetails.currentValue)}</p>
+                </div>
+              )}
+
+              {(viewingDetails.type === 'investment-isa' || viewingDetails.type === 'cash-isa') && viewingDetails.contributions && (
+                <div>
+                  <label className="block text-sm font-medium text-gray-500 mb-1">Contributions</label>
+                  <p className="text-2xl font-semibold text-green-600">{formatCurrency(viewingDetails.contributions)}</p>
+                  {viewingDetails.taxYear && (
+                    <p className="text-sm text-gray-500 mt-1">Tax Year: {viewingDetails.taxYear}</p>
+                  )}
+                </div>
+              )}
+
+              {viewingDetails.type === 'salary-sacrifice' && viewingDetails.monthlyContribution && (
+                <div>
+                  <label className="block text-sm font-medium text-gray-500 mb-1">Monthly Contribution</label>
+                  <p className="text-2xl font-semibold text-green-600">{formatCurrency(viewingDetails.monthlyContribution)}</p>
+                </div>
+              )}
+
+              {viewingDetails.website && (
+                <div>
+                  <label className="block text-sm font-medium text-gray-500 mb-1">Website</label>
+                  <a
+                    href={viewingDetails.website}
+                    target="_blank"
+                    rel="noopener noreferrer"
+                    className="text-blue-600 hover:text-blue-800 flex items-center gap-2"
+                  >
+                    <ExternalLink className="w-4 h-4" />
+                    {viewingDetails.website}
+                  </a>
+                </div>
+              )}
+
+              {viewingDetails.notes && (
+                <div>
+                  <label className="block text-sm font-medium text-gray-500 mb-1">Notes</label>
+                  <div className="p-3 bg-gray-50 rounded-lg">
+                    <p className="text-gray-700 whitespace-pre-wrap">{viewingDetails.notes}</p>
+                  </div>
+                </div>
+              )}
+
+              <div className="flex items-center gap-3 pt-4 border-t">
+                <button
+                  onClick={() => {
+                    setEditingAccount({ ...viewingDetails });
+                    setViewingDetails(null);
+                  }}
+                  className="flex items-center gap-2 px-6 py-2.5 bg-blue-600 text-white rounded-lg hover:bg-blue-700 transition-colors font-medium"
+                >
+                  <Edit2 className="w-4 h-4" />
+                  Edit
+                </button>
+                <button
+                  onClick={() => setViewingDetails(null)}
+                  className="px-6 py-2.5 bg-gray-200 text-gray-700 rounded-lg hover:bg-gray-300 transition-colors font-medium"
+                >
+                  Close
+                </button>
+              </div>
+            </div>
+          </div>
+        </div>
+      )}
     </div>
   );
 }
