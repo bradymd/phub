@@ -1,5 +1,5 @@
 import { useState, useEffect } from 'react';
-import { X, Plus, Trash, Briefcase, Calendar, Edit2, FileText, Key, ChevronDown, ChevronUp, Search } from 'lucide-react';
+import { X, Plus, Trash, Briefcase, Calendar, Edit2, FileText, Key, ChevronDown, ChevronUp, Search, Eye, EyeOff, Grid3x3, List } from 'lucide-react';
 import { useStorage } from '../../contexts/StorageContext';
 
 interface EmploymentRecord {
@@ -46,6 +46,8 @@ export function EmploymentManagerSecure({ onClose }: EmploymentManagerSecureProp
   const [error, setError] = useState('');
   const [searchQuery, setSearchQuery] = useState('');
   const [newRecord, setNewRecord] = useState(emptyRecord);
+  const [showSummary, setShowSummary] = useState(true);
+  const [viewMode, setViewMode] = useState<'grid' | 'list'>('grid');
 
   useEffect(() => {
     loadRecords();
@@ -350,12 +352,43 @@ export function EmploymentManagerSecure({ onClose }: EmploymentManagerSecureProp
                 <p className="text-sm text-gray-500 mt-1">Track your career journey, roles, and pension details</p>
               </div>
             </div>
-            <button
-              onClick={onClose}
-              className="p-2 hover:bg-white rounded-lg transition-colors"
-            >
-              <X className="w-5 h-5" />
-            </button>
+            <div className="flex items-center gap-2">
+              <button
+                onClick={() => setViewMode('grid')}
+                className={`p-2 rounded-lg transition-colors ${
+                  viewMode === 'grid'
+                    ? 'bg-white/60'
+                    : 'hover:bg-white/30'
+                }`}
+                title="Grid view"
+              >
+                <Grid3x3 className="w-4 h-4" />
+              </button>
+              <button
+                onClick={() => setViewMode('list')}
+                className={`p-2 rounded-lg transition-colors ${
+                  viewMode === 'list'
+                    ? 'bg-white/60'
+                    : 'hover:bg-white/30'
+                }`}
+                title="List view"
+              >
+                <List className="w-4 h-4" />
+              </button>
+              <button
+                onClick={() => setShowSummary(!showSummary)}
+                className="p-2 hover:bg-white/30 rounded-lg transition-colors"
+                title={showSummary ? "Hide summary" : "Show summary"}
+              >
+                {showSummary ? <Eye className="w-4 h-4" /> : <EyeOff className="w-4 h-4" />}
+              </button>
+              <button
+                onClick={onClose}
+                className="p-2 hover:bg-white rounded-lg transition-colors"
+              >
+                <X className="w-5 h-5" />
+              </button>
+            </div>
           </div>
         </div>
 
@@ -365,8 +398,9 @@ export function EmploymentManagerSecure({ onClose }: EmploymentManagerSecureProp
           </div>
         )}
 
-        <div className="p-6 bg-gradient-to-br from-indigo-50 to-purple-50 border-b border-gray-200">
-          <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
+        {showSummary && (
+          <div className="p-6 bg-gradient-to-br from-indigo-50 to-purple-50 border-b border-gray-200">
+            <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
             <div className="bg-white rounded-xl p-4 shadow-sm">
               <div className="flex items-center gap-3 mb-2">
                 <div className="p-2 bg-indigo-100 text-indigo-600 rounded-lg">
@@ -405,7 +439,8 @@ export function EmploymentManagerSecure({ onClose }: EmploymentManagerSecureProp
               </button>
             </div>
           </div>
-        </div>
+          </div>
+        )}
 
         {/* Search Bar */}
         <div className="px-6 pt-4 pb-2 border-b border-gray-200 bg-gray-50">
@@ -453,15 +488,94 @@ export function EmploymentManagerSecure({ onClose }: EmploymentManagerSecureProp
             </button>
           )}
 
-          <div className="space-y-4">
-            {filteredRecords.length === 0 ? (
-              <div className="text-center py-12 text-gray-400">
-                <Briefcase className="w-12 h-12 mx-auto mb-3 opacity-50" />
-                <p>{records.length === 0 ? 'No employment records yet' : 'No employment records match your search'}</p>
-                {records.length === 0 && <p className="text-sm mt-2">Start building your career history</p>}
+          {filteredRecords.length === 0 ? (
+            <div className="text-center py-12 text-gray-400">
+              <Briefcase className="w-12 h-12 mx-auto mb-3 opacity-50" />
+              <p>{records.length === 0 ? 'No employment records yet' : 'No employment records match your search'}</p>
+              {records.length === 0 && <p className="text-sm mt-2">Start building your career history</p>}
+            </div>
+          ) : viewMode === 'list' ? (
+            <div className="space-y-4">
+              <div className="bg-white rounded-xl border border-gray-200 overflow-hidden">
+                <table className="w-full">
+                  <thead>
+                    <tr className="bg-gray-50 border-b border-gray-200">
+                      <th className="text-left px-4 py-3 text-sm font-semibold text-gray-700">Position & Company</th>
+                      <th className="text-left px-4 py-3 text-sm font-semibold text-gray-700">Dates & Duration</th>
+                      <th className="text-left px-4 py-3 text-sm font-semibold text-gray-700">Location</th>
+                      <th className="text-left px-4 py-3 text-sm font-semibold text-gray-700">Type</th>
+                      <th className="text-right px-4 py-3 text-sm font-semibold text-gray-700">Actions</th>
+                    </tr>
+                  </thead>
+                  <tbody>
+                    {filteredRecords.map((record) => (
+                      <tr
+                        key={record.id}
+                        onClick={() => startEdit(record)}
+                        className="border-b border-gray-100 hover:bg-indigo-50 transition-colors cursor-pointer"
+                      >
+                        <td className="px-4 py-3">
+                          <p className="font-medium text-gray-900">{record.jobTitle}</p>
+                          <p className="text-sm text-gray-600">{record.company}</p>
+                        </td>
+                        <td className="px-4 py-3">
+                          <p className="text-sm text-gray-700">
+                            {record.startDate} - {record.current ? 'Present' : record.endDate}
+                          </p>
+                          {(record.startDate || record.endDate) && (
+                            <p className="text-xs text-indigo-600">
+                              {calculateDuration(record.startDate, record.endDate, record.current)}
+                            </p>
+                          )}
+                        </td>
+                        <td className="px-4 py-3">
+                          <p className="text-sm text-gray-700">{record.location || '-'}</p>
+                        </td>
+                        <td className="px-4 py-3">
+                          <div className="flex flex-col gap-1">
+                            <span className="text-xs px-2 py-1 bg-indigo-100 text-indigo-700 rounded w-fit">
+                              {record.employmentType.charAt(0).toUpperCase() + record.employmentType.slice(1)}
+                            </span>
+                            {record.current && (
+                              <span className="text-xs px-2 py-1 bg-green-100 text-green-700 rounded w-fit">
+                                Current
+                              </span>
+                            )}
+                          </div>
+                        </td>
+                        <td className="px-4 py-3">
+                          <div className="flex items-center justify-end gap-2">
+                            <button
+                              onClick={(e) => {
+                                e.stopPropagation();
+                                startEdit(record);
+                              }}
+                              className="p-2 hover:bg-blue-100 rounded-lg transition-colors text-blue-600"
+                              title="Edit"
+                            >
+                              <Edit2 className="w-4 h-4" />
+                            </button>
+                            <button
+                              onClick={(e) => {
+                                e.stopPropagation();
+                                deleteRecord(record.id);
+                              }}
+                              className="p-2 hover:bg-red-100 rounded-lg transition-colors text-red-600"
+                              title="Delete"
+                            >
+                              <Trash className="w-4 h-4" />
+                            </button>
+                          </div>
+                        </td>
+                      </tr>
+                    ))}
+                  </tbody>
+                </table>
               </div>
-            ) : (
-              filteredRecords.map((record) => (
+            </div>
+          ) : (
+            <div className="space-y-4">
+              {filteredRecords.map((record) => (
                 <div
                   key={record.id}
                   className="bg-gray-50 rounded-xl overflow-hidden hover:bg-gray-100 transition-colors"
@@ -560,9 +674,9 @@ export function EmploymentManagerSecure({ onClose }: EmploymentManagerSecureProp
                     )}
                   </div>
                 </div>
-              ))
-            )}
-          </div>
+              ))}
+            </div>
+          )}
         </div>
       </div>
 
