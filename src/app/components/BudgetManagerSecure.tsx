@@ -237,6 +237,13 @@ export function BudgetManagerSecure({ onClose }: BudgetManagerSecureProps) {
     }
   };
 
+  const handleEditItem = (item: BudgetItem) => {
+    console.log('Opening edit for item:', item.name);
+    console.log('Category value:', item.category, 'Type:', typeof item.category);
+    console.log('Category label:', getCategoryLabel(item.category));
+    setEditingItem(item);
+  };
+
   const formatCurrency = (value: string) => {
     if (!value) return '£0.00';
     const num = parseFloat(value.replace(/,/g, ''));
@@ -256,6 +263,8 @@ export function BudgetManagerSecure({ onClose }: BudgetManagerSecureProps) {
       return defaultCat.name.replace(/\s*\(.*?\)\s*/g, '').trim();
     }
 
+    // Debug: log unmatched categories
+    console.warn('Category not found:', category, 'Type:', typeof category);
     return 'Other';
   };
 
@@ -857,7 +866,7 @@ export function BudgetManagerSecure({ onClose }: BudgetManagerSecureProps) {
                           <td className="py-1.5 px-2">
                             <div className="flex items-center justify-center gap-1">
                               <button
-                                onClick={() => setEditingItem(item)}
+                                onClick={() => handleEditItem(item)}
                                 className="p-1 hover:bg-gray-200 rounded transition-colors"
                                 title="Edit"
                               >
@@ -1008,7 +1017,7 @@ export function BudgetManagerSecure({ onClose }: BudgetManagerSecureProps) {
                           <td className="py-1.5 px-2">
                             <div className="flex items-center justify-center gap-1">
                               <button
-                                onClick={() => setEditingItem(item)}
+                                onClick={() => handleEditItem(item)}
                                 className="p-1 hover:bg-gray-200 rounded transition-colors"
                                 title="Edit"
                               >
