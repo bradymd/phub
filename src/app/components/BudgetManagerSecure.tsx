@@ -118,6 +118,7 @@ export function BudgetManagerSecure({ onClose }: BudgetManagerSecureProps) {
   const loadCustomCategories = async () => {
     try {
       const data = await storage.get<CustomCategory>('custom_categories');
+      console.log('Loaded custom categories:', data);
       setCustomCategories(data);
     } catch (err) {
       console.error('Failed to load custom categories:', err);
@@ -127,8 +128,13 @@ export function BudgetManagerSecure({ onClose }: BudgetManagerSecureProps) {
 
   const saveCustomCategories = async (categories: CustomCategory[]) => {
     try {
-      await storage.set('custom_categories', categories);
-      setCustomCategories(categories);
+      // Add id property to each category if not present (for storage compatibility)
+      const categoriesWithIds = categories.map(cat => ({
+        ...cat,
+        id: cat.id || `custom-${Date.now()}-${Math.random()}`
+      }));
+      await storage.save('custom_categories', categoriesWithIds);
+      setCustomCategories(categoriesWithIds);
     } catch (err) {
       setError('Failed to save custom categories');
       console.error(err);
@@ -138,21 +144,40 @@ export function BudgetManagerSecure({ onClose }: BudgetManagerSecureProps) {
   const addCustomCategory = async () => {
     if (!newCategoryName.trim()) return;
 
-    const newCategory: CustomCategory = {
-      id: `custom-${Date.now()}`,
-      name: newCategoryName.trim(),
-      type: newCategoryType
-    };
+    try {
+      const newCategory: CustomCategory = {
+        id: `custom-${Date.now()}`,
+        name: newCategoryName.trim(),
+        type: newCategoryType
+      };
 
-    await saveCustomCategories([...customCategories, newCategory]);
-    setNewCategoryName('');
+      await saveCustomCategories([...customCategories, newCategory]);
+      setNewCategoryName('');
+
+      // Force reload from storage to ensure sync
+      await loadCustomCategories();
+
+      // Success feedback
+      console.log('Custom category added successfully:', newCategory.name);
+    } catch (err) {
+      console.error('Failed to add custom category:', err);
+      setError('Failed to add custom category: ' + (err instanceof Error ? err.message : 'Unknown error'));
+    }
   };
 
   const deleteCustomCategory = async (id: string) => {
-    if (!confirm('Delete this category? Budget items using it will show as "Other".')) return;
+    if (!window.confirm('Delete this category? Budget items using it will show as "Other".')) return;
 
-    const updated = customCategories.filter(c => c.id !== id);
-    await saveCustomCategories(updated);
+    try {
+      const updated = customCategories.filter(c => c.id !== id);
+      await saveCustomCategories(updated);
+
+      // Force reload from storage to ensure sync
+      await loadCustomCategories();
+    } catch (err) {
+      console.error('Failed to delete custom category:', err);
+      setError('Failed to delete custom category');
+    }
   };
 
   // Get all categories for a type (default + custom)
