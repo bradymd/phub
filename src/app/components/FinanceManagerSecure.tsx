@@ -712,7 +712,151 @@ export function FinanceManagerSecure({ onClose }: FinanceManagerSecureProps) {
 
           {/* List/Table View */}
           {viewMode === 'list' && (
-            <div className="bg-white rounded-xl shadow-sm overflow-hidden">
+            <>
+              {/* Edit Modal for List View */}
+              {editingAccount && (
+                <div className="mb-6 p-6 rounded-xl bg-gradient-to-br from-blue-50 to-purple-50 border-2 border-blue-200">
+                  <h3 className="mb-4 text-lg font-semibold text-gray-900">Edit Account</h3>
+                  <div className="space-y-4">
+                    <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                      <div>
+                        <label className="block text-sm font-medium text-gray-700 mb-1">Account Name</label>
+                        <input
+                          type="text"
+                          value={editingAccount.name}
+                          onChange={(e) => setEditingAccount({ ...editingAccount, name: e.target.value })}
+                          placeholder="Account name..."
+                          className="w-full px-4 py-2 border border-gray-300 rounded-lg bg-white"
+                        />
+                      </div>
+                      <div>
+                        <label className="block text-sm font-medium text-gray-700 mb-1">Account Type</label>
+                        <select
+                          value={editingAccount.type}
+                          onChange={(e) => setEditingAccount({ ...editingAccount, type: e.target.value as any })}
+                          className="w-full px-4 py-2 border border-gray-300 rounded-lg bg-white"
+                        >
+                          <option value="savings">Savings Account</option>
+                          <option value="investment-isa">Investment ISA</option>
+                          <option value="cash-isa">Cash ISA</option>
+                          <option value="salary-sacrifice">Salary Sacrifice / AVC</option>
+                          <option value="other">Other</option>
+                        </select>
+                      </div>
+                    </div>
+                    <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                      <div>
+                        <label className="block text-sm font-medium text-gray-700 mb-1">Current Value (£)</label>
+                        <input
+                          type="text"
+                          value={editingAccount.currentValue}
+                          onChange={(e) => setEditingAccount({ ...editingAccount, currentValue: e.target.value })}
+                          placeholder="Current value (£)..."
+                          className="w-full px-4 py-2 border border-gray-300 rounded-lg bg-white"
+                        />
+                      </div>
+                      {(editingAccount.type === 'investment-isa' || editingAccount.type === 'cash-isa') && (
+                        <div>
+                          <label className="block text-sm font-medium text-gray-700 mb-1">Contributions (£)</label>
+                          <input
+                            type="text"
+                            value={editingAccount.contributions}
+                            onChange={(e) => setEditingAccount({ ...editingAccount, contributions: e.target.value })}
+                            placeholder="Contributions (what you put in)..."
+                            className="w-full px-4 py-2 border border-gray-300 rounded-lg bg-white"
+                          />
+                        </div>
+                      )}
+                      {editingAccount.type === 'salary-sacrifice' && (
+                        <div>
+                          <label className="block text-sm font-medium text-gray-700 mb-1">Monthly Contribution (£)</label>
+                          <input
+                            type="text"
+                            value={editingAccount.monthlyContribution}
+                            onChange={(e) => setEditingAccount({ ...editingAccount, monthlyContribution: e.target.value })}
+                            placeholder="Monthly contribution (£)..."
+                            className="w-full px-4 py-2 border border-gray-300 rounded-lg bg-white"
+                          />
+                        </div>
+                      )}
+                    </div>
+                    {(editingAccount.type === 'investment-isa' || editingAccount.type === 'cash-isa') && (
+                      <div>
+                        <label className="block text-sm font-medium text-gray-700 mb-1">Tax Year</label>
+                        <select
+                          value={editingAccount.taxYear}
+                          onChange={(e) => setEditingAccount({ ...editingAccount, taxYear: e.target.value })}
+                          className="w-full px-4 py-2 border border-gray-300 rounded-lg bg-white"
+                        >
+                          <option value="2025-2026">2025-2026 Tax Year (Current)</option>
+                          <option value="2024-2025">2024-2025 Tax Year</option>
+                          <option value="2023-2024">2023-2024 Tax Year</option>
+                          <option value="2022-2023">2022-2023 Tax Year</option>
+                          <option value="2021-2022">2021-2022 Tax Year</option>
+                        </select>
+                      </div>
+                    )}
+                    <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                      <div>
+                        <label className="block text-sm font-medium text-gray-700 mb-1">Provider</label>
+                        <input
+                          type="text"
+                          value={editingAccount.provider}
+                          onChange={(e) => setEditingAccount({ ...editingAccount, provider: e.target.value })}
+                          placeholder="Provider..."
+                          className="w-full px-4 py-2 border border-gray-300 rounded-lg bg-white"
+                        />
+                      </div>
+                      <div>
+                        <label className="block text-sm font-medium text-gray-700 mb-1">Account Number</label>
+                        <input
+                          type="text"
+                          value={editingAccount.accountNumber}
+                          onChange={(e) => setEditingAccount({ ...editingAccount, accountNumber: e.target.value })}
+                          placeholder="Account number..."
+                          className="w-full px-4 py-2 border border-gray-300 rounded-lg bg-white"
+                        />
+                      </div>
+                    </div>
+                    <div>
+                      <label className="block text-sm font-medium text-gray-700 mb-1">Website URL</label>
+                      <input
+                        type="text"
+                        value={editingAccount.website}
+                        onChange={(e) => setEditingAccount({ ...editingAccount, website: e.target.value })}
+                        placeholder="Website URL..."
+                        className="w-full px-4 py-2 border border-gray-300 rounded-lg bg-white"
+                      />
+                    </div>
+                    <div>
+                      <label className="block text-sm font-medium text-gray-700 mb-1">Notes</label>
+                      <textarea
+                        value={editingAccount.notes}
+                        onChange={(e) => setEditingAccount({ ...editingAccount, notes: e.target.value })}
+                        placeholder="Notes..."
+                        className="w-full px-4 py-2 border border-gray-300 rounded-lg bg-white resize-none"
+                        rows={3}
+                      />
+                    </div>
+                    <div className="flex gap-2">
+                      <button
+                        onClick={updateAccount}
+                        className="flex-1 px-4 py-2 bg-blue-600 text-white rounded-lg hover:bg-blue-700 transition-colors font-medium"
+                      >
+                        Save Changes
+                      </button>
+                      <button
+                        onClick={() => setEditingAccount(null)}
+                        className="px-4 py-2 bg-gray-200 text-gray-700 rounded-lg hover:bg-gray-300 transition-colors font-medium"
+                      >
+                        Cancel
+                      </button>
+                    </div>
+                  </div>
+                </div>
+              )}
+
+              <div className="bg-white rounded-xl shadow-sm overflow-hidden">
               {filteredAccounts.length === 0 ? (
                 <div className="text-center py-12 text-gray-400">
                   <Wallet className="w-12 h-12 mx-auto mb-3 opacity-50" />
@@ -742,17 +886,16 @@ export function FinanceManagerSecure({ onClose }: FinanceManagerSecureProps) {
                   </thead>
                   <tbody className="divide-y divide-gray-200">
                     {filteredAccounts.map((account) => (
-                      <tr key={account.id} className="hover:bg-gray-50 transition-colors">
+                      <tr
+                        key={account.id}
+                        onClick={() => setEditingAccount(account)}
+                        className="hover:bg-blue-50 transition-colors cursor-pointer"
+                      >
                         <td className="px-4 py-3">
                           <div>
                             <p className="font-medium text-gray-900">{account.name}</p>
                             {account.accountNumber && (
                               <p className="text-xs text-gray-500">Acc: {account.accountNumber}</p>
-                            )}
-                            {account.notes && (
-                              <p className="text-xs text-gray-500 italic truncate mt-1" title={account.notes}>
-                                {account.notes}
-                              </p>
                             )}
                           </div>
                         </td>
@@ -797,14 +940,20 @@ export function FinanceManagerSecure({ onClose }: FinanceManagerSecureProps) {
                         <td className="px-4 py-3">
                           <div className="flex items-center justify-center gap-1">
                             <button
-                              onClick={() => setEditingAccount(account)}
+                              onClick={(e) => {
+                                e.stopPropagation();
+                                setEditingAccount(account);
+                              }}
                               className="p-1.5 hover:bg-gray-200 rounded transition-colors"
                               title="Edit"
                             >
                               <Edit2 className="w-4 h-4 text-gray-600" />
                             </button>
                             <button
-                              onClick={() => deleteAccount(account.id)}
+                              onClick={(e) => {
+                                e.stopPropagation();
+                                deleteAccount(account.id);
+                              }}
                               className="p-1.5 hover:bg-red-100 rounded transition-colors"
                               title="Delete"
                             >
@@ -818,6 +967,7 @@ export function FinanceManagerSecure({ onClose }: FinanceManagerSecureProps) {
                 </table>
               )}
             </div>
+            </>
           )}
           </>
         </div>
