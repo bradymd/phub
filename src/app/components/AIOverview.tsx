@@ -1,4 +1,4 @@
-import { X, Brain, Sparkles, Calendar } from 'lucide-react';
+import { X, BookOpen, Sparkles, Calendar, FileText, Award, GraduationCap, Heart, Wallet, PiggyBank } from 'lucide-react';
 import { useEffect, useState } from 'react';
 import { useStorage } from '../../contexts/StorageContext';
 
@@ -9,8 +9,8 @@ interface AIOverviewProps {
 interface LifeStage {
   age: number;
   stage: string;
-  milestones: string[];
-  priority: string;
+  dataToTrack: string[];
+  focus: string;
 }
 
 export function AIOverview({ onClose }: AIOverviewProps) {
@@ -58,77 +58,136 @@ export function AIOverview({ onClose }: AIOverviewProps) {
 
   const lifeStages: LifeStage[] = [
     {
-      age: 20,
-      stage: 'Early Career',
-      milestones: ['Build emergency fund', 'Start retirement savings', 'Obtain health insurance'],
-      priority: 'Education & Career Development'
+      age: 18,
+      stage: 'Early Career & Education',
+      dataToTrack: [
+        'Educational certificates and diplomas',
+        'First job offer letters and contracts',
+        'Birth certificate and passport',
+        'National Insurance number documents',
+        'Student loan documents',
+        'First bank account and savings records'
+      ],
+      focus: 'Building your foundation - document your education and early achievements'
     },
     {
-      age: 30,
-      stage: 'Growth Phase',
-      milestones: ['Increase retirement contributions', 'Consider home ownership', 'Review insurance needs'],
-      priority: 'Wealth Building & Family Planning'
+      age: 25,
+      stage: 'Career Development',
+      dataToTrack: [
+        'Employment contracts and job history',
+        'Professional qualifications and training certificates',
+        'CV/Resume with achievements',
+        'Pension scheme documents (start tracking early!)',
+        'Health records and vaccinations',
+        'Budget tracking for income and expenses'
+      ],
+      focus: 'Establishing your career - keep records of all professional development'
     },
     {
-      age: 40,
-      stage: 'Peak Earning',
-      milestones: ['Maximize retirement savings', 'Estate planning', 'College savings if applicable'],
-      priority: 'Financial Security & Legacy'
+      age: 35,
+      stage: 'Growing Responsibilities',
+      dataToTrack: [
+        'Mortgage documents or rental agreements',
+        'Insurance policies (life, home, car)',
+        'Marriage certificate or civil partnership documents',
+        'Children\'s birth certificates and medical records',
+        'Multiple pension schemes from different employers',
+        'Investment accounts and ISA records'
+      ],
+      focus: 'Family and property - document major life events and financial commitments'
     },
     {
-      age: 50,
+      age: 45,
+      stage: 'Peak Career & Planning',
+      dataToTrack: [
+        'Comprehensive pension statements from all sources',
+        'Property deeds and equity records',
+        'Will and power of attorney documents',
+        'Children\'s education records and achievements',
+        'Updated health records and regular check-ups',
+        'Full budget review including all expenses'
+      ],
+      focus: 'Mid-career review - consolidate records and plan for retirement'
+    },
+    {
+      age: 55,
       stage: 'Pre-Retirement',
-      milestones: ['Catch-up contributions', 'Healthcare planning', 'Debt reduction'],
-      priority: 'Retirement Preparation'
+      dataToTrack: [
+        'Detailed pension projections and forecasts',
+        'State pension entitlement statements',
+        'Healthcare plans and insurance',
+        'Estate planning documents',
+        'Debt reduction tracking',
+        'Retirement budget planning'
+      ],
+      focus: 'Preparing for retirement - ensure all pension and financial records are complete'
     },
     {
-      age: 60,
+      age: 65,
       stage: 'Retirement',
-      milestones: ['Finalize retirement plan', 'Medicare enrollment', 'Estate distribution plan'],
-      priority: 'Legacy & Enjoyment'
+      dataToTrack: [
+        'Active pension drawdown records',
+        'State pension payments',
+        'Healthcare records and prescriptions',
+        'Insurance policies (life, health, home)',
+        'Bank account statements',
+        'Legacy planning documents for family'
+      ],
+      focus: 'Enjoying retirement - maintain organized records for peace of mind'
     }
   ];
 
-  const nextSteps = [
+  const gettingStartedTips = [
     {
-      title: 'Organize Health Documents',
-      description: 'Digitize and categorize all medical records, insurance policies, and prescriptions',
-      priority: 'High'
+      icon: Award,
+      title: 'Start with Certificates',
+      description: 'Birth certificate, passport, marriage certificate, driving license - scan and store these first',
+      category: 'Certificates'
     },
     {
-      title: 'Review Financial Accounts',
-      description: 'Ensure all pension and savings accounts are properly documented and beneficiaries are updated',
-      priority: 'High'
+      icon: GraduationCap,
+      title: 'Document Your Education',
+      description: 'Diplomas, degrees, training certificates - build your complete educational history',
+      category: 'Education'
     },
     {
-      title: 'Backup Important Photos',
-      description: 'Create digital backups of precious memories in multiple secure locations',
-      priority: 'Medium'
+      icon: FileText,
+      title: 'Build Your CV',
+      description: 'Keep a running record of all jobs, roles, achievements, and responsibilities',
+      category: 'Employment'
     },
     {
-      title: 'Update Emergency Contacts',
-      description: 'Keep contact information current for family, doctors, and legal representatives',
-      priority: 'Medium'
+      icon: Heart,
+      title: 'Track Health Records',
+      description: 'Medical history, vaccinations, prescriptions, test results, insurance policies',
+      category: 'Health'
     },
     {
-      title: 'Strengthen Password Security',
-      description: 'Use a dedicated password manager and enable two-factor authentication',
-      priority: 'High'
+      icon: Wallet,
+      title: 'Organize Finances',
+      description: 'Bank accounts, savings, investments - keep track of where your money is',
+      category: 'Finance'
+    },
+    {
+      icon: PiggyBank,
+      title: 'Monitor Pensions',
+      description: 'Every job may give you a pension - track them all to know your retirement income',
+      category: 'Pensions'
     }
   ];
 
   return (
     <div className="fixed inset-0 bg-black/50 flex items-center justify-center z-50 p-4">
       <div className="bg-white rounded-2xl max-w-5xl w-full max-h-[90vh] overflow-hidden flex flex-col">
-        <div className="p-6 border-b border-gray-200 flex items-center justify-between bg-gradient-to-r from-purple-50 to-blue-50">
+        <div className="p-6 border-b border-gray-200 flex items-center justify-between bg-gradient-to-r from-blue-50 to-indigo-50">
           <div>
             <div className="flex items-center gap-3 mb-2">
-              <div className="p-2 bg-purple-600 text-white rounded-lg">
-                <Brain className="w-6 h-6" />
+              <div className="p-2 bg-blue-600 text-white rounded-lg">
+                <BookOpen className="w-6 h-6" />
               </div>
-              <h2 className="text-gray-900">AI Life Overview</h2>
+              <h2 className="text-gray-900">Life Planning Guide</h2>
             </div>
-            <p className="text-sm text-gray-500">Intelligent insights and personalized recommendations</p>
+            <p className="text-sm text-gray-500">What to record at each stage of your life journey</p>
           </div>
           <button
             onClick={onClose}
@@ -172,65 +231,72 @@ export function AIOverview({ onClose }: AIOverviewProps) {
           {/* Life Stages Timeline */}
           <div className="mb-6">
             <h3 className="flex items-center gap-2 mb-4">
-              <Calendar className="w-5 h-5 text-purple-600" />
-              Life Stages & Planning
+              <Calendar className="w-5 h-5 text-blue-600" />
+              Life Stages & What to Record
             </h3>
+            <p className="text-sm text-gray-600 mb-4">
+              Use this guide to understand what documents and records are important at each stage of life.
+              Your PersonalHub helps you organize all of this securely in one place.
+            </p>
             <div className="space-y-4">
               {lifeStages.map((stage, index) => (
-                <div key={index} className="p-4 bg-gray-50 rounded-xl">
-                  <div className="flex items-start justify-between mb-2">
-                    <div>
-                      <h4 className="text-gray-900">Age {stage.age}+ • {stage.stage}</h4>
-                      <p className="text-sm text-purple-600 mt-1">Focus: {stage.priority}</p>
-                    </div>
+                <div key={index} className="p-4 bg-gradient-to-br from-blue-50 to-indigo-50 rounded-xl border border-blue-200">
+                  <div className="mb-3">
+                    <h4 className="text-lg font-semibold text-gray-900 mb-1">
+                      Age {stage.age}+ • {stage.stage}
+                    </h4>
+                    <p className="text-sm text-blue-700 italic">{stage.focus}</p>
                   </div>
-                  <ul className="mt-3 space-y-1">
-                    {stage.milestones.map((milestone, idx) => (
-                      <li key={idx} className="text-sm text-gray-600 flex items-start gap-2">
-                        <span className="text-purple-600 mt-1">•</span>
-                        <span>{milestone}</span>
-                      </li>
-                    ))}
-                  </ul>
+                  <div className="mt-3">
+                    <p className="text-xs font-semibold text-gray-600 uppercase tracking-wide mb-2">Important Documents to Keep:</p>
+                    <ul className="space-y-1.5">
+                      {stage.dataToTrack.map((item, idx) => (
+                        <li key={idx} className="text-sm text-gray-700 flex items-start gap-2">
+                          <span className="text-blue-600 mt-0.5">✓</span>
+                          <span>{item}</span>
+                        </li>
+                      ))}
+                    </ul>
+                  </div>
                 </div>
               ))}
             </div>
           </div>
 
-          {/* Next Steps */}
+          {/* Getting Started Guide */}
           <div>
             <h3 className="flex items-center gap-2 mb-4">
-              <Sparkles className="w-5 h-5 text-purple-600" />
-              Recommended Next Steps
+              <Sparkles className="w-5 h-5 text-blue-600" />
+              Getting Started - What to Record
             </h3>
-            <div className="space-y-3">
-              {nextSteps.map((step, index) => (
-                <div key={index} className="p-4 bg-gradient-to-r from-purple-50 to-blue-50 rounded-xl">
-                  <div className="flex items-start justify-between">
-                    <div className="flex-1">
-                      <div className="flex items-center gap-2 mb-1">
-                        <h4 className="text-gray-900">{step.title}</h4>
-                        <span className={`text-xs px-2 py-1 rounded ${
-                          step.priority === 'High' 
-                            ? 'bg-red-100 text-red-700' 
-                            : 'bg-yellow-100 text-yellow-700'
-                        }`}>
-                          {step.priority}
-                        </span>
+            <p className="text-sm text-gray-600 mb-4">
+              Use the panels in your PersonalHub to organize these different types of information:
+            </p>
+            <div className="grid grid-cols-1 md:grid-cols-2 gap-3">
+              {gettingStartedTips.map((tip, index) => {
+                const Icon = tip.icon;
+                return (
+                  <div key={index} className="p-4 bg-white border border-gray-200 rounded-xl hover:border-blue-300 transition-colors">
+                    <div className="flex items-start gap-3">
+                      <div className="p-2 bg-blue-50 text-blue-600 rounded-lg flex-shrink-0">
+                        <Icon className="w-5 h-5" />
                       </div>
-                      <p className="text-sm text-gray-600">{step.description}</p>
+                      <div className="flex-1">
+                        <h4 className="font-medium text-gray-900 mb-1">{tip.title}</h4>
+                        <p className="text-sm text-gray-600">{tip.description}</p>
+                      </div>
                     </div>
                   </div>
-                </div>
-              ))}
+                );
+              })}
             </div>
           </div>
 
-          {/* AI Note */}
-          <div className="mt-6 p-4 bg-purple-100 border border-purple-200 rounded-xl">
-            <p className="text-sm text-purple-900">
-              <strong>AI Insight:</strong> This overview is generated based on your stored information and general life planning principles. 
-              As you add more data to your personal hub, these recommendations will become more personalized and actionable.
+          {/* Important Note */}
+          <div className="mt-6 p-4 bg-blue-50 border border-blue-200 rounded-xl">
+            <p className="text-sm text-blue-900">
+              <strong>Remember:</strong> All your data is encrypted with AES-256-GCM and stored locally on your device.
+              Nothing is sent to any server. Use the "Backup & Restore" feature regularly to keep your data safe.
             </p>
           </div>
         </div>

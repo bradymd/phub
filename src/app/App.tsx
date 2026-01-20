@@ -372,20 +372,20 @@ export default function App() {
           </div>
         </div>
 
-        {/* AI Overview Card */}
+        {/* Life Planning Guide Card */}
         <div className="mb-6">
           <button
             onClick={() => setActiveModal('ai')}
-            className="w-full bg-gradient-to-r from-purple-600 to-blue-600 text-white rounded-2xl p-6 shadow-lg hover:shadow-xl transition-all text-left group"
+            className="w-full bg-gradient-to-r from-blue-600 to-indigo-600 text-white rounded-2xl p-6 shadow-lg hover:shadow-xl transition-all text-left group"
           >
             <div className="flex items-center gap-4">
               <div className="p-3 bg-white/20 rounded-xl">
                 <Brain className="w-8 h-8" />
               </div>
               <div>
-                <h2 className="text-white">AI Life Overview</h2>
+                <h2 className="text-white">Life Planning Guide</h2>
                 <p className="text-white/80 text-sm mt-1">
-                  Get personalized insights, lifespan planning, and next step recommendations
+                  Learn what to record at each stage of your life - from education to retirement
                 </p>
               </div>
             </div>
