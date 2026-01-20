@@ -1,5 +1,5 @@
 import { useState, useEffect } from 'react';
-import { X, Plus, Trash, Briefcase, Calendar, Edit2, FileText, Key, ChevronDown, ChevronUp, Search, Eye, EyeOff, Grid3x3, List } from 'lucide-react';
+import { X, Plus, Trash, Briefcase, Calendar, Edit2, FileText, Key, ChevronDown, ChevronUp, Search, Eye, EyeOff, Grid3x3, List, Building2 } from 'lucide-react';
 import { useStorage } from '../../contexts/StorageContext';
 
 interface EmploymentRecord {
@@ -39,9 +39,8 @@ export function EmploymentManagerSecure({ onClose }: EmploymentManagerSecureProp
   const storage = useStorage();
   const [records, setRecords] = useState<EmploymentRecord[]>([]);
   const [showAddForm, setShowAddForm] = useState(false);
-  // showEditForm removed - now using modal for editing
   const [editingRecord, setEditingRecord] = useState<EmploymentRecord | null>(null);
-  const [expandedRecord, setExpandedRecord] = useState<string | null>(null);
+  const [viewingDetails, setViewingDetails] = useState<EmploymentRecord | null>(null);
   const [isLoading, setIsLoading] = useState(true);
   const [error, setError] = useState('');
   const [searchQuery, setSearchQuery] = useState('');
@@ -101,7 +100,7 @@ export function EmploymentManagerSecure({ onClose }: EmploymentManagerSecureProp
       setError('');
       await storage.update('employment_records', editingRecord.id, editingRecord);
       await loadRecords();
-      setEditingRecord(null); // Close modal
+      setEditingRecord(null);
     } catch (err) {
       setError('Failed to update record');
       console.error(err);
@@ -113,16 +112,10 @@ export function EmploymentManagerSecure({ onClose }: EmploymentManagerSecureProp
       setError('');
       await storage.delete('employment_records', id);
       await loadRecords();
-      if (expandedRecord === id) setExpandedRecord(null);
     } catch (err) {
       setError('Failed to delete record');
       console.error(err);
     }
-  };
-
-  const startEdit = (record: EmploymentRecord) => {
-    setEditingRecord({ ...record });
-    setExpandedRecord(null);
   };
 
   const calculateDuration = (startDate: string, endDate: string, current: boolean) => {
@@ -191,135 +184,6 @@ export function EmploymentManagerSecure({ onClose }: EmploymentManagerSecureProp
 
   const totalYears = Math.floor(totalYearsWorked / 12);
   const totalMonths = totalYearsWorked % 12;
-
-  const renderRecordForm = (
-    record: typeof newRecord | EmploymentRecord,
-    onChange: (updates: Partial<typeof newRecord>) => void,
-    onSubmit: () => void,
-    onCancel: () => void,
-    isEdit: boolean
-  ) => (
-    <div className={`mb-6 p-6 rounded-xl ${isEdit ? 'bg-gradient-to-br from-green-50 to-blue-50 border-2 border-green-200' : 'bg-gradient-to-br from-blue-50 to-purple-50 border-2 border-blue-200'}`}>
-      <h3 className="mb-4 flex items-center gap-2">
-        {isEdit && <Edit2 className="w-5 h-5 text-green-600" />}
-        {isEdit ? 'Edit Employment Record' : 'Add Employment Record'}
-      </h3>
-      <div className="space-y-4">
-        <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-          <input
-            type="text"
-            value={record.company}
-            onChange={(e) => onChange({ company: e.target.value })}
-            placeholder="Company name..."
-            className="px-4 py-2 border border-gray-300 rounded-lg bg-white"
-          />
-          <input
-            type="text"
-            value={record.jobTitle}
-            onChange={(e) => onChange({ jobTitle: e.target.value })}
-            placeholder="Job title..."
-            className="px-4 py-2 border border-gray-300 rounded-lg bg-white"
-          />
-          <input
-            type="text"
-            value={record.location}
-            onChange={(e) => onChange({ location: e.target.value })}
-            placeholder="Location..."
-            className="px-4 py-2 border border-gray-300 rounded-lg bg-white"
-          />
-          <select
-            value={record.employmentType}
-            onChange={(e) => onChange({ employmentType: e.target.value as any })}
-            className="px-4 py-2 border border-gray-300 rounded-lg bg-white"
-          >
-            <option value="full-time">Full-time</option>
-            <option value="part-time">Part-time</option>
-            <option value="contract">Contract</option>
-            <option value="freelance">Freelance</option>
-          </select>
-          <div>
-            <label className="block text-sm text-gray-600 mb-1">Start Date</label>
-            <input
-              type="date"
-              value={record.startDate}
-              onChange={(e) => onChange({ startDate: e.target.value })}
-              className="w-full px-4 py-2 border border-gray-300 rounded-lg bg-white"
-            />
-          </div>
-          <div>
-            <label className="block text-sm text-gray-600 mb-1">End Date</label>
-            <input
-              type="date"
-              value={record.endDate}
-              onChange={(e) => onChange({ endDate: e.target.value })}
-              disabled={record.current}
-              className="w-full px-4 py-2 border border-gray-300 rounded-lg bg-white disabled:bg-gray-100"
-            />
-          </div>
-        </div>
-
-        <label className="flex items-center gap-2 text-sm">
-          <input
-            type="checkbox"
-            checked={record.current}
-            onChange={(e) => onChange({ current: e.target.checked })}
-            className="rounded"
-          />
-          <span className="text-gray-700">I currently work here</span>
-        </label>
-
-        <textarea
-          value={record.responsibilities}
-          onChange={(e) => onChange({ responsibilities: e.target.value })}
-          placeholder="Roles and responsibilities..."
-          className="w-full px-4 py-2 border border-gray-300 rounded-lg bg-white"
-          rows={4}
-        />
-
-        <textarea
-          value={record.achievements}
-          onChange={(e) => onChange({ achievements: e.target.value })}
-          placeholder="Key achievements..."
-          className="w-full px-4 py-2 border border-gray-300 rounded-lg bg-white"
-          rows={3}
-        />
-
-        <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-          <input
-            type="text"
-            value={record.salary}
-            onChange={(e) => onChange({ salary: e.target.value })}
-            placeholder="Salary (optional)..."
-            className="px-4 py-2 border border-gray-300 rounded-lg bg-white"
-          />
-          <input
-            type="text"
-            value={record.pensionScheme}
-            onChange={(e) => onChange({ pensionScheme: e.target.value })}
-            placeholder="Pension scheme (optional)..."
-            className="px-4 py-2 border border-gray-300 rounded-lg bg-white"
-          />
-        </div>
-
-        <div className="flex items-center gap-2">
-          <button
-            onClick={onSubmit}
-            className={`px-4 py-2 text-white rounded-lg transition-colors ${
-              isEdit ? 'bg-green-600 hover:bg-green-700' : 'bg-indigo-600 hover:bg-indigo-700'
-            }`}
-          >
-            {isEdit ? 'Save Changes' : 'Add Record'}
-          </button>
-          <button
-            onClick={onCancel}
-            className="px-4 py-2 bg-gray-200 text-gray-700 rounded-lg hover:bg-gray-300 transition-colors"
-          >
-            Cancel
-          </button>
-        </div>
-      </div>
-    </div>
-  );
 
   if (isLoading) {
     return (
@@ -470,15 +334,128 @@ export function EmploymentManagerSecure({ onClose }: EmploymentManagerSecureProp
         </div>
 
         <div className="flex-1 overflow-y-auto p-6">
-          {showAddForm ? (
-            renderRecordForm(
-              newRecord,
-              (updates) => setNewRecord({ ...newRecord, ...updates }),
-              addRecord,
-              () => setShowAddForm(false),
-              false
-            )
-          ) : (
+          {showAddForm && (
+            <div className="mb-6 p-6 rounded-xl bg-gradient-to-br from-blue-50 to-purple-50 border-2 border-blue-200">
+              <h3 className="mb-4 text-lg font-semibold text-gray-900">Add Employment Record</h3>
+              <div className="space-y-4">
+                <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                  <input
+                    type="text"
+                    value={newRecord.company}
+                    onChange={(e) => setNewRecord({ ...newRecord, company: e.target.value })}
+                    placeholder="Company name..."
+                    className="px-4 py-2 border border-gray-300 rounded-lg bg-white"
+                  />
+                  <input
+                    type="text"
+                    value={newRecord.jobTitle}
+                    onChange={(e) => setNewRecord({ ...newRecord, jobTitle: e.target.value })}
+                    placeholder="Job title..."
+                    className="px-4 py-2 border border-gray-300 rounded-lg bg-white"
+                  />
+                  <input
+                    type="text"
+                    value={newRecord.location}
+                    onChange={(e) => setNewRecord({ ...newRecord, location: e.target.value })}
+                    placeholder="Location..."
+                    className="px-4 py-2 border border-gray-300 rounded-lg bg-white"
+                  />
+                  <select
+                    value={newRecord.employmentType}
+                    onChange={(e) => setNewRecord({ ...newRecord, employmentType: e.target.value as any })}
+                    className="px-4 py-2 border border-gray-300 rounded-lg bg-white"
+                  >
+                    <option value="full-time">Full-time</option>
+                    <option value="part-time">Part-time</option>
+                    <option value="contract">Contract</option>
+                    <option value="freelance">Freelance</option>
+                  </select>
+                  <div>
+                    <label className="block text-sm text-gray-600 mb-1">Start Date</label>
+                    <input
+                      type="date"
+                      value={newRecord.startDate}
+                      onChange={(e) => setNewRecord({ ...newRecord, startDate: e.target.value })}
+                      className="w-full px-4 py-2 border border-gray-300 rounded-lg bg-white"
+                    />
+                  </div>
+                  <div>
+                    <label className="block text-sm text-gray-600 mb-1">End Date</label>
+                    <input
+                      type="date"
+                      value={newRecord.endDate}
+                      onChange={(e) => setNewRecord({ ...newRecord, endDate: e.target.value })}
+                      disabled={newRecord.current}
+                      className="w-full px-4 py-2 border border-gray-300 rounded-lg bg-white disabled:bg-gray-100"
+                    />
+                  </div>
+                </div>
+
+                <label className="flex items-center gap-2 text-sm">
+                  <input
+                    type="checkbox"
+                    checked={newRecord.current}
+                    onChange={(e) => setNewRecord({ ...newRecord, current: e.target.checked })}
+                    className="rounded"
+                  />
+                  <span className="text-gray-700">I currently work here</span>
+                </label>
+
+                <textarea
+                  value={newRecord.responsibilities}
+                  onChange={(e) => setNewRecord({ ...newRecord, responsibilities: e.target.value })}
+                  placeholder="Roles and responsibilities..."
+                  className="w-full px-4 py-2 border border-gray-300 rounded-lg bg-white"
+                  rows={4}
+                />
+
+                <textarea
+                  value={newRecord.achievements}
+                  onChange={(e) => setNewRecord({ ...newRecord, achievements: e.target.value })}
+                  placeholder="Key achievements..."
+                  className="w-full px-4 py-2 border border-gray-300 rounded-lg bg-white"
+                  rows={3}
+                />
+
+                <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                  <input
+                    type="text"
+                    value={newRecord.salary}
+                    onChange={(e) => setNewRecord({ ...newRecord, salary: e.target.value })}
+                    placeholder="Salary (optional)..."
+                    className="px-4 py-2 border border-gray-300 rounded-lg bg-white"
+                  />
+                  <input
+                    type="text"
+                    value={newRecord.pensionScheme}
+                    onChange={(e) => setNewRecord({ ...newRecord, pensionScheme: e.target.value })}
+                    placeholder="Pension scheme (optional)..."
+                    className="px-4 py-2 border border-gray-300 rounded-lg bg-white"
+                  />
+                </div>
+
+                <div className="flex gap-2">
+                  <button
+                    onClick={addRecord}
+                    className="flex-1 px-4 py-2 bg-indigo-600 text-white rounded-lg hover:bg-indigo-700 transition-colors"
+                  >
+                    Add Record
+                  </button>
+                  <button
+                    onClick={() => {
+                      setShowAddForm(false);
+                      setNewRecord(emptyRecord);
+                    }}
+                    className="px-4 py-2 bg-gray-200 text-gray-700 rounded-lg hover:bg-gray-300 transition-colors"
+                  >
+                    Cancel
+                  </button>
+                </div>
+              </div>
+            </div>
+          )}
+
+          {!showAddForm && (
             <button
               onClick={() => setShowAddForm(true)}
               className="w-full mb-6 p-4 border-2 border-dashed border-gray-300 rounded-xl hover:border-indigo-400 hover:bg-indigo-50 transition-all flex items-center justify-center gap-2 text-gray-600 hover:text-indigo-600"
@@ -495,82 +472,92 @@ export function EmploymentManagerSecure({ onClose }: EmploymentManagerSecureProp
               {records.length === 0 && <p className="text-sm mt-2">Start building your career history</p>}
             </div>
           ) : viewMode === 'list' ? (
-            <div className="space-y-4">
-              <div className="bg-white rounded-xl border border-gray-200 overflow-hidden">
-                <table className="w-full">
-                  <thead>
-                    <tr className="bg-gray-50 border-b border-gray-200">
-                      <th className="text-left px-4 py-3 text-sm font-semibold text-gray-700">Position & Company</th>
-                      <th className="text-left px-4 py-3 text-sm font-semibold text-gray-700">Dates & Duration</th>
-                      <th className="text-left px-4 py-3 text-sm font-semibold text-gray-700">Location</th>
-                      <th className="text-left px-4 py-3 text-sm font-semibold text-gray-700">Type</th>
-                      <th className="text-right px-4 py-3 text-sm font-semibold text-gray-700">Actions</th>
-                    </tr>
-                  </thead>
-                  <tbody>
-                    {filteredRecords.map((record) => (
-                      <tr
-                        key={record.id}
-                        onClick={() => startEdit(record)}
-                        className="border-b border-gray-100 hover:bg-indigo-50 transition-colors cursor-pointer"
-                      >
-                        <td className="px-4 py-3">
-                          <p className="font-medium text-gray-900">{record.jobTitle}</p>
-                          <p className="text-sm text-gray-600">{record.company}</p>
-                        </td>
-                        <td className="px-4 py-3">
-                          <p className="text-sm text-gray-700">
-                            {record.startDate} - {record.current ? 'Present' : record.endDate}
-                          </p>
-                          {(record.startDate || record.endDate) && (
-                            <p className="text-xs text-indigo-600">
-                              {calculateDuration(record.startDate, record.endDate, record.current)}
-                            </p>
-                          )}
-                        </td>
-                        <td className="px-4 py-3">
-                          <p className="text-sm text-gray-700">{record.location || '-'}</p>
-                        </td>
-                        <td className="px-4 py-3">
-                          <div className="flex flex-col gap-1">
-                            <span className="text-xs px-2 py-1 bg-indigo-100 text-indigo-700 rounded w-fit">
-                              {record.employmentType.charAt(0).toUpperCase() + record.employmentType.slice(1)}
+            <div className="bg-white rounded-xl shadow-sm border border-gray-100 overflow-hidden">
+              <div className="px-6 py-3 bg-gray-50 border-b border-gray-200 grid grid-cols-12 gap-4 font-medium text-sm text-gray-700">
+                <div className="col-span-4">Position & Company</div>
+                <div className="col-span-3">Dates & Duration</div>
+                <div className="col-span-2">Location</div>
+                <div className="col-span-2">Type</div>
+                <div className="col-span-1 text-right">Actions</div>
+              </div>
+
+              <div className="divide-y divide-gray-100">
+                {filteredRecords.map((record) => (
+                  <div
+                    key={record.id}
+                    onClick={() => setViewingDetails(record)}
+                    className="px-6 py-3 hover:bg-gray-50 transition-colors cursor-pointer grid grid-cols-12 gap-4 items-center group"
+                  >
+                    <div className="col-span-4 flex items-center gap-3 min-w-0">
+                      <div className={`p-2 rounded-lg flex-shrink-0 ${
+                        record.current
+                          ? 'bg-green-100 text-green-600'
+                          : 'bg-indigo-100 text-indigo-600'
+                      }`}>
+                        <Briefcase className="w-5 h-5" />
+                      </div>
+                      <div className="min-w-0 flex-1">
+                        <div className="flex items-center gap-2 mb-0.5">
+                          <h3 className="text-gray-900 font-medium truncate">{record.jobTitle}</h3>
+                          {record.current && (
+                            <span className="px-2 py-0.5 rounded-full text-xs font-semibold bg-green-200 text-green-800 flex-shrink-0">
+                              Current
                             </span>
-                            {record.current && (
-                              <span className="text-xs px-2 py-1 bg-green-100 text-green-700 rounded w-fit">
-                                Current
-                              </span>
-                            )}
-                          </div>
-                        </td>
-                        <td className="px-4 py-3">
-                          <div className="flex items-center justify-end gap-2">
-                            <button
-                              onClick={(e) => {
-                                e.stopPropagation();
-                                startEdit(record);
-                              }}
-                              className="p-2 hover:bg-blue-100 rounded-lg transition-colors text-blue-600"
-                              title="Edit"
-                            >
-                              <Edit2 className="w-4 h-4" />
-                            </button>
-                            <button
-                              onClick={(e) => {
-                                e.stopPropagation();
-                                deleteRecord(record.id);
-                              }}
-                              className="p-2 hover:bg-red-100 rounded-lg transition-colors text-red-600"
-                              title="Delete"
-                            >
-                              <Trash className="w-4 h-4" />
-                            </button>
-                          </div>
-                        </td>
-                      </tr>
-                    ))}
-                  </tbody>
-                </table>
+                          )}
+                        </div>
+                        <div className="flex items-center gap-1 text-sm text-gray-500 truncate">
+                          <Building2 className="w-3 h-3 flex-shrink-0" />
+                          <span className="truncate">{record.company}</span>
+                        </div>
+                      </div>
+                    </div>
+
+                    <div className="col-span-3">
+                      <p className="text-sm text-gray-700">
+                        {record.startDate} - {record.current ? 'Present' : record.endDate}
+                      </p>
+                      {(record.startDate || record.endDate) && (
+                        <p className="text-xs text-indigo-600">
+                          {calculateDuration(record.startDate, record.endDate, record.current)}
+                        </p>
+                      )}
+                    </div>
+
+                    <div className="col-span-2">
+                      <p className="text-sm text-gray-700">{record.location || '—'}</p>
+                    </div>
+
+                    <div className="col-span-2">
+                      <span className="text-xs px-2 py-1 bg-indigo-100 text-indigo-700 rounded">
+                        {record.employmentType.charAt(0).toUpperCase() + record.employmentType.slice(1)}
+                      </span>
+                    </div>
+
+                    <div className="col-span-1 flex items-center justify-end gap-1">
+                      <button
+                        onClick={(e) => {
+                          e.stopPropagation();
+                          setEditingRecord({ ...record });
+                        }}
+                        className="p-2 hover:bg-white rounded-lg transition-colors text-gray-600"
+                        title="Edit"
+                      >
+                        <Edit2 className="w-4 h-4" />
+                      </button>
+                      <button
+                        onClick={(e) => {
+                          e.stopPropagation();
+                          deleteRecord(record.id);
+                        }}
+                        className="p-2 hover:bg-red-100 rounded-lg transition-colors text-red-600"
+                        title="Delete"
+                      >
+                        <Trash className="w-4 h-4" />
+                      </button>
+                      <div className="text-gray-400 group-hover:text-indigo-600 transition-colors ml-2">→</div>
+                    </div>
+                  </div>
+                ))}
               </div>
             </div>
           ) : (
@@ -578,101 +565,206 @@ export function EmploymentManagerSecure({ onClose }: EmploymentManagerSecureProp
               {filteredRecords.map((record) => (
                 <div
                   key={record.id}
-                  className="bg-gray-50 rounded-xl overflow-hidden hover:bg-gray-100 transition-colors"
+                  onClick={() => setViewingDetails(record)}
+                  className={`rounded-xl p-5 transition-colors cursor-pointer ${
+                    record.current
+                      ? 'bg-gradient-to-br from-green-50 to-indigo-50 border-2 border-green-200 hover:bg-green-100'
+                      : 'bg-gradient-to-br from-blue-50 to-indigo-50 border-2 border-indigo-200 hover:bg-blue-100'
+                  }`}
                 >
-                  <div className="p-5">
-                    <div className="flex items-start justify-between mb-3">
-                      <div className="flex-1">
-                        <div className="flex items-start gap-3">
-                          <div className="p-3 bg-indigo-100 text-indigo-600 rounded-lg">
-                            <Briefcase className="w-6 h-6" />
-                          </div>
-                          <div className="flex-1">
-                            <h3 className="text-gray-900 mb-1">{record.jobTitle}</h3>
-                            <p className="text-gray-700">{record.company}</p>
-                            <div className="flex flex-wrap items-center gap-3 mt-2 text-sm text-gray-600">
-                              <div className="flex items-center gap-1">
-                                <Calendar className="w-4 h-4" />
-                                <span>
-                                  {record.startDate} - {record.current ? 'Present' : record.endDate}
-                                </span>
-                              </div>
-                              {(record.startDate || record.endDate) && (
-                                <span className="text-indigo-600">
-                                  • {calculateDuration(record.startDate, record.endDate, record.current)}
-                                </span>
-                              )}
-                              {record.current && (
-                                <span className="px-2 py-1 bg-green-100 text-green-700 rounded text-xs">
-                                  Current
-                                </span>
-                              )}
-                            </div>
-                            {record.location && (
-                              <p className="text-sm text-gray-500 mt-1">{record.location}</p>
-                            )}
-                          </div>
+                  {editingRecord?.id === record.id ? (
+                    <div className="space-y-4" onClick={(e) => e.stopPropagation()}>
+                      <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                        <div>
+                          <label className="block text-sm font-medium text-gray-700 mb-1">Company Name</label>
+                          <input
+                            type="text"
+                            value={editingRecord.company}
+                            onChange={(e) => setEditingRecord({ ...editingRecord, company: e.target.value })}
+                            className="w-full px-4 py-2 border border-gray-300 rounded-lg bg-white"
+                          />
+                        </div>
+                        <div>
+                          <label className="block text-sm font-medium text-gray-700 mb-1">Job Title</label>
+                          <input
+                            type="text"
+                            value={editingRecord.jobTitle}
+                            onChange={(e) => setEditingRecord({ ...editingRecord, jobTitle: e.target.value })}
+                            className="w-full px-4 py-2 border border-gray-300 rounded-lg bg-white"
+                          />
                         </div>
                       </div>
-                      <div className="flex items-center gap-2">
+                      <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                        <div>
+                          <label className="block text-sm font-medium text-gray-700 mb-1">Location</label>
+                          <input
+                            type="text"
+                            value={editingRecord.location}
+                            onChange={(e) => setEditingRecord({ ...editingRecord, location: e.target.value })}
+                            className="w-full px-4 py-2 border border-gray-300 rounded-lg bg-white"
+                          />
+                        </div>
+                        <div>
+                          <label className="block text-sm font-medium text-gray-700 mb-1">Employment Type</label>
+                          <select
+                            value={editingRecord.employmentType}
+                            onChange={(e) => setEditingRecord({ ...editingRecord, employmentType: e.target.value as any })}
+                            className="w-full px-4 py-2 border border-gray-300 rounded-lg bg-white"
+                          >
+                            <option value="full-time">Full-time</option>
+                            <option value="part-time">Part-time</option>
+                            <option value="contract">Contract</option>
+                            <option value="freelance">Freelance</option>
+                          </select>
+                        </div>
+                      </div>
+                      <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                        <div>
+                          <label className="block text-sm font-medium text-gray-700 mb-1">Start Date</label>
+                          <input
+                            type="date"
+                            value={editingRecord.startDate}
+                            onChange={(e) => setEditingRecord({ ...editingRecord, startDate: e.target.value })}
+                            className="w-full px-4 py-2 border border-gray-300 rounded-lg bg-white"
+                          />
+                        </div>
+                        <div>
+                          <label className="block text-sm font-medium text-gray-700 mb-1">End Date</label>
+                          <input
+                            type="date"
+                            value={editingRecord.endDate}
+                            onChange={(e) => setEditingRecord({ ...editingRecord, endDate: e.target.value })}
+                            disabled={editingRecord.current}
+                            className="w-full px-4 py-2 border border-gray-300 rounded-lg bg-white disabled:bg-gray-100"
+                          />
+                        </div>
+                      </div>
+                      <label className="flex items-center gap-2 text-sm">
+                        <input
+                          type="checkbox"
+                          checked={editingRecord.current}
+                          onChange={(e) => setEditingRecord({ ...editingRecord, current: e.target.checked })}
+                          className="rounded"
+                        />
+                        <span className="text-gray-700">I currently work here</span>
+                      </label>
+                      <div>
+                        <label className="block text-sm font-medium text-gray-700 mb-1">Responsibilities</label>
+                        <textarea
+                          value={editingRecord.responsibilities}
+                          onChange={(e) => setEditingRecord({ ...editingRecord, responsibilities: e.target.value })}
+                          className="w-full px-4 py-2 border border-gray-300 rounded-lg bg-white"
+                          rows={4}
+                        />
+                      </div>
+                      <div>
+                        <label className="block text-sm font-medium text-gray-700 mb-1">Key Achievements</label>
+                        <textarea
+                          value={editingRecord.achievements}
+                          onChange={(e) => setEditingRecord({ ...editingRecord, achievements: e.target.value })}
+                          className="w-full px-4 py-2 border border-gray-300 rounded-lg bg-white"
+                          rows={3}
+                        />
+                      </div>
+                      <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                        <div>
+                          <label className="block text-sm font-medium text-gray-700 mb-1">Salary (optional)</label>
+                          <input
+                            type="text"
+                            value={editingRecord.salary}
+                            onChange={(e) => setEditingRecord({ ...editingRecord, salary: e.target.value })}
+                            className="w-full px-4 py-2 border border-gray-300 rounded-lg bg-white"
+                          />
+                        </div>
+                        <div>
+                          <label className="block text-sm font-medium text-gray-700 mb-1">Pension Scheme (optional)</label>
+                          <input
+                            type="text"
+                            value={editingRecord.pensionScheme}
+                            onChange={(e) => setEditingRecord({ ...editingRecord, pensionScheme: e.target.value })}
+                            className="w-full px-4 py-2 border border-gray-300 rounded-lg bg-white"
+                          />
+                        </div>
+                      </div>
+                      <div className="flex gap-2">
                         <button
-                          onClick={() => setExpandedRecord(expandedRecord === record.id ? null : record.id)}
-                          className="p-2 hover:bg-white rounded-lg transition-colors text-gray-600"
-                          title="View details"
+                          onClick={updateRecord}
+                          className="flex-1 px-4 py-2 bg-green-600 text-white rounded-lg hover:bg-green-700 transition-colors"
                         >
-                          {expandedRecord === record.id ? <ChevronUp className="w-4 h-4" /> : <ChevronDown className="w-4 h-4" />}
+                          Save Changes
                         </button>
                         <button
-                          onClick={() => startEdit(record)}
-                          className="p-2 hover:bg-white rounded-lg transition-colors text-blue-600"
+                          onClick={() => setEditingRecord(null)}
+                          className="px-4 py-2 bg-gray-200 text-gray-700 rounded-lg hover:bg-gray-300 transition-colors"
                         >
-                          <Edit2 className="w-4 h-4" />
-                        </button>
-                        <button
-                          onClick={() => deleteRecord(record.id)}
-                          className="p-2 hover:bg-white rounded-lg transition-colors text-red-600"
-                        >
-                          <Trash className="w-4 h-4" />
+                          Cancel
                         </button>
                       </div>
                     </div>
-
-                    {expandedRecord === record.id && (
-                      <div className="mt-4 pt-4 border-t border-gray-200 space-y-3">
-                        {record.responsibilities && (
-                          <div>
-                            <p className="text-sm text-gray-500 mb-1">Responsibilities:</p>
-                            <p className="text-sm text-gray-700 whitespace-pre-line">{record.responsibilities}</p>
+                  ) : (
+                    <div>
+                      <div className="flex items-start justify-between mb-3">
+                        <div className="flex-1">
+                          <div className="flex items-center gap-2 mb-2">
+                            <h3 className="font-semibold text-gray-900 text-lg">{record.jobTitle}</h3>
+                            {record.current && (
+                              <span className="px-2 py-1 bg-green-200 text-green-800 rounded text-xs font-semibold">
+                                Current
+                              </span>
+                            )}
                           </div>
-                        )}
-                        {record.achievements && (
-                          <div>
-                            <p className="text-sm text-gray-500 mb-1">Key Achievements:</p>
-                            <p className="text-sm text-gray-700 whitespace-pre-line">{record.achievements}</p>
-                          </div>
-                        )}
-                        <div className="grid grid-cols-1 md:grid-cols-2 gap-3">
-                          {record.salary && (
-                            <div>
-                              <p className="text-sm text-gray-500 mb-1">Salary:</p>
-                              <p className="text-sm text-gray-700">{record.salary}</p>
-                            </div>
-                          )}
-                          {record.pensionScheme && (
-                            <div>
-                              <p className="text-sm text-gray-500 mb-1">Pension Scheme:</p>
-                              <p className="text-sm text-gray-700">{record.pensionScheme}</p>
-                            </div>
-                          )}
+                          <p className="text-sm text-gray-600 mb-2">
+                            <Building2 className="w-4 h-4 inline mr-1" />
+                            {record.company}
+                          </p>
                         </div>
-                        <div className="pt-2">
+                        <div className="flex gap-2">
+                          <button
+                            onClick={(e) => {
+                              e.stopPropagation();
+                              setEditingRecord({ ...record });
+                            }}
+                            className="p-2 hover:bg-white rounded-lg transition-colors"
+                          >
+                            <Edit2 className="w-4 h-4 text-gray-600" />
+                          </button>
+                          <button
+                            onClick={(e) => {
+                              e.stopPropagation();
+                              deleteRecord(record.id);
+                            }}
+                            className="p-2 hover:bg-red-100 rounded-lg transition-colors"
+                          >
+                            <Trash className="w-4 h-4 text-red-600" />
+                          </button>
+                        </div>
+                      </div>
+
+                      <div className="grid grid-cols-2 gap-3">
+                        <div className="bg-white rounded-lg p-3">
+                          <p className="text-xs text-gray-500 mb-1">Duration</p>
+                          <p className="text-sm font-semibold text-indigo-600">
+                            {calculateDuration(record.startDate, record.endDate, record.current)}
+                          </p>
+                          <p className="text-xs text-gray-500 mt-1">
+                            {record.startDate} - {record.current ? 'Present' : record.endDate}
+                          </p>
+                        </div>
+                        {record.location && (
+                          <div className="bg-white rounded-lg p-3">
+                            <p className="text-xs text-gray-500 mb-1">Location</p>
+                            <p className="text-sm font-semibold text-gray-700">{record.location}</p>
+                          </div>
+                        )}
+                        <div className="bg-white rounded-lg p-3">
+                          <p className="text-xs text-gray-500 mb-1">Employment Type</p>
                           <span className="text-xs px-2 py-1 bg-indigo-100 text-indigo-700 rounded">
                             {record.employmentType.charAt(0).toUpperCase() + record.employmentType.slice(1)}
                           </span>
                         </div>
                       </div>
-                    )}
-                  </div>
+                    </div>
+                  )}
                 </div>
               ))}
             </div>
@@ -680,162 +772,120 @@ export function EmploymentManagerSecure({ onClose }: EmploymentManagerSecureProp
         </div>
       </div>
 
-      {/* Edit Modal */}
-      {editingRecord && (
+      {/* Employment Details Modal */}
+      {viewingDetails && (
         <div className="fixed inset-0 bg-black/60 flex items-center justify-center z-[60] p-4">
           <div className="bg-white rounded-2xl max-w-2xl w-full p-6 shadow-2xl max-h-[90vh] overflow-y-auto">
             <div className="flex items-center justify-between mb-6">
-              <h3 className="text-xl font-semibold text-gray-900 flex items-center gap-2">
-                <Edit2 className="w-5 h-5 text-green-600" />
-                Edit Employment Record
+              <h3 className="text-xl font-semibold flex items-center gap-2">
+                <Briefcase className="w-5 h-5 text-indigo-600" />
+                Employment Details
               </h3>
               <button
-                onClick={() => setEditingRecord(null)}
+                onClick={() => setViewingDetails(null)}
                 className="p-2 hover:bg-gray-100 rounded-lg transition-colors"
               >
                 <X className="w-5 h-5" />
               </button>
             </div>
 
-            <div className="space-y-4">
-              <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-                <div>
-                  <label className="block text-sm font-medium text-gray-700 mb-1">Company Name</label>
-                  <input
-                    type="text"
-                    value={editingRecord.company}
-                    onChange={(e) => setEditingRecord({ ...editingRecord, company: e.target.value })}
-                    className="w-full px-4 py-2 border border-gray-300 rounded-lg bg-white focus:ring-2 focus:ring-green-500 focus:border-transparent"
-                  />
-                </div>
-                <div>
-                  <label className="block text-sm font-medium text-gray-700 mb-1">Job Title</label>
-                  <input
-                    type="text"
-                    value={editingRecord.jobTitle}
-                    onChange={(e) => setEditingRecord({ ...editingRecord, jobTitle: e.target.value })}
-                    className="w-full px-4 py-2 border border-gray-300 rounded-lg bg-white focus:ring-2 focus:ring-green-500 focus:border-transparent"
-                  />
-                </div>
-                <div>
-                  <label className="block text-sm font-medium text-gray-700 mb-1">Location</label>
-                  <input
-                    type="text"
-                    value={editingRecord.location}
-                    onChange={(e) => setEditingRecord({ ...editingRecord, location: e.target.value })}
-                    className="w-full px-4 py-2 border border-gray-300 rounded-lg bg-white focus:ring-2 focus:ring-green-500 focus:border-transparent"
-                  />
-                </div>
-                <div>
-                  <label className="block text-sm font-medium text-gray-700 mb-1">Employment Type</label>
-                  <select
-                    value={editingRecord.employmentType}
-                    onChange={(e) => setEditingRecord({ ...editingRecord, employmentType: e.target.value as any })}
-                    className="w-full px-4 py-2 border border-gray-300 rounded-lg bg-white focus:ring-2 focus:ring-green-500 focus:border-transparent"
-                  >
-                    <option value="full-time">Full-time</option>
-                    <option value="part-time">Part-time</option>
-                    <option value="contract">Contract</option>
-                    <option value="freelance">Freelance</option>
-                  </select>
-                </div>
-                <div>
-                  <label className="block text-sm font-medium text-gray-700 mb-1">Start Date</label>
-                  <input
-                    type="date"
-                    value={editingRecord.startDate}
-                    onChange={(e) => setEditingRecord({ ...editingRecord, startDate: e.target.value })}
-                    className="w-full px-4 py-2 border border-gray-300 rounded-lg bg-white focus:ring-2 focus:ring-green-500 focus:border-transparent"
-                  />
-                </div>
-                <div>
-                  <label className="block text-sm font-medium text-gray-700 mb-1">End Date</label>
-                  <input
-                    type="date"
-                    value={editingRecord.endDate}
-                    onChange={(e) => setEditingRecord({ ...editingRecord, endDate: e.target.value })}
-                    disabled={editingRecord.current}
-                    className="w-full px-4 py-2 border border-gray-300 rounded-lg bg-white disabled:bg-gray-100 focus:ring-2 focus:ring-green-500 focus:border-transparent"
-                  />
+            <div className="space-y-5">
+              <div>
+                <label className="block text-sm font-medium text-gray-500 mb-1">Job Title</label>
+                <div className="flex items-center gap-2">
+                  <p className="text-lg text-gray-900 font-medium">{viewingDetails.jobTitle}</p>
+                  {viewingDetails.current && (
+                    <span className="px-2 py-1 rounded-full text-xs font-semibold bg-green-200 text-green-800">
+                      Current Position
+                    </span>
+                  )}
                 </div>
               </div>
 
-              <label className="flex items-center gap-2 text-sm">
-                <input
-                  type="checkbox"
-                  checked={editingRecord.current}
-                  onChange={(e) => setEditingRecord({ ...editingRecord, current: e.target.checked })}
-                  className="rounded"
-                />
-                <span className="text-gray-700">I currently work here</span>
-              </label>
+              {viewingDetails.company && (
+                <div>
+                  <label className="block text-sm font-medium text-gray-500 mb-1">Company</label>
+                  <div className="flex items-center gap-2 text-gray-900">
+                    <Building2 className="w-4 h-4 text-indigo-600" />
+                    <p>{viewingDetails.company}</p>
+                  </div>
+                </div>
+              )}
+
+              {viewingDetails.location && (
+                <div>
+                  <label className="block text-sm font-medium text-gray-500 mb-1">Location</label>
+                  <p className="text-gray-900">{viewingDetails.location}</p>
+                </div>
+              )}
 
               <div>
-                <label className="block text-sm font-medium text-gray-700 mb-1">Responsibilities</label>
-                <textarea
-                  value={editingRecord.responsibilities}
-                  onChange={(e) => setEditingRecord({ ...editingRecord, responsibilities: e.target.value })}
-                  className="w-full px-4 py-2 border border-gray-300 rounded-lg bg-white focus:ring-2 focus:ring-green-500 focus:border-transparent"
-                  rows={4}
-                />
+                <label className="block text-sm font-medium text-gray-500 mb-1">Employment Type</label>
+                <span className="text-xs px-3 py-1.5 bg-indigo-100 text-indigo-700 rounded font-medium">
+                  {viewingDetails.employmentType.charAt(0).toUpperCase() + viewingDetails.employmentType.slice(1)}
+                </span>
               </div>
 
               <div>
-                <label className="block text-sm font-medium text-gray-700 mb-1">Key Achievements</label>
-                <textarea
-                  value={editingRecord.achievements}
-                  onChange={(e) => setEditingRecord({ ...editingRecord, achievements: e.target.value })}
-                  className="w-full px-4 py-2 border border-gray-300 rounded-lg bg-white focus:ring-2 focus:ring-green-500 focus:border-transparent"
-                  rows={3}
-                />
+                <label className="block text-sm font-medium text-gray-500 mb-1">Duration</label>
+                <p className="text-gray-900">
+                  {viewingDetails.startDate} - {viewingDetails.current ? 'Present' : viewingDetails.endDate}
+                </p>
+                {(viewingDetails.startDate || viewingDetails.endDate) && (
+                  <p className="text-sm text-indigo-600 mt-1">
+                    {calculateDuration(viewingDetails.startDate, viewingDetails.endDate, viewingDetails.current)}
+                  </p>
+                )}
               </div>
 
-              <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+              {viewingDetails.responsibilities && (
                 <div>
-                  <label className="block text-sm font-medium text-gray-700 mb-1">Salary (optional)</label>
-                  <input
-                    type="text"
-                    value={editingRecord.salary}
-                    onChange={(e) => setEditingRecord({ ...editingRecord, salary: e.target.value })}
-                    className="w-full px-4 py-2 border border-gray-300 rounded-lg bg-white focus:ring-2 focus:ring-green-500 focus:border-transparent"
-                  />
+                  <label className="block text-sm font-medium text-gray-500 mb-1">Responsibilities</label>
+                  <div className="p-3 bg-gray-50 rounded-lg">
+                    <p className="text-gray-700 whitespace-pre-wrap">{viewingDetails.responsibilities}</p>
+                  </div>
                 </div>
-                <div>
-                  <label className="block text-sm font-medium text-gray-700 mb-1">Pension Scheme (optional)</label>
-                  <input
-                    type="text"
-                    value={editingRecord.pensionScheme}
-                    onChange={(e) => setEditingRecord({ ...editingRecord, pensionScheme: e.target.value })}
-                    className="w-full px-4 py-2 border border-gray-300 rounded-lg bg-white focus:ring-2 focus:ring-green-500 focus:border-transparent"
-                  />
-                </div>
-              </div>
-            </div>
+              )}
 
-            <div className="flex items-center justify-between gap-2 mt-6 pt-6 border-t border-gray-200">
-              <button
-                onClick={() => {
-                  if (window.confirm('Are you sure you want to delete this employment record?')) {
-                    deleteRecord(editingRecord.id);
-                    setEditingRecord(null);
-                  }
-                }}
-                className="px-4 py-2 bg-red-600 text-white rounded-lg hover:bg-red-700 transition-colors"
-              >
-                Delete
-              </button>
-              <div className="flex items-center gap-2">
+              {viewingDetails.achievements && (
+                <div>
+                  <label className="block text-sm font-medium text-gray-500 mb-1">Key Achievements</label>
+                  <div className="p-3 bg-gray-50 rounded-lg">
+                    <p className="text-gray-700 whitespace-pre-wrap">{viewingDetails.achievements}</p>
+                  </div>
+                </div>
+              )}
+
+              {viewingDetails.salary && (
+                <div>
+                  <label className="block text-sm font-medium text-gray-500 mb-1">Salary</label>
+                  <p className="text-gray-900">{viewingDetails.salary}</p>
+                </div>
+              )}
+
+              {viewingDetails.pensionScheme && (
+                <div>
+                  <label className="block text-sm font-medium text-gray-500 mb-1">Pension Scheme</label>
+                  <p className="text-gray-900">{viewingDetails.pensionScheme}</p>
+                </div>
+              )}
+
+              <div className="flex items-center gap-3 pt-4 border-t">
                 <button
-                  onClick={() => setEditingRecord(null)}
-                  className="px-4 py-2 bg-gray-200 text-gray-700 rounded-lg hover:bg-gray-300 transition-colors"
+                  onClick={() => {
+                    setEditingRecord({ ...viewingDetails });
+                    setViewingDetails(null);
+                  }}
+                  className="flex items-center gap-2 px-6 py-2.5 bg-indigo-600 text-white rounded-lg hover:bg-indigo-700 transition-colors font-medium"
                 >
-                  Cancel
+                  <Edit2 className="w-4 h-4" />
+                  Edit
                 </button>
                 <button
-                  onClick={updateRecord}
-                  className="px-4 py-2 bg-green-600 text-white rounded-lg hover:bg-green-700 transition-colors"
+                  onClick={() => setViewingDetails(null)}
+                  className="px-6 py-2.5 bg-gray-200 text-gray-700 rounded-lg hover:bg-gray-300 transition-colors font-medium"
                 >
-                  Save Changes
+                  Close
                 </button>
               </div>
             </div>
