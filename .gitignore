@@ -5,8 +5,8 @@ dist
 .env
 .vite
 
-# Tauri build artifacts
-src-tauri/target
+# Tauri artifacts (no longer used - migrated to Electron)
+src-tauri/
 
 # Claude/session files
 .claude/settings.local.json
