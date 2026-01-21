@@ -37,19 +37,26 @@ async function deriveKey(password: string, salt: Uint8Array): Promise<CryptoKey>
 }
 
 /**
- * Encrypts a string using AES-GCM with a password-derived key
+ * Encrypts a string using AES-GCM with master key
  * @param plaintext - The text to encrypt
- * @param password - The master password
+ * @param masterKeyString - Base64-encoded master key (not a password!)
  * @returns Base64-encoded encrypted data with salt and IV prepended
  */
-export async function encrypt(plaintext: string, password: string): Promise<string> {
+export async function encrypt(plaintext: string, masterKeyString: string): Promise<string> {
   try {
-    // Generate random salt and IV
+    // Generate random salt and IV (salt is kept for format compatibility)
     const salt = crypto.getRandomValues(new Uint8Array(SALT_LENGTH));
     const iv = crypto.getRandomValues(new Uint8Array(IV_LENGTH));
 
-    // Derive key from password
-    const key = await deriveKey(password, salt);
+    // Import master key directly (no PBKDF2)
+    const masterKeyBytes = base64ToArrayBuffer(masterKeyString);
+    const key = await crypto.subtle.importKey(
+      'raw',
+      masterKeyBytes,
+      { name: 'AES-GCM', length: 256 },
+      false,
+      ['encrypt', 'decrypt']
+    );
 
     // Encrypt the data
     const encoder = new TextEncoder();
@@ -80,10 +87,10 @@ export async function encrypt(plaintext: string, password: string): Promise<stri
 /**
  * Decrypts a string that was encrypted with the encrypt function
  * @param encryptedBase64 - Base64-encoded encrypted data
- * @param password - The master password
+ * @param masterKeyString - Base64-encoded master key (not a password!)
  * @returns The decrypted plaintext
  */
-export async function decrypt(encryptedBase64: string, password: string): Promise<string> {
+export async function decrypt(encryptedBase64: string, masterKeyString: string): Promise<string> {
   try {
     // Decode from base64
     const combined = base64ToArrayBuffer(encryptedBase64);
@@ -93,8 +100,15 @@ export async function decrypt(encryptedBase64: string, password: string): Promis
     const iv = combined.slice(SALT_LENGTH, SALT_LENGTH + IV_LENGTH);
     const encrypted = combined.slice(SALT_LENGTH + IV_LENGTH);
 
-    // Derive key from password
-    const key = await deriveKey(password, salt);
+    // Import master key directly (no PBKDF2)
+    const masterKeyBytes = base64ToArrayBuffer(masterKeyString);
+    const key = await crypto.subtle.importKey(
+      'raw',
+      masterKeyBytes,
+      { name: 'AES-GCM', length: 256 },
+      false,
+      ['encrypt', 'decrypt']
+    );
 
     // Decrypt the data
     const decrypted = await crypto.subtle.decrypt(

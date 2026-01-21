@@ -187,7 +187,10 @@ async function wrapMasterKey(masterKeyBytes, password) {
  * Migrate a data file
  */
 async function migrateDataFile(filePath, masterKeyBytes) {
-  const encryptedContent = await readFile(filePath, 'utf-8');
+  const fileContent = await readFile(filePath, 'utf-8');
+
+  // Parse JSON wrapper (storage service wraps encrypted data in JSON)
+  const encryptedContent = JSON.parse(fileContent);
 
   // Decrypt with password
   const decryptedContent = await decryptWithPassword(encryptedContent, CURRENT_PASSWORD);
@@ -195,8 +198,8 @@ async function migrateDataFile(filePath, masterKeyBytes) {
   // Re-encrypt with master key
   const reEncryptedContent = await encryptWithMasterKey(decryptedContent, masterKeyBytes);
 
-  // Write back
-  await writeFile(filePath, reEncryptedContent, 'utf-8');
+  // Wrap in JSON and write back (storage service expects JSON wrapper)
+  await writeFile(filePath, JSON.stringify(reEncryptedContent), 'utf-8');
 }
 
 /**
