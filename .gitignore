@@ -58,6 +58,15 @@ test*.html
 !scripts/**/*.cjs
 !electron/**/*.cjs
 
+# Recovery and migration scripts (one-time use)
+restore-*.mjs
+fix-*.mjs
+test-*.mjs
+check-*.mjs
+examine-*.mjs
+migrate-*.mjs
+*-backup-decrypted.json
+
 # Personal data exports
 birth.pdf
 driving.pdf
