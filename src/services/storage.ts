@@ -176,18 +176,18 @@ export class LocalStorageService implements StorageService {
   }
 }
 
-// Import Tauri storage (only used when running as desktop app)
-import { TauriStorageService } from './tauri-storage';
+// Import Electron storage (only used when running as desktop app)
+import { ElectronStorageService } from './electron-storage';
 
 // Factory function - automatically detects environment and uses appropriate storage
 export function createStorageService(masterPassword: string): StorageService {
-  // Detect if running in Tauri (desktop app)
-  const isTauri = typeof window !== 'undefined' && '__TAURI__' in window;
+  // Detect if running in Electron (desktop app)
+  const isElectron = typeof window !== 'undefined' && 'electronAPI' in window;
 
-  if (isTauri) {
-    // Use Tauri file system storage (desktop app)
-    console.log('Using Tauri file system storage: ~/Documents/PersonalHub/');
-    return new TauriStorageService(masterPassword);
+  if (isElectron) {
+    // Use Electron file system storage (desktop app)
+    console.log('Using Electron file system storage: ~/Documents/PersonalHub/');
+    return new ElectronStorageService(masterPassword);
   }
 
   // Use localStorage (browser/development)

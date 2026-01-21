@@ -93,12 +93,8 @@ export default function App() {
 
       try {
         // Check if any data files exist
-        const { exists } = await import('@tauri-apps/plugin-fs');
-        const { BaseDirectory } = await import('@tauri-apps/plugin-fs');
-
-        const hasData = await exists('PersonalHub/data/virtual_street.encrypted.json', {
-          baseDir: BaseDirectory.Document
-        });
+        const { checkDataFileExists } = await import('../utils/file-system');
+        const hasData = await checkDataFileExists('PersonalHub/data/virtual_street.encrypted.json');
 
         if (!hasData) {
           // First run - show import wizard

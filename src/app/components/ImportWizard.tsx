@@ -1,5 +1,5 @@
 import React, { useState } from 'react';
-import { open } from '@tauri-apps/plugin-dialog';
+import { showOpenDialog, readTextFile } from '../../utils/file-system';
 import { createStorageService } from '../../services/storage';
 
 interface ImportWizardProps {
@@ -26,22 +26,23 @@ export const ImportWizard: React.FC<ImportWizardProps> = ({ masterPassword, onIm
       setProgress(null);
 
       // Open file dialog to select backup file
-      const selected = await open({
+      const selectedResult = await showOpenDialog({
         multiple: false,
         filters: [{
           name: 'JSON Backup',
           extensions: ['json']
-        }],
-        title: 'Select Personal Hub Backup File'
+        }]
       });
 
-      if (!selected) {
+      if (!selectedResult) {
         setImporting(false);
         return;
       }
 
-      // Read the file using Tauri filesystem API
-      const { readTextFile } = await import('@tauri-apps/plugin-fs');
+      // Extract single file path
+      const selected = typeof selectedResult === 'string' ? selectedResult : selectedResult[0];
+
+      // Read the file
       const fileContent = await readTextFile(selected);
       const backupData = JSON.parse(fileContent);
 

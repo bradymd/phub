@@ -2,8 +2,7 @@ import { useState } from 'react';
 import { X, Download, Upload, HardDrive, AlertCircle, CheckCircle, Clock, Database } from 'lucide-react';
 import { useStorage, useMasterPassword } from '../../contexts/StorageContext';
 import { BackupService, BackupData } from '../../services/backup';
-import { save, open } from '@tauri-apps/plugin-dialog';
-import { writeTextFile, readTextFile } from '@tauri-apps/plugin-fs';
+import { showSaveDialog, showOpenDialog, readTextFile, writeTextFile } from '../../utils/file-system';
 
 interface BackupManagerProps {
   onClose: () => void;
@@ -40,7 +39,7 @@ export function BackupManager({ onClose }: BackupManagerProps) {
       const filename = `PersonalHub_Backup_${timestamp}.encrypted.json`;
 
       // Show save dialog
-      const filePath = await save({
+      const filePath = await showSaveDialog({
         defaultPath: `~/Downloads/${filename}`,
         filters: [{
           name: 'Encrypted Backup',
@@ -78,7 +77,7 @@ export function BackupManager({ onClose }: BackupManagerProps) {
       setSuccess('');
 
       // Show open dialog
-      const filePath = await open({
+      const filePathResult = await showOpenDialog({
         defaultPath: '~/Downloads/',
         multiple: false,
         filters: [{
@@ -87,14 +86,17 @@ export function BackupManager({ onClose }: BackupManagerProps) {
         }]
       });
 
-      if (!filePath) {
+      if (!filePathResult) {
         setIsRestoring(false);
         return; // User cancelled
       }
 
+      // Extract single file path (not array)
+      const filePath = typeof filePathResult === 'string' ? filePathResult : filePathResult[0];
+
       // Read and decrypt backup file
       console.log('Reading and decrypting backup from:', filePath);
-      const encryptedJson = await readTextFile(filePath as string);
+      const encryptedJson = await readTextFile(filePath);
       const backup = await backupService.importBackupFromJson(encryptedJson);
 
       // Show preview
