@@ -12,6 +12,8 @@ const os = require('os');
 const dataDir = path.join(os.homedir(), 'Documents', 'PersonalHub', 'data');
 // Document base dir should match Tauri's BaseDirectory.Document (~/Documents/)
 const documentsDir = path.join(os.homedir(), 'Documents');
+// Master key file location
+const masterKeyFile = path.join(os.homedir(), 'Documents', 'PersonalHub', '.master.key');
 
 // Create main window
 function createWindow() {
@@ -234,6 +236,44 @@ ipcMain.handle('docs:remove', async (event, relativePath) => {
     return { success: true };
   } catch (err) {
     console.error('Failed to delete document:', err);
+    return { success: false, error: err.message };
+  }
+});
+
+// Master Key operations
+
+// Check if master key file exists
+ipcMain.handle('masterKey:exists', async () => {
+  try {
+    await fs.access(masterKeyFile);
+    return { exists: true };
+  } catch {
+    return { exists: false };
+  }
+});
+
+// Read wrapped master key
+ipcMain.handle('masterKey:read', async () => {
+  try {
+    const content = await fs.readFile(masterKeyFile, 'utf-8');
+    return { success: true, content };
+  } catch (err) {
+    console.error('Failed to read master key:', err);
+    return { success: false, error: err.message };
+  }
+});
+
+// Write wrapped master key
+ipcMain.handle('masterKey:write', async (event, content) => {
+  try {
+    // Ensure parent directory exists
+    const dir = path.dirname(masterKeyFile);
+    await fs.mkdir(dir, { recursive: true });
+
+    await fs.writeFile(masterKeyFile, content, 'utf-8');
+    return { success: true };
+  } catch (err) {
+    console.error('Failed to write master key:', err);
     return { success: false, error: err.message };
   }
 });

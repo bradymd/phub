@@ -123,7 +123,9 @@ export class DocumentService {
         if (!readResult.success || !readResult.content) {
           throw new Error(readResult.error || 'Failed to read file');
         }
-        encryptedContent = readResult.content;
+        // Remove ALL whitespace (spaces, newlines, tabs, etc.) to handle any formatting differences
+        encryptedContent = readResult.content.replace(/\s/g, '');
+        console.log(`[Electron] Read document from: ${filePath}, original length: ${readResult.content.length}, cleaned: ${encryptedContent.length}`);
       } else {
         // Tauri path
         const { exists, readTextFile, BaseDirectory } = await import('@tauri-apps/plugin-fs');

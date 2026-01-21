@@ -1,13 +1,20 @@
 /**
  * Storage Context
  * Provides storage service to all components via React Context
- * Avoids prop-drilling masterPassword through the component tree
+ * Implements Key Wrapping Pattern for secure password changes
+ *
+ * Architecture:
+ * - Master Key: Random 256-bit key that encrypts all data (never changes)
+ * - User Password: Wraps (encrypts) the Master Key
+ * - Password change: Only re-wraps Master Key, doesn't re-encrypt all data
  */
 
-import { createContext, useContext, ReactNode, useState } from 'react';
+import { createContext, useContext, ReactNode, useState, useEffect } from 'react';
 import { StorageService, createStorageService } from '../services/storage';
 import { DocumentService, createDocumentService } from '../services/document-service';
 import { hashPassword } from '../utils/crypto';
+import { generateMasterKey, wrapMasterKey, unwrapMasterKey, masterKeyToString } from '../services/master-key';
+import { masterKeyExists, readWrappedMasterKey, writeWrappedMasterKey } from '../services/master-key-storage';
 
 interface StorageContextType {
   storage: StorageService;
@@ -24,9 +31,50 @@ interface StorageProviderProps {
 }
 
 export function StorageProvider({ masterPassword, children }: StorageProviderProps) {
-  const [storage, setStorage] = useState<StorageService>(() => createStorageService(masterPassword));
-  const [documentService, setDocumentService] = useState<DocumentService>(() => createDocumentService(masterPassword));
+  const [masterKeyString, setMasterKeyString] = useState<string | null>(null);
+  const [storage, setStorage] = useState<StorageService | null>(null);
+  const [documentService, setDocumentService] = useState<DocumentService | null>(null);
   const [currentPassword, setCurrentPassword] = useState(masterPassword);
+  const [isInitialized, setIsInitialized] = useState(false);
+
+  // Initialize master key on mount
+  useEffect(() => {
+    async function initializeMasterKey() {
+      try {
+        const keyExists = await masterKeyExists();
+
+        let masterKey: Uint8Array;
+
+        if (keyExists) {
+          // Existing user: Unwrap master key with password
+          console.log('Master key exists, unwrapping...');
+          const wrappedKey = await readWrappedMasterKey();
+          masterKey = await unwrapMasterKey(wrappedKey, masterPassword);
+        } else {
+          // New user or migration: Generate master key and wrap it
+          console.log('No master key found, generating new one...');
+          masterKey = generateMasterKey();
+          const wrappedKey = await wrapMasterKey(masterKey, masterPassword);
+          await writeWrappedMasterKey(wrappedKey);
+          console.log('Master key generated and saved');
+        }
+
+        // Convert to string for storage services
+        const keyString = masterKeyToString(masterKey);
+        setMasterKeyString(keyString);
+
+        // Create storage services with master key
+        setStorage(createStorageService(keyString));
+        setDocumentService(createDocumentService(keyString));
+        setIsInitialized(true);
+      } catch (err) {
+        console.error('Failed to initialize master key:', err);
+        throw new Error('Failed to initialize encryption. Please check your password.');
+      }
+    }
+
+    initializeMasterKey();
+  }, [masterPassword]);
 
   const changePassword = async (oldPassword: string, newPassword: string) => {
     // 1. Verify current password
@@ -34,78 +82,36 @@ export function StorageProvider({ masterPassword, children }: StorageProviderPro
       throw new Error('Current password is incorrect');
     }
 
-    // 2. Get all encrypted keys from localStorage/storage
-    const allKeys: string[] = [];
-
-    // Check if running in browser (localStorage) or Tauri (file system)
-    const isTauri = typeof window !== 'undefined' && '__TAURI__' in window;
-
-    if (!isTauri) {
-      // Browser: scan localStorage for encrypted keys
-      for (let i = 0; i < localStorage.length; i++) {
-        const key = localStorage.key(i);
-        if (key && key.endsWith('_encrypted')) {
-          allKeys.push(key.replace('_encrypted', ''));
-        }
-      }
-    } else {
-      // Tauri: use known keys (all data is in ~/Documents/PersonalHub/)
-      allKeys.push(
-        'virtual_street',
-        'finance_items',
-        'pensions',
-        'budget_items',
-        'custom_categories',
-        'documents_certificates',
-        'documents_education',
-        'documents_health',
-        'employment_records',
-        'education_records',
-        'medical_history',
-        'photos',
-        'contacts'
-      );
+    if (!masterKeyString) {
+      throw new Error('Master key not initialized');
     }
 
-    // 3. Create new storage services with new password
-    const newStorage = createStorageService(newPassword);
-    const newDocumentService = createDocumentService(newPassword);
+    // 2. Read current wrapped master key
+    const wrappedKey = await readWrappedMasterKey();
 
-    // 4. Migrate each key: decrypt with old password, encrypt with new password
-    const errors: string[] = [];
+    // 3. Unwrap with old password to verify it's correct
+    const masterKey = await unwrapMasterKey(wrappedKey, oldPassword);
 
-    for (const key of allKeys) {
-      try {
-        // Load data with old storage (old password)
-        const data = await storage.get(key);
+    // 4. Re-wrap master key with new password
+    const newWrappedKey = await wrapMasterKey(masterKey, newPassword);
 
-        // Skip empty datasets
-        if (data.length === 0) continue;
-
-        // Save data with new storage (new password)
-        await newStorage.save(key, data);
-      } catch (err) {
-        // If key doesn't exist or is empty, that's fine - skip it
-        if (err instanceof Error && !err.message.includes('not found')) {
-          errors.push(`${key}: ${err.message}`);
-        }
-      }
-    }
-
-    // 5. If there were critical errors, abort
-    if (errors.length > 0) {
-      throw new Error(`Failed to migrate some data: ${errors.join(', ')}`);
-    }
+    // 5. Save re-wrapped master key
+    await writeWrappedMasterKey(newWrappedKey);
 
     // 6. Update the password hash in localStorage
     const newPasswordHash = await hashPassword(newPassword);
     localStorage.setItem('master_password_hash', newPasswordHash);
 
-    // 7. Update context with new services
-    setStorage(newStorage);
-    setDocumentService(newDocumentService);
+    // 7. Update current password in context
     setCurrentPassword(newPassword);
+
+    console.log('Password changed successfully - only master key was re-wrapped, no data re-encryption needed');
   };
+
+  // Don't render children until master key is initialized
+  if (!isInitialized || !storage || !documentService) {
+    return null; // Or a loading spinner
+  }
 
   return (
     <StorageContext.Provider value={{ storage, documentService, masterPassword: currentPassword, changePassword }}>

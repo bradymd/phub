@@ -26,5 +26,10 @@ contextBridge.exposeInMainWorld('electronAPI', {
   dialog: {
     save: (options) => ipcRenderer.invoke('dialog:save', options),
     open: (options) => ipcRenderer.invoke('dialog:open', options)
+  },
+  masterKey: {
+    exists: () => ipcRenderer.invoke('masterKey:exists'),
+    read: () => ipcRenderer.invoke('masterKey:read'),
+    write: (content) => ipcRenderer.invoke('masterKey:write', content)
   }
 });
