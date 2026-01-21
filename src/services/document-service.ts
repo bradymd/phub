@@ -2,10 +2,28 @@
  * Document Service
  * Handles loading and saving documents as separate encrypted files
  * Documents are stored in ~/Documents/PersonalHub/documents/{category}/
+ * Works with both Electron and Tauri
  */
 
-import { BaseDirectory, exists, readTextFile, writeTextFile, mkdir, remove } from '@tauri-apps/plugin-fs';
 import { encrypt, decrypt } from '../utils/crypto';
+
+// Detect runtime environment
+const isElectron = typeof window !== 'undefined' && 'electronAPI' in window;
+
+// Type definitions for Electron API
+declare global {
+  interface Window {
+    electronAPI?: {
+      docs: {
+        exists: (relativePath: string) => Promise<{ exists: boolean }>;
+        mkdir: (relativePath: string) => Promise<{ success: boolean; error?: string }>;
+        readTextFile: (relativePath: string) => Promise<{ success: boolean; content?: string; error?: string }>;
+        writeTextFile: (relativePath: string, content: string) => Promise<{ success: boolean; error?: string }>;
+        remove: (relativePath: string) => Promise<{ success: boolean; error?: string }>;
+      };
+    };
+  }
+}
 
 export interface DocumentReference {
   id: string;
@@ -32,11 +50,22 @@ export class DocumentService {
 
       for (const category of categories) {
         const dir = `${this.documentsBaseDir}/${category}`;
-        const dirExists = await exists(dir, { baseDir: BaseDirectory.Document });
 
-        if (!dirExists) {
-          await mkdir(dir, { baseDir: BaseDirectory.Document, recursive: true });
-          console.log(`Created document directory: ${dir}`);
+        if (isElectron && window.electronAPI) {
+          // Electron path
+          const existsResult = await window.electronAPI.docs.exists(dir);
+          if (!existsResult.exists) {
+            await window.electronAPI.docs.mkdir(dir);
+            console.log(`Created document directory: ${dir}`);
+          }
+        } else {
+          // Tauri path
+          const { exists, mkdir, BaseDirectory } = await import('@tauri-apps/plugin-fs');
+          const dirExists = await exists(dir, { baseDir: BaseDirectory.Document });
+          if (!dirExists) {
+            await mkdir(dir, { baseDir: BaseDirectory.Document, recursive: true });
+            console.log(`Created document directory: ${dir}`);
+          }
         }
       }
     } catch (err) {
@@ -80,14 +109,30 @@ export class DocumentService {
   async loadDocument(category: DocumentCategory, docRef: DocumentReference): Promise<string> {
     try {
       const filePath = `${this.documentsBaseDir}/${category}/${docRef.encryptedPath}`;
-      const fileExists = await exists(filePath, { baseDir: BaseDirectory.Document });
 
-      if (!fileExists) {
-        throw new Error(`Document file not found: ${docRef.filename}`);
+      let encryptedContent: string;
+
+      if (isElectron && window.electronAPI) {
+        // Electron path
+        const existsResult = await window.electronAPI.docs.exists(filePath);
+        if (!existsResult.exists) {
+          throw new Error(`Document file not found: ${docRef.filename}`);
+        }
+
+        const readResult = await window.electronAPI.docs.readTextFile(filePath);
+        if (!readResult.success || !readResult.content) {
+          throw new Error(readResult.error || 'Failed to read file');
+        }
+        encryptedContent = readResult.content;
+      } else {
+        // Tauri path
+        const { exists, readTextFile, BaseDirectory } = await import('@tauri-apps/plugin-fs');
+        const fileExists = await exists(filePath, { baseDir: BaseDirectory.Document });
+        if (!fileExists) {
+          throw new Error(`Document file not found: ${docRef.filename}`);
+        }
+        encryptedContent = await readTextFile(filePath, { baseDir: BaseDirectory.Document });
       }
-
-      // Read encrypted file
-      const encryptedContent = await readTextFile(filePath, { baseDir: BaseDirectory.Document });
 
       // Decrypt to get data URL
       const dataUrl = await decrypt(encryptedContent, this.masterPassword);
@@ -123,9 +168,20 @@ export class DocumentService {
 
       // Encrypt and write to file
       const encryptedContent = await encrypt(dataUrl, this.masterPassword);
-      await writeTextFile(filePath, encryptedContent, {
-        baseDir: BaseDirectory.Document
-      });
+
+      if (isElectron && window.electronAPI) {
+        // Electron path
+        const writeResult = await window.electronAPI.docs.writeTextFile(filePath, encryptedContent);
+        if (!writeResult.success) {
+          throw new Error(writeResult.error || 'Failed to write file');
+        }
+      } else {
+        // Tauri path
+        const { writeTextFile, BaseDirectory } = await import('@tauri-apps/plugin-fs');
+        await writeTextFile(filePath, encryptedContent, {
+          baseDir: BaseDirectory.Document
+        });
+      }
 
       // Calculate size (decode base64 to get actual byte size)
       // Base64 encoding adds ~33% overhead: every 4 chars = 3 bytes
@@ -156,11 +212,25 @@ export class DocumentService {
   async deleteDocument(category: DocumentCategory, docRef: DocumentReference): Promise<void> {
     try {
       const filePath = `${this.documentsBaseDir}/${category}/${docRef.encryptedPath}`;
-      const fileExists = await exists(filePath, { baseDir: BaseDirectory.Document });
 
-      if (fileExists) {
-        await remove(filePath, { baseDir: BaseDirectory.Document });
-        console.log(`Deleted document: ${docRef.filename}`);
+      if (isElectron && window.electronAPI) {
+        // Electron path
+        const existsResult = await window.electronAPI.docs.exists(filePath);
+        if (existsResult.exists) {
+          const removeResult = await window.electronAPI.docs.remove(filePath);
+          if (!removeResult.success) {
+            throw new Error(removeResult.error || 'Failed to delete file');
+          }
+          console.log(`Deleted document: ${docRef.filename}`);
+        }
+      } else {
+        // Tauri path
+        const { exists, remove, BaseDirectory } = await import('@tauri-apps/plugin-fs');
+        const fileExists = await exists(filePath, { baseDir: BaseDirectory.Document });
+        if (fileExists) {
+          await remove(filePath, { baseDir: BaseDirectory.Document });
+          console.log(`Deleted document: ${docRef.filename}`);
+        }
       }
     } catch (err) {
       console.error(`Failed to delete document ${docRef.filename}:`, err);

@@ -16,6 +16,13 @@ contextBridge.exposeInMainWorld('electronAPI', {
     readTextFileAbsolute: (filePath) => ipcRenderer.invoke('fs:readTextFileAbsolute', filePath),
     writeTextFileAbsolute: (filePath, content) => ipcRenderer.invoke('fs:writeTextFileAbsolute', filePath, content)
   },
+  docs: {
+    exists: (relativePath) => ipcRenderer.invoke('docs:exists', relativePath),
+    mkdir: (relativePath) => ipcRenderer.invoke('docs:mkdir', relativePath),
+    readTextFile: (relativePath) => ipcRenderer.invoke('docs:readTextFile', relativePath),
+    writeTextFile: (relativePath, content) => ipcRenderer.invoke('docs:writeTextFile', relativePath, content),
+    remove: (relativePath) => ipcRenderer.invoke('docs:remove', relativePath)
+  },
   dialog: {
     save: (options) => ipcRenderer.invoke('dialog:save', options),
     open: (options) => ipcRenderer.invoke('dialog:open', options)

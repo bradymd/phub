@@ -8,8 +8,9 @@ const path = require('path');
 const fs = require('fs').promises;
 const os = require('os');
 
-// Data directory: ~/Documents/PersonalHub/data
+// Data directories
 const dataDir = path.join(os.homedir(), 'Documents', 'PersonalHub', 'data');
+const documentsDir = path.join(os.homedir(), 'Documents', 'PersonalHub');
 
 // Create main window
 function createWindow() {
@@ -171,6 +172,67 @@ ipcMain.handle('fs:writeTextFileAbsolute', async (event, filePath, content) => {
     return { success: true };
   } catch (err) {
     console.error('Failed to write file:', err);
+    return { success: false, error: err.message };
+  }
+});
+
+// Document directory operations (relative to ~/Documents/PersonalHub/)
+
+// Check if document file/directory exists
+ipcMain.handle('docs:exists', async (event, relativePath) => {
+  try {
+    const fullPath = path.join(documentsDir, relativePath);
+    await fs.access(fullPath);
+    return { exists: true };
+  } catch {
+    return { exists: false };
+  }
+});
+
+// Create directory for documents
+ipcMain.handle('docs:mkdir', async (event, relativePath) => {
+  try {
+    const fullPath = path.join(documentsDir, relativePath);
+    await fs.mkdir(fullPath, { recursive: true });
+    return { success: true };
+  } catch (err) {
+    console.error('Failed to create directory:', err);
+    return { success: false, error: err.message };
+  }
+});
+
+// Read document file
+ipcMain.handle('docs:readTextFile', async (event, relativePath) => {
+  try {
+    const fullPath = path.join(documentsDir, relativePath);
+    const content = await fs.readFile(fullPath, 'utf-8');
+    return { success: true, content };
+  } catch (err) {
+    console.error('Failed to read document:', err);
+    return { success: false, error: err.message };
+  }
+});
+
+// Write document file
+ipcMain.handle('docs:writeTextFile', async (event, relativePath, content) => {
+  try {
+    const fullPath = path.join(documentsDir, relativePath);
+    await fs.writeFile(fullPath, content, 'utf-8');
+    return { success: true };
+  } catch (err) {
+    console.error('Failed to write document:', err);
+    return { success: false, error: err.message };
+  }
+});
+
+// Delete document file
+ipcMain.handle('docs:remove', async (event, relativePath) => {
+  try {
+    const fullPath = path.join(documentsDir, relativePath);
+    await fs.unlink(fullPath);
+    return { success: true };
+  } catch (err) {
+    console.error('Failed to delete document:', err);
     return { success: false, error: err.message };
   }
 });
