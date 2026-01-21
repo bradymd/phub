@@ -10,7 +10,8 @@ const os = require('os');
 
 // Data directories
 const dataDir = path.join(os.homedir(), 'Documents', 'PersonalHub', 'data');
-const documentsDir = path.join(os.homedir(), 'Documents', 'PersonalHub');
+// Document base dir should match Tauri's BaseDirectory.Document (~/Documents/)
+const documentsDir = path.join(os.homedir(), 'Documents');
 
 // Create main window
 function createWindow() {
