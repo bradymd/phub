@@ -425,7 +425,7 @@ export function BudgetManagerSecure({ onClose }: BudgetManagerSecureProps) {
           </div>
         </div>
 
-        <div className="flex-1 overflow-y-auto min-h-0">
+        <div className="flex-1 overflow-y-auto min-h-0" style={{ willChange: 'transform', transform: 'translateZ(0)' }}>
         {error && (
           <div className="mx-6 mt-4 p-3 bg-red-50 border border-red-200 rounded-lg text-red-700 text-sm">
             {error}
@@ -654,8 +654,8 @@ export function BudgetManagerSecure({ onClose }: BudgetManagerSecureProps) {
             <>
               {recurringItems.length > 0 && (
                 <div className="mb-4">
-                  <div className="overflow-x-auto -mx-3 px-3">
-                    <table className="w-full text-xs min-w-[600px]">
+                  <div className="overflow-x-auto -mx-3 px-3" style={{ contain: 'layout', willChange: 'scroll-position' }}>
+                    <table className="w-full text-xs min-w-[600px]" style={{ borderCollapse: 'collapse' }}>
                       <thead className="sticky top-0 bg-white z-10">
                         <tr className="border-b-2 border-gray-300">
                           <th className="text-left py-2 px-2 font-semibold text-gray-700">
@@ -867,14 +867,14 @@ export function BudgetManagerSecure({ onClose }: BudgetManagerSecureProps) {
                             <div className="flex items-center justify-center gap-1">
                               <button
                                 onClick={() => handleEditItem(item)}
-                                className="p-1 hover:bg-gray-200 rounded transition-colors"
+                                className="p-1 hover:bg-gray-200 rounded"
                                 title="Edit"
                               >
                                 <Edit2 className="w-3.5 h-3.5 text-gray-600" />
                               </button>
                               <button
                                 onClick={() => deleteItem(item.id)}
-                                className="p-1 hover:bg-red-100 rounded transition-colors"
+                                className="p-1 hover:bg-red-100 rounded"
                                 title="Delete"
                               >
                                 <Trash className="w-3.5 h-3.5 text-red-600" />
@@ -1018,14 +1018,14 @@ export function BudgetManagerSecure({ onClose }: BudgetManagerSecureProps) {
                             <div className="flex items-center justify-center gap-1">
                               <button
                                 onClick={() => handleEditItem(item)}
-                                className="p-1 hover:bg-gray-200 rounded transition-colors"
+                                className="p-1 hover:bg-gray-200 rounded"
                                 title="Edit"
                               >
                                 <Edit2 className="w-3.5 h-3.5 text-gray-600" />
                               </button>
                               <button
                                 onClick={() => deleteItem(item.id)}
-                                className="p-1 hover:bg-red-100 rounded transition-colors"
+                                className="p-1 hover:bg-red-100 rounded"
                                 title="Delete"
                               >
                                 <Trash className="w-3.5 h-3.5 text-red-600" />

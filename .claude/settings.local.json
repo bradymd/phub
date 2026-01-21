@@ -60,7 +60,8 @@
       "Bash(source:*)",
       "Bash(xargs ls:*)",
       "Bash({ cat \"Monzo Data Export - CSV \\(Monday, 19 January 2026\\).csv\" tail -n +2 \"Monzo Data Export - CSV \\(Monday, 19 January 2026\\) 1.csv\" tail -n +2 \"Monzo Data Export - CSV \\(Monday, 19 January 2026\\) 2.csv\" })",
-      "Bash(sort:*)"
+      "Bash(sort:*)",
+      "Bash(git branch:*)"
     ],
     "deny": [],
     "ask": []
