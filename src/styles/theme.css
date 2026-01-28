@@ -178,4 +178,30 @@
     font-weight: var(--font-weight-normal);
     line-height: 1.5;
   }
+
+  /* Restore native date input calendar picker appearance */
+  input[type="date"] {
+    position: relative;
+    -webkit-appearance: none;
+    appearance: none;
+  }
+
+  /* Ensure calendar icon is visible */
+  input[type="date"]::-webkit-calendar-picker-indicator {
+    position: absolute;
+    right: 8px;
+    cursor: pointer;
+    opacity: 1;
+    display: block;
+    background: url('data:image/svg+xml;utf8,<svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><rect x="3" y="4" width="18" height="18" rx="2" ry="2"></rect><line x1="16" y1="2" x2="16" y2="6"></line><line x1="8" y1="2" x2="8" y2="6"></line><line x1="3" y1="10" x2="21" y2="10"></line></svg>') no-repeat;
+    background-size: 16px 16px;
+    width: 16px;
+    height: 16px;
+  }
+
+  /* Firefox support */
+  input[type="date"]::-moz-calendar-picker-indicator {
+    cursor: pointer;
+    opacity: 1;
+  }
 }

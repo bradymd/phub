@@ -7,6 +7,9 @@ const { contextBridge, ipcRenderer } = require('electron');
 
 // Expose file system and dialog APIs to renderer
 contextBridge.exposeInMainWorld('electronAPI', {
+  app: {
+    getLocale: () => ipcRenderer.invoke('app:getLocale')
+  },
   fs: {
     ensureDataDir: () => ipcRenderer.invoke('fs:ensureDataDir'),
     exists: (filePath) => ipcRenderer.invoke('fs:exists', filePath),

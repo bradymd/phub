@@ -1,5 +1,5 @@
 import { useState, useEffect } from 'react';
-import { X, Plus, Trash, Home, Calendar, Edit2, FileText, Search, Eye, EyeOff, Grid3x3, List, Download, AlertCircle, Phone, Shield, Wrench, Upload, Globe, Zap, Droplets, Wifi, Building2 } from 'lucide-react';
+import { X, Plus, Trash, Home, Calendar, Edit2, FileText, Search, Eye, EyeOff, Grid3x3, List, Download, AlertCircle, Phone, Shield, Wrench, Upload, Globe, Zap, Droplets, Wifi, Building2, CheckCircle } from 'lucide-react';
 import { useStorage, useDocumentService } from '../../contexts/StorageContext';
 import { DocumentReference } from '../../services/document-service';
 
@@ -121,9 +121,62 @@ const emptyUtility: Omit<Utility, 'id'> = {
 // Format date from YYYY-MM-DD to DD/MM/YYYY for UK display
 const formatDateUK = (dateStr: string): string => {
   if (!dateStr) return '';
-  const [year, month, day] = dateStr.split('-');
-  if (!year || !month || !day) return dateStr;
-  return `${day}/${month}/${year}`;
+
+  // Handle YYYY-MM-DD format (standard HTML date input format)
+  if (dateStr.includes('-')) {
+    const [year, month, day] = dateStr.split('-');
+    if (year && month && day && year.length === 4) {
+      return `${day.padStart(2, '0')}/${month.padStart(2, '0')}/${year}`;
+    }
+  }
+
+  // Handle slash format - assume DD/MM/YYYY (UK format)
+  if (dateStr.includes('/')) {
+    return dateStr;
+  }
+
+  // Fallback: return as-is
+  return dateStr;
+};
+
+// Convert DD/MM/YYYY to YYYY-MM-DD for date input
+const toInputDate = (dateStr: string): string => {
+  if (!dateStr) return '';
+
+  // Already in YYYY-MM-DD format
+  if (dateStr.match(/^\d{4}-\d{2}-\d{2}$/)) {
+    return dateStr;
+  }
+
+  // Convert from DD/MM/YYYY
+  if (dateStr.includes('/')) {
+    const parts = dateStr.split('/');
+    if (parts.length === 3) {
+      const [day, month, year] = parts;
+      return `${year}-${month.padStart(2, '0')}-${day.padStart(2, '0')}`;
+    }
+  }
+
+  return '';
+};
+
+// Convert YYYY-MM-DD from date input to YYYY-MM-DD for storage (keeping ISO format)
+const fromInputDate = (dateStr: string): string => {
+  if (!dateStr) return '';
+
+  // Input is YYYY-MM-DD - keep it in this format!
+  // We're now storing dates in ISO format (YYYY-MM-DD) for consistency
+  if (dateStr.includes('-')) {
+    return dateStr; // Keep in YYYY-MM-DD format
+  }
+
+  // If it's already in DD/MM/YYYY, convert to YYYY-MM-DD
+  if (dateStr.includes('/')) {
+    const [day, month, year] = dateStr.split('/');
+    return `${year}-${month.padStart(2, '0')}-${day.padStart(2, '0')}`;
+  }
+
+  return dateStr;
 };
 
 // Check if a date is in the past
@@ -950,71 +1003,88 @@ export function PropertyManagerSecure({ onClose }: PropertyManagerSecureProps) {
             )}
           </div>
         ) : viewMode === 'grid' ? (
-          <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
-            {filteredProperties.map((property) => (
-              <div
-                key={property.id}
-                className="bg-white rounded-xl shadow-sm border border-gray-200 hover:shadow-md transition-shadow cursor-pointer"
-                onClick={() => setViewingDetails(property)}
-              >
-                <div className="p-4">
-                  <div className="flex items-start justify-between mb-3">
-                    <div className="flex items-center gap-3">
-                      <div className="w-10 h-10 bg-emerald-100 rounded-lg flex items-center justify-center">
-                        <Home className="w-5 h-5 text-emerald-600" />
+          <div className="bg-white rounded-xl shadow-sm border border-gray-200 overflow-hidden">
+            <table className="w-full">
+              <thead className="bg-gray-50">
+                <tr>
+                  <th className="px-4 py-3 text-left text-sm font-medium text-gray-600">Property</th>
+                  <th className="px-4 py-3 text-left text-sm font-medium text-gray-600">Type</th>
+                  <th className="px-4 py-3 text-right text-sm font-medium text-gray-600">Monthly</th>
+                  <th className="px-4 py-3 text-left text-sm font-medium text-gray-600">Moved In</th>
+                  <th className="px-4 py-3 text-center text-sm font-medium text-gray-600">Status</th>
+                  <th className="px-4 py-3 text-center text-sm font-medium text-gray-600">Actions</th>
+                </tr>
+              </thead>
+              <tbody className="divide-y divide-gray-200">
+                {filteredProperties.map((property) => (
+                  <tr
+                    key={property.id}
+                    className="hover:bg-gray-50 cursor-pointer"
+                    onClick={() => setViewingDetails(property)}
+                  >
+                    <td className="px-4 py-3">
+                      <div className="flex items-center gap-3">
+                        <div className="w-10 h-10 bg-emerald-100 rounded-lg flex items-center justify-center flex-shrink-0">
+                          <Home className="w-5 h-5 text-emerald-600" />
+                        </div>
+                        <div>
+                          <p className="font-medium text-gray-900">{property.address}</p>
+                          <p className="text-sm text-gray-500">{property.postcode}</p>
+                        </div>
                       </div>
-                      <div>
-                        <h4 className="font-medium text-gray-900 line-clamp-1">{property.address}</h4>
-                        <p className="text-sm text-gray-500">{property.postcode}</p>
-                      </div>
-                    </div>
-                  </div>
-
-                  <div className="space-y-2 text-sm">
-                    <div className="flex justify-between">
-                      <span className="text-gray-500">Type:</span>
-                      <span className={`px-2 py-0.5 rounded text-xs ${
+                    </td>
+                    <td className="px-4 py-3">
+                      <span className={`px-2 py-1 rounded text-xs font-medium ${
                         property.financeType === 'mortgage' ? 'bg-blue-100 text-blue-700' :
                         property.financeType === 'rental' ? 'bg-orange-100 text-orange-700' :
                         'bg-green-100 text-green-700'
                       }`}>
                         {property.financeType.charAt(0).toUpperCase() + property.financeType.slice(1)}
                       </span>
-                    </div>
-                    {property.monthlyPayment > 0 && (
-                      <div className="flex justify-between">
-                        <span className="text-gray-500">Monthly:</span>
-                        <span className="font-medium">£{property.monthlyPayment.toLocaleString()}</span>
-                      </div>
-                    )}
-                    {property.movedInDate && (
-                      <div className="flex justify-between">
-                        <span className="text-gray-500">Moved in:</span>
-                        <span>{formatDateUK(property.movedInDate)}</span>
-                      </div>
-                    )}
-                  </div>
-
-                  {/* Maintenance alerts */}
-                  {(property.maintenanceItems || []).some(m => isPastDate(m.nextDueDate) || isDueSoon(m.nextDueDate)) && (
-                    <div className="mt-3 pt-3 border-t border-gray-100">
-                      {(property.maintenanceItems || []).filter(m => isPastDate(m.nextDueDate)).length > 0 && (
-                        <div className="flex items-center gap-1 text-red-600 text-xs">
-                          <AlertCircle className="w-3 h-3" />
-                          <span>{(property.maintenanceItems || []).filter(m => isPastDate(m.nextDueDate)).length} overdue</span>
-                        </div>
+                    </td>
+                    <td className="px-4 py-3 text-right font-medium">
+                      {property.monthlyPayment > 0 ? `£${property.monthlyPayment.toLocaleString()}` : '-'}
+                    </td>
+                    <td className="px-4 py-3">
+                      {property.movedInDate ? formatDateUK(property.movedInDate) : '-'}
+                    </td>
+                    <td className="px-4 py-3 text-center">
+                      {(property.maintenanceItems || []).some(m => isPastDate(m.nextDueDate)) ? (
+                        <span className="text-red-600"><AlertCircle className="w-4 h-4 inline" /></span>
+                      ) : (property.maintenanceItems || []).some(m => isDueSoon(m.nextDueDate)) ? (
+                        <span className="text-orange-500"><Calendar className="w-4 h-4 inline" /></span>
+                      ) : (
+                        <span className="text-green-600"><CheckCircle className="w-4 h-4 inline" /></span>
                       )}
-                      {(property.maintenanceItems || []).filter(m => isDueSoon(m.nextDueDate)).length > 0 && (
-                        <div className="flex items-center gap-1 text-orange-600 text-xs">
-                          <Calendar className="w-3 h-3" />
-                          <span>{(property.maintenanceItems || []).filter(m => isDueSoon(m.nextDueDate)).length} due soon</span>
-                        </div>
-                      )}
-                    </div>
-                  )}
-                </div>
-              </div>
-            ))}
+                    </td>
+                    <td className="px-4 py-3">
+                      <div className="flex items-center justify-center gap-2">
+                        <button
+                          onClick={(e) => {
+                            e.stopPropagation();
+                            setEditingProperty(property);
+                          }}
+                          className="p-1 text-gray-400 hover:text-blue-600 transition-colors"
+                          title="Edit"
+                        >
+                          <Edit2 className="w-4 h-4" />
+                        </button>
+                        <button
+                          onClick={(e) => {
+                            e.stopPropagation();
+                            handleDeleteProperty(property.id);
+                          }}
+                          className="p-1 text-gray-400 hover:text-red-600 transition-colors"
+                          title="Delete"
+                        >
+                          <Trash className="w-4 h-4" />
+                        </button>
+                      </div>
+                    </td>
+                  </tr>
+                ))}
+              </tbody>
+            </table>
           </div>
         ) : (
           <div className="bg-white rounded-xl shadow-sm border border-gray-200 overflow-hidden">
@@ -1026,9 +1096,10 @@ export function PropertyManagerSecure({ onClose }: PropertyManagerSecureProps) {
                   <th className="px-4 py-3 text-right text-sm font-medium text-gray-600">Monthly</th>
                   <th className="px-4 py-3 text-left text-sm font-medium text-gray-600">Moved In</th>
                   <th className="px-4 py-3 text-center text-sm font-medium text-gray-600">Status</th>
+                  <th className="px-4 py-3 text-center text-sm font-medium text-gray-600">Actions</th>
                 </tr>
               </thead>
-              <tbody className="divide-y divide-gray-100">
+              <tbody className="divide-y divide-gray-200">
                 {filteredProperties.map((property) => (
                   <tr
                     key={property.id}
@@ -1062,8 +1133,32 @@ export function PropertyManagerSecure({ onClose }: PropertyManagerSecureProps) {
                       ) : (property.maintenanceItems || []).some(m => isDueSoon(m.nextDueDate)) ? (
                         <span className="text-orange-500"><Calendar className="w-4 h-4 inline" /></span>
                       ) : (
-                        <span className="text-green-500">✓</span>
+                        <span className="text-green-600"><CheckCircle className="w-4 h-4 inline" /></span>
                       )}
+                    </td>
+                    <td className="px-4 py-3">
+                      <div className="flex items-center justify-center gap-2">
+                        <button
+                          onClick={(e) => {
+                            e.stopPropagation();
+                            setEditingProperty(property);
+                          }}
+                          className="p-1 text-gray-400 hover:text-blue-600 transition-colors"
+                          title="Edit"
+                        >
+                          <Edit2 className="w-4 h-4" />
+                        </button>
+                        <button
+                          onClick={(e) => {
+                            e.stopPropagation();
+                            handleDeleteProperty(property.id);
+                          }}
+                          className="p-1 text-gray-400 hover:text-red-600 transition-colors"
+                          title="Delete"
+                        >
+                          <Trash className="w-4 h-4" />
+                        </button>
+                      </div>
                     </td>
                   </tr>
                 ))}
@@ -1074,9 +1169,9 @@ export function PropertyManagerSecure({ onClose }: PropertyManagerSecureProps) {
 
         {/* View Details Modal */}
       {viewingDetails && (
-        <div className="fixed inset-0 bg-black/60 flex items-center justify-center z-50 p-4" onClick={() => setViewingDetails(null)}>
-          <div className="bg-white rounded-2xl max-w-4xl w-full max-h-[90vh] overflow-y-auto shadow-2xl" onClick={(e) => e.stopPropagation()}>
-            <div className="p-6 border-b border-gray-200 flex items-center justify-between sticky top-0 bg-white z-10">
+        <div className="fixed inset-0 bg-white z-50 flex flex-col">
+          <div className="flex-1 overflow-y-auto">
+            <div className="p-6 border-b border-gray-200 flex items-center justify-between sticky top-0 bg-white z-10 shadow-sm">
               <div className="flex items-center gap-3">
                 <div className="w-12 h-12 bg-emerald-100 rounded-xl flex items-center justify-center">
                   <Home className="w-6 h-6 text-emerald-600" />
@@ -2059,6 +2154,25 @@ export function PropertyManagerSecure({ onClose }: PropertyManagerSecureProps) {
                   rows={2}
                 />
               </div>
+
+              {/* Documents */}
+              <div>
+                <label className="block text-sm text-gray-600 mb-2">Documents/Certificates</label>
+                {editingMaintenanceItem.documents && editingMaintenanceItem.documents.length > 0 && (
+                  <div className="mb-2">
+                    <DocumentList
+                      documents={editingMaintenanceItem.documents}
+                      docType="maintenance"
+                      canEdit={true}
+                    />
+                  </div>
+                )}
+                <UploadButton
+                  onUpload={(file) => handleDocumentUpload(file, 'maintenance', editingMaintenanceItem.id)}
+                  label="Add certificate/document"
+                />
+              </div>
+
               <div className="flex gap-2">
                 <button
                   onClick={() => {

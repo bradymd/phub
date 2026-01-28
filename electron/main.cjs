@@ -11,6 +11,16 @@ const os = require('os');
 const archiver = require('archiver');
 const yauzl = require('yauzl');
 
+// Use system's locale for proper date formatting (must be before app.ready)
+// Get the system locale from environment or OS settings
+const systemLocale = process.env.LANG?.split('.')[0]?.replace('_', '-') ||
+                     process.env.LC_ALL?.split('.')[0]?.replace('_', '-') ||
+                     process.env.LC_TIME?.split('.')[0]?.replace('_', '-') ||
+                     app.getLocale();
+
+console.log('System locale detected:', systemLocale);
+app.commandLine.appendSwitch('lang', systemLocale);
+
 // Data directories
 const hubDir = path.join(os.homedir(), 'Documents', 'PersonalHub');
 const dataDir = path.join(hubDir, 'data');
@@ -40,6 +50,30 @@ function createWindow() {
     mainWindow.loadFile(path.join(__dirname, '../dist/index.html'));
   }
 }
+
+// Get system locale - prioritize LC_TIME for date formatting
+function getSystemLocale() {
+  // Check environment for LC_TIME (for date/time formatting specifically)
+  const lcTime = process.env.LC_TIME;
+  if (lcTime) {
+    // Convert en_GB.UTF-8 to en-GB
+    const locale = lcTime.replace(/_/g, '-').replace('.UTF-8', '').replace('.utf8', '');
+    console.log('System locale detected from LC_TIME:', locale);
+    return locale;
+  }
+
+  // Fall back to app.getLocale()
+  const locale = app.getLocale() || 'en-GB';
+  console.log('System locale detected from app.getLocale():', locale);
+  return locale;
+}
+
+// Expose locale to renderer via IPC
+ipcMain.handle('app:getLocale', async () => {
+  const locale = getSystemLocale();
+  console.log('Returning locale to renderer:', locale);
+  return { locale };
+});
 
 // App lifecycle
 app.whenReady().then(createWindow);

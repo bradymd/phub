@@ -1,6 +1,7 @@
 import { useState, useEffect } from 'react';
 import { X, Plus, Trash, Download, Upload, FileText, Key, Edit, Search } from 'lucide-react';
 import { useStorage } from '../../contexts/StorageContext';
+import { formatDate } from '../../utils/locale';
 
 interface Document {
   id: string;
@@ -135,7 +136,7 @@ export function DocumentManagerSecure({ category, onClose }: DocumentManagerSecu
         id: Date.now().toString(),
         name: newDocName,
         category,
-        uploadDate: new Date().toLocaleDateString(),
+        uploadDate: formatDate(new Date()),
         size: selectedFile.size,
         fileType: selectedFile.type,
         fileData,
