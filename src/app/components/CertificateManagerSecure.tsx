@@ -72,6 +72,7 @@ export function CertificateManagerSecure({ onClose }: CertificateManagerSecurePr
   const [showAddForm, setShowAddForm] = useState(false);
   const [editingCertificate, setEditingCertificate] = useState<Certificate | null>(null);
   const [viewingCertificate, setViewingCertificate] = useState<Certificate | null>(null);
+  const [viewingBlobUrl, setViewingBlobUrl] = useState<string | null>(null);
   const [viewingDetails, setViewingDetails] = useState<Certificate | null>(null);
   const [selectedFile, setSelectedFile] = useState<File | null>(null);
   const [isLoading, setIsLoading] = useState(true);
@@ -233,9 +234,78 @@ export function CertificateManagerSecure({ onClose }: CertificateManagerSecurePr
     setEditingCertificate({ ...certificate });
   };
 
+  // Convert data URL to Blob URL for better iframe rendering (especially for large PDFs)
+  const dataUrlToBlobUrl = (dataUrl: string): string => {
+    const match = dataUrl.match(/^data:([^;]+);base64,(.+)$/);
+    if (!match) {
+      console.error('Invalid data URL format');
+      return dataUrl;
+    }
+    const mimeType = match[1];
+    const base64Data = match[2];
+    const binaryString = atob(base64Data);
+    const bytes = new Uint8Array(binaryString.length);
+    for (let i = 0; i < binaryString.length; i++) {
+      bytes[i] = binaryString.charCodeAt(i);
+    }
+    const blob = new Blob([bytes], { type: mimeType });
+    return URL.createObjectURL(blob);
+  };
+
   const viewFile = (certificate: Certificate) => {
-    // Use modal viewer instead of window.open() for Tauri compatibility
+    // Clean up any existing blob URL
+    if (viewingBlobUrl) {
+      URL.revokeObjectURL(viewingBlobUrl);
+      setViewingBlobUrl(null);
+    }
+
+    // Create blob URL for PDFs with fileData (data URLs)
+    if (certificate.fileData?.includes('application/pdf')) {
+      const blobUrl = dataUrlToBlobUrl(certificate.fileData);
+      setViewingBlobUrl(blobUrl);
+    }
+
     setViewingCertificate(certificate);
+  };
+
+  const downloadFile = (certificate: Certificate) => {
+    if (!certificate.fileData) {
+      setError('No file data available for download');
+      return;
+    }
+
+    try {
+      // Extract MIME type and base64 data from data URL
+      const match = certificate.fileData.match(/^data:([^;]+);base64,(.+)$/);
+      if (!match) {
+        setError('Invalid file data format');
+        return;
+      }
+
+      const mimeType = match[1];
+      const base64Data = match[2];
+
+      // Convert base64 to binary
+      const binaryString = atob(base64Data);
+      const bytes = new Uint8Array(binaryString.length);
+      for (let i = 0; i < binaryString.length; i++) {
+        bytes[i] = binaryString.charCodeAt(i);
+      }
+
+      // Create blob and download
+      const blob = new Blob([bytes], { type: mimeType });
+      const url = URL.createObjectURL(blob);
+      const a = document.createElement('a');
+      a.href = url;
+      a.download = certificate.filename || `${certificate.name}.pdf`;
+      document.body.appendChild(a);
+      a.click();
+      document.body.removeChild(a);
+      URL.revokeObjectURL(url);
+    } catch (err) {
+      setError('Failed to download file');
+      console.error('Download error:', err);
+    }
   };
 
   const handleFileUpload = async (event: React.ChangeEvent<HTMLInputElement>, isEditing: boolean = false) => {
@@ -382,23 +452,22 @@ export function CertificateManagerSecure({ onClose }: CertificateManagerSecurePr
   }
 
   return (
-    <div className="fixed inset-0 bg-black/50 flex items-center justify-center z-50 p-4">
-      <div className="bg-white rounded-2xl max-w-5xl w-full max-h-[90vh] overflow-hidden flex flex-col">
-        <div className="p-6 border-b border-gray-200 bg-gradient-to-r from-blue-50 to-purple-50">
+    <div className="fixed inset-0 bg-black/50 z-50 overflow-hidden">
+      <div className="absolute inset-2 bg-white rounded-2xl flex flex-col shadow-2xl">
+        <div className="p-6 border-b border-gray-200 bg-gradient-to-r from-blue-600 to-purple-600 text-white rounded-t-2xl">
           <div className="flex items-center justify-between">
             <div className="flex items-center gap-3">
-              <div className="p-3 bg-gradient-to-br from-blue-600 to-purple-600 text-white rounded-xl relative">
+              <div className="p-3 bg-white/20 text-white rounded-xl relative">
                 <Award className="w-6 h-6" />
-                <div className="absolute -top-1 -right-1 bg-green-500 rounded-full p-1">
+                <div className="absolute -top-1 -right-1 bg-white/30 rounded-full p-1">
                   <Key className="w-3 h-3 text-white" />
                 </div>
               </div>
               <div>
-                <h2 className="text-gray-900 flex items-center gap-2">
+                <h2 className="text-white flex items-center gap-2 text-xl font-semibold">
                   Certificates
-                  <span className="text-xs px-2 py-1 bg-green-100 text-green-700 rounded-full">Encrypted</span>
                 </h2>
-                <p className="text-sm text-gray-500 mt-1">Manage your important certificates and documents</p>
+                <p className="text-sm text-white/80 mt-1">Manage your important certificates and documents</p>
               </div>
             </div>
             <div className="flex items-center gap-2">
@@ -424,35 +493,34 @@ export function CertificateManagerSecure({ onClose }: CertificateManagerSecurePr
                 onClick={() => setViewMode('grid')}
                 className={`p-2 rounded-lg transition-colors ${
                   viewMode === 'grid'
-                    ? 'bg-blue-600 text-white'
-                    : 'bg-white text-gray-600 hover:bg-gray-100'
+                    ? 'bg-white/20'
+                    : 'hover:bg-white/10'
                 }`}
                 title="Grid view"
               >
-                <Grid3x3 className="w-5 h-5" />
+                <Grid3x3 className="w-4 h-4" />
               </button>
               <button
                 onClick={() => setViewMode('list')}
                 className={`p-2 rounded-lg transition-colors ${
                   viewMode === 'list'
-                    ? 'bg-blue-600 text-white'
-                    : 'bg-white text-gray-600 hover:bg-gray-100'
+                    ? 'bg-white/20'
+                    : 'hover:bg-white/10'
                 }`}
                 title="List view"
               >
-                <List className="w-5 h-5" />
+                <List className="w-4 h-4" />
               </button>
-              <div className="w-px h-8 bg-gray-300 mx-1"></div>
               <button
                 onClick={() => setShowAddForm(!showAddForm)}
-                className="flex items-center gap-2 px-4 py-2 bg-white text-blue-600 rounded-lg hover:bg-blue-50 transition-colors"
+                className="flex items-center gap-2 px-4 py-2 bg-white text-blue-600 rounded-lg hover:bg-white/90 transition-colors"
               >
                 <Plus className="w-4 h-4" />
                 Add
               </button>
               <button
                 onClick={onClose}
-                className="p-2 hover:bg-white rounded-lg transition-colors"
+                className="p-2 hover:bg-blue-700 rounded-lg transition-colors"
               >
                 <X className="w-5 h-5" />
               </button>
@@ -498,7 +566,7 @@ export function CertificateManagerSecure({ onClose }: CertificateManagerSecurePr
           </div>
         </div>
 
-        <div className="flex-1 overflow-y-auto p-6">
+        <div className="flex-1 overflow-y-auto min-h-0 p-6" style={{ willChange: 'transform', transform: 'translateZ(0)' }}>
           {showAddForm && (
             <div className="mb-6 p-6 rounded-xl bg-gradient-to-br from-blue-50 to-purple-50 border-2 border-blue-200">
               <h3 className="mb-4 flex items-center gap-2">Add Certificate</h3>
@@ -719,11 +787,17 @@ export function CertificateManagerSecure({ onClose }: CertificateManagerSecurePr
                                 <span className="text-gray-500">Expires:</span> {formatDateUK(cert.expiryDate)}
                               </p>
                             )}
-                            {cert.filename && (
-                              <p className="flex items-center gap-1">
+                            {cert.filename && (cert.fileData || cert.documentPath) && (
+                              <button
+                                onClick={(e) => {
+                                  e.stopPropagation();
+                                  viewFile(cert);
+                                }}
+                                className="flex items-center gap-1 px-3 py-1 bg-green-100 text-green-700 rounded hover:bg-green-200 transition-colors text-xs"
+                              >
                                 <FileText className="w-3 h-3" />
-                                <span className="text-gray-500">File:</span> {cert.filename}
-                              </p>
+                                {cert.filename}
+                              </button>
                             )}
                             {cert.notes && (
                               <p className="mt-2 text-gray-600 italic">{cert.notes}</p>
@@ -733,16 +807,16 @@ export function CertificateManagerSecure({ onClose }: CertificateManagerSecurePr
                       </div>
                     </div>
                     <div className="flex items-center gap-2">
-                      {(cert.fileData || cert.documentPath) && (
+                      {cert.fileData && (
                         <button
                           onClick={(e) => {
                             e.stopPropagation();
-                            setViewingCertificate(cert);
+                            downloadFile(cert);
                           }}
                           className="p-2 hover:bg-white rounded-lg transition-colors text-green-600"
-                          title="View certificate"
+                          title="Download certificate"
                         >
-                          <Eye className="w-4 h-4" />
+                          <Download className="w-4 h-4" />
                         </button>
                       )}
                       <button
@@ -825,16 +899,16 @@ export function CertificateManagerSecure({ onClose }: CertificateManagerSecurePr
                     </div>
                   </div>
                   <div className="flex items-center gap-1 flex-shrink-0 ml-4">
-                    {(cert.fileData || cert.documentPath) && (
+                    {cert.fileData && (
                       <button
                         onClick={(e) => {
                           e.stopPropagation();
-                          setViewingCertificate(cert);
+                          downloadFile(cert);
                         }}
                         className="p-2 hover:bg-white rounded-lg transition-colors text-green-600"
-                        title="View certificate"
+                        title="Download certificate"
                       >
-                        <Eye className="w-4 h-4" />
+                        <Download className="w-4 h-4" />
                       </button>
                     )}
                     <button
@@ -857,7 +931,6 @@ export function CertificateManagerSecure({ onClose }: CertificateManagerSecurePr
                     >
                       <Trash className="w-4 h-4" />
                     </button>
-                    <div className="text-gray-400 group-hover:text-blue-600 transition-colors ml-2">→</div>
                   </div>
                 </div>
               ))}
@@ -1004,88 +1077,90 @@ export function CertificateManagerSecure({ onClose }: CertificateManagerSecurePr
 
       {/* Certificate Viewer Modal */}
       {viewingCertificate && (viewingCertificate.fileData || viewingCertificate.documentPath) && (
-        <div className="fixed inset-0 bg-black/80 flex items-center justify-center z-[60] p-4">
-          <div className="bg-white rounded-2xl w-full h-full max-w-7xl max-h-[95vh] overflow-hidden flex flex-col">
-            <div className="p-4 border-b border-gray-200 flex items-center justify-between bg-gray-50">
-              <div>
-                <h3 className="font-semibold text-gray-900">{viewingCertificate.name}</h3>
-                <p className="text-sm text-gray-500">
-                  {viewingCertificate.type.charAt(0).toUpperCase() + viewingCertificate.type.slice(1)} Certificate
-                  {viewingCertificate.issuingAuthority && ` • ${viewingCertificate.issuingAuthority}`}
-                </p>
-              </div>
-              <div className="flex items-center gap-2">
-                <button
-                  onClick={() => {
-                    const link = document.createElement('a');
-                    if (viewingCertificate.fileData) {
-                      link.href = viewingCertificate.fileData;
-                      const extension = viewingCertificate.fileData.includes('application/pdf') ? 'pdf' : 'jpg';
-                      link.download = `${viewingCertificate.name}.${extension}`;
-                    } else if (viewingCertificate.documentPath) {
-                      link.href = `/${viewingCertificate.documentPath}`;
-                      link.download = viewingCertificate.name;
-                    }
-                    link.click();
-                  }}
-                  className="p-2 hover:bg-gray-200 rounded-lg transition-colors text-gray-600"
-                  title="Download"
-                >
-                  <Download className="w-5 h-5" />
-                </button>
-                <button
-                  onClick={() => setViewingCertificate(null)}
-                  className="p-2 hover:bg-gray-200 rounded-lg transition-colors"
-                >
-                  <X className="w-5 h-5" />
-                </button>
-              </div>
-            </div>
-            <div className="flex-1 overflow-auto bg-gray-100 flex items-center justify-center p-4 min-h-[600px]">
-              {(() => {
-                // Determine the source - either uploaded fileData or library documentPath
-                const src = viewingCertificate.fileData || `/${viewingCertificate.documentPath}`;
-                const isImage = viewingCertificate.fileData?.startsWith('data:image/') || viewingCertificate.documentPath?.endsWith('.jpg') || viewingCertificate.documentPath?.endsWith('.png');
-                const isPdf = viewingCertificate.fileData?.includes('application/pdf') || viewingCertificate.documentPath?.endsWith('.pdf');
-
-                if (isImage) {
-                  return (
-                    <img
-                      src={src}
-                      alt={viewingCertificate.name}
-                      className="max-w-full max-h-full object-contain rounded-lg shadow-lg"
-                    />
-                  );
-                } else if (isPdf) {
-                  return (
-                    <iframe
-                      src={src}
-                      className="w-full h-full min-h-[600px] rounded-lg shadow-lg border-0"
-                      title={viewingCertificate.name}
-                    />
-                  );
-                } else {
-                  return (
-                    <div className="text-center text-gray-500">
-                      <FileText className="w-16 h-16 mx-auto mb-4 opacity-50" />
-                      <p>Preview not available for this file type</p>
-                      <button
-                        onClick={() => {
-                          const link = document.createElement('a');
-                          link.href = viewingCertificate.fileData || `/${viewingCertificate.documentPath}`;
-                          link.download = viewingCertificate.name;
-                          link.click();
-                        }}
-                        className="mt-4 px-4 py-2 bg-blue-600 text-white rounded-lg hover:bg-blue-700 transition-colors"
-                      >
-                        Download to view
-                      </button>
-                    </div>
-                  );
-                }
-              })()}
+        <div className="fixed inset-0 bg-black/90 flex flex-col z-[60]">
+          <div className="p-4 flex justify-between items-center bg-[#1a1a1a]">
+            <h3 className="text-white font-medium truncate mr-4">{viewingCertificate.name}</h3>
+            <div className="flex items-center gap-2">
+              <button
+                onClick={() => {
+                  const link = document.createElement('a');
+                  if (viewingCertificate.fileData) {
+                    link.href = viewingCertificate.fileData;
+                    const extension = viewingCertificate.fileData.includes('application/pdf') ? 'pdf' : 'jpg';
+                    link.download = `${viewingCertificate.name}.${extension}`;
+                  } else if (viewingCertificate.documentPath) {
+                    link.href = `/${viewingCertificate.documentPath}`;
+                    link.download = viewingCertificate.name;
+                  }
+                  link.click();
+                }}
+                className="p-2 hover:bg-white/10 rounded-lg transition-colors"
+                title="Download"
+              >
+                <Download className="w-5 h-5 text-white" />
+              </button>
+              <button
+                onClick={() => {
+                  if (viewingBlobUrl) {
+                    URL.revokeObjectURL(viewingBlobUrl);
+                    setViewingBlobUrl(null);
+                  }
+                  setViewingCertificate(null);
+                }}
+                className="p-2 hover:bg-white/10 rounded-lg transition-colors"
+                title="Close"
+              >
+                <X className="w-5 h-5 text-white" />
+              </button>
             </div>
           </div>
+          {(() => {
+            // Determine the source - either uploaded fileData or library documentPath
+            // Use blob URL for PDFs when available (better rendering for large files)
+            const isImage = viewingCertificate.fileData?.startsWith('data:image/') || viewingCertificate.documentPath?.endsWith('.jpg') || viewingCertificate.documentPath?.endsWith('.png');
+            const isPdf = viewingCertificate.fileData?.includes('application/pdf') || viewingCertificate.documentPath?.endsWith('.pdf');
+            const src = isPdf && viewingBlobUrl ? viewingBlobUrl : (viewingCertificate.fileData || `/${viewingCertificate.documentPath}`);
+
+            if (isImage) {
+              return (
+                <div className="flex-1 flex items-center justify-center p-4 overflow-auto">
+                  <img
+                    src={viewingCertificate.fileData || `/${viewingCertificate.documentPath}`}
+                    alt={viewingCertificate.name}
+                    className="max-w-full max-h-full object-contain"
+                  />
+                </div>
+              );
+            } else if (isPdf) {
+              return (
+                <iframe
+                  src={src}
+                  className="flex-1 border-0"
+                  title={viewingCertificate.name}
+                />
+              );
+            } else {
+              return (
+                <div className="flex-1 flex items-center justify-center">
+                  <div className="text-center text-white">
+                    <FileText className="w-16 h-16 mx-auto mb-4 opacity-50" />
+                    <p>Preview not available for this file type</p>
+                    <button
+                      onClick={() => {
+                        const link = document.createElement('a');
+                        link.href = viewingCertificate.fileData || `/${viewingCertificate.documentPath}`;
+                        link.download = viewingCertificate.name;
+                        link.click();
+                      }}
+                      className="mt-4 px-4 py-2 bg-blue-600 text-white rounded-lg hover:bg-blue-700 transition-colors"
+                    >
+                      Download to view
+                    </button>
+                  </div>
+                </div>
+              );
+            }
+          })()}
         </div>
       )}
 

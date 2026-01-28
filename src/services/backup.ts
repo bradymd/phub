@@ -1,140 +1,120 @@
 /**
  * Backup Service
- * Handles backup and restore of all encrypted data
+ * ZIP-based backup that copies already-encrypted files without decryption.
+ * The wrapped master key is included so the backup is self-contained.
+ * User's password is the only thing needed to open a backup.
  */
 
-import { StorageService } from './storage';
-import { encrypt, decrypt } from '../utils/crypto';
+// Detect runtime environment
+const isElectron = typeof window !== 'undefined' && 'electronAPI' in window;
 
-export interface BackupData {
+export interface BackupManifest {
   version: string;
   timestamp: string;
-  data: {
-    [key: string]: any[];
-  };
+  dataFiles: Array<{ path: string; size: number }>;
+  documentFiles: Array<{ path: string; size: number }>;
+  hasMasterKey: boolean;
 }
 
-// All keys that should be backed up
-const BACKUP_KEYS = [
-  'virtual_street',
-  'finance_items',
-  'pensions',
-  'budget_items',
-  'certificates',
-  'documents_certificates',
-  'education_records',
-  'medical_history',
-  'employment_records',
-  'contacts',
-  'photos'
-];
+export interface ReconciliationEntry {
+  path: string;
+  sizeInBackup: number;
+  sizeOnDisk: number | null; // null = not on disk
+  modifiedOnDisk: string | null;
+  status: 'new' | 'same' | 'conflict' | 'orphan';
+}
 
-export class BackupService {
-  constructor(
-    private storage: StorageService,
-    private masterPassword: string
-  ) {}
+export interface ReconciliationReport {
+  manifest: BackupManifest;
+  entries: ReconciliationEntry[];
+  newFiles: ReconciliationEntry[];
+  sameFiles: ReconciliationEntry[];
+  conflicts: ReconciliationEntry[];
+  orphansOnDisk: ReconciliationEntry[];
+}
 
-  /**
-   * Create a backup of all encrypted data
-   */
-  async createBackup(): Promise<BackupData> {
-    const backup: BackupData = {
-      version: '1.0.0',
-      timestamp: new Date().toISOString(),
-      data: {}
-    };
+export type BackupProgressCallback = (phase: string, current: number, total: number) => void;
 
-    // Load all data from storage
-    for (const key of BACKUP_KEYS) {
-      try {
-        const data = await this.storage.get(key);
-        backup.data[key] = data;
-      } catch (err) {
-        console.warn(`Failed to backup ${key}, skipping:`, err);
-        backup.data[key] = [];
-      }
-    }
-
-    return backup;
+/**
+ * Create a ZIP backup of all encrypted files
+ * No decryption happens - just copies files into ZIP
+ */
+export async function createBackup(
+  outputPath: string,
+  onProgress?: BackupProgressCallback
+): Promise<BackupManifest> {
+  if (!isElectron || !window.electronAPI?.backup) {
+    throw new Error('Backup requires Electron desktop environment');
   }
 
-  /**
-   * Restore data from a backup
-   */
-  async restoreBackup(backup: BackupData): Promise<void> {
-    // Validate backup format
-    if (!backup.version || !backup.data) {
-      throw new Error('Invalid backup format');
-    }
+  const result = await window.electronAPI.backup.create(outputPath);
 
-    // Restore each key
-    const errors: string[] = [];
-    for (const key of BACKUP_KEYS) {
-      if (!backup.data[key]) {
-        console.warn(`Backup missing data for ${key}, skipping`);
-        continue;
-      }
-
-      try {
-        await this.storage.save(key, backup.data[key]);
-      } catch (err) {
-        const errorMsg = `Failed to restore ${key}: ${err instanceof Error ? err.message : String(err)}`;
-        console.error(errorMsg);
-        errors.push(errorMsg);
-      }
-    }
-
-    if (errors.length > 0) {
-      throw new Error(`Backup restored with errors:\n${errors.join('\n')}`);
-    }
+  if (!result.success) {
+    throw new Error(result.error || 'Backup creation failed');
   }
 
-  /**
-   * Get backup statistics
-   */
-  getBackupStats(backup: BackupData): {
-    totalRecords: number;
-    categories: { [key: string]: number };
-  } {
-    const categories: { [key: string]: number } = {};
-    let totalRecords = 0;
+  return result.manifest;
+}
 
-    for (const [key, data] of Object.entries(backup.data)) {
-      const count = Array.isArray(data) ? data.length : 0;
-      categories[key] = count;
-      totalRecords += count;
-    }
-
-    return { totalRecords, categories };
+/**
+ * Read a backup ZIP and compare against current disk state
+ * Returns reconciliation report showing what would change on restore
+ */
+export async function getReconciliationReport(
+  backupPath: string
+): Promise<ReconciliationReport> {
+  if (!isElectron || !window.electronAPI?.backup) {
+    throw new Error('Backup requires Electron desktop environment');
   }
 
-  /**
-   * Export backup to encrypted JSON string
-   */
-  async exportBackupToJson(backup: BackupData): Promise<string> {
-    const json = JSON.stringify(backup);
-    const encrypted = await encrypt(json, this.masterPassword);
-    return encrypted;
+  const result = await window.electronAPI.backup.reconcile(backupPath);
+
+  if (!result.success) {
+    throw new Error(result.error || 'Failed to read backup');
   }
 
-  /**
-   * Import backup from encrypted JSON string
-   */
-  async importBackupFromJson(encryptedJson: string): Promise<BackupData> {
-    try {
-      // Decrypt the backup
-      const decryptedJson = await decrypt(encryptedJson, this.masterPassword);
-      const backup = JSON.parse(decryptedJson);
+  return result.report;
+}
 
-      // Validate structure
-      if (!backup.version || !backup.data) {
-        throw new Error('Invalid backup format');
-      }
-
-      return backup;
-    } catch (err) {
-      throw new Error(`Failed to decrypt/parse backup file: ${err instanceof Error ? err.message : String(err)}`);
-    }
+/**
+ * Restore files from backup ZIP
+ * Only restores specified files (from reconciliation selection)
+ * If filesToRestore is null, restores everything
+ */
+export async function restoreBackup(
+  backupPath: string,
+  filesToRestore: string[] | null
+): Promise<{ restoredCount: number; errors: string[] }> {
+  if (!isElectron || !window.electronAPI?.backup) {
+    throw new Error('Backup requires Electron desktop environment');
   }
+
+  const result = await window.electronAPI.backup.restore(backupPath, filesToRestore);
+
+  if (!result.success) {
+    throw new Error(result.error || 'Restore failed');
+  }
+
+  return { restoredCount: result.restoredCount, errors: result.errors || [] };
+}
+
+/**
+ * Legacy: Import old-format encrypted JSON backup
+ * For backward compatibility with .encrypted.json backups
+ */
+export async function importLegacyBackup(
+  filePath: string,
+  masterKey: string
+): Promise<{ records: number; keys: string[] }> {
+  if (!isElectron || !window.electronAPI?.backup) {
+    throw new Error('Backup requires Electron desktop environment');
+  }
+
+  const result = await window.electronAPI.backup.importLegacy(filePath, masterKey);
+
+  if (!result.success) {
+    throw new Error(result.error || 'Legacy import failed');
+  }
+
+  return { records: result.records, keys: result.keys };
 }

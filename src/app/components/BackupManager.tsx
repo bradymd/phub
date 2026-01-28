@@ -1,8 +1,10 @@
-import { useState } from 'react';
-import { X, Download, Upload, HardDrive, AlertCircle, CheckCircle, Clock, Database } from 'lucide-react';
-import { useStorage, useMasterPassword } from '../../contexts/StorageContext';
-import { BackupService, BackupData } from '../../services/backup';
-import { showSaveDialog, showOpenDialog, readTextFile, writeTextFile } from '../../utils/file-system';
+import { useState, useEffect } from 'react';
+import { X, Download, Upload, HardDrive, AlertCircle, CheckCircle, Clock, Database, Shield, FileWarning, RefreshCw, Eye, Trash2 } from 'lucide-react';
+import { useStorage, useMasterKey } from '../../contexts/StorageContext';
+import { createBackup, getReconciliationReport, restoreBackup, importLegacyBackup, BackupManifest, ReconciliationReport } from '../../services/backup';
+import { runIntegrityCheck, IntegrityReport, FileInfo } from '../../services/integrity';
+import { showSaveDialog, showOpenDialog } from '../../utils/file-system';
+import { decrypt } from '../../utils/crypto';
 
 interface BackupManagerProps {
   onClose: () => void;
@@ -10,17 +12,56 @@ interface BackupManagerProps {
 
 export function BackupManager({ onClose }: BackupManagerProps) {
   const storage = useStorage();
-  const masterPassword = useMasterPassword();
+  const masterKey = useMasterKey();
   const [isBackingUp, setIsBackingUp] = useState(false);
   const [isRestoring, setIsRestoring] = useState(false);
+  const [isChecking, setIsChecking] = useState(false);
   const [error, setError] = useState('');
   const [success, setSuccess] = useState('');
-  const [lastBackupStats, setLastBackupStats] = useState<{
-    totalRecords: number;
-    categories: { [key: string]: number };
-  } | null>(null);
+  const [integrityReport, setIntegrityReport] = useState<IntegrityReport | null>(null);
+  const [backupManifest, setBackupManifest] = useState<BackupManifest | null>(null);
+  const [reconciliation, setReconciliation] = useState<ReconciliationReport | null>(null);
+  const [restoreFilePath, setRestoreFilePath] = useState<string>('');
+  const [restoreSelections, setRestoreSelections] = useState<Set<string>>(new Set());
+  const [orphanRetry, setOrphanRetry] = useState<{ category: string; file: FileInfo } | null>(null);
+  const [orphanPassword, setOrphanPassword] = useState('');
 
-  const backupService = new BackupService(storage, masterPassword);
+  // Convert data URL to Blob URL for better iframe rendering (especially for large PDFs)
+  const dataUrlToBlobUrl = (dataUrl: string): string => {
+    const match = dataUrl.match(/^data:([^;]+);base64,(.+)$/);
+    if (!match) {
+      console.error('Invalid data URL format');
+      return dataUrl;
+    }
+    const mimeType = match[1];
+    const base64Data = match[2];
+    const binaryString = atob(base64Data);
+    const bytes = new Uint8Array(binaryString.length);
+    for (let i = 0; i < binaryString.length; i++) {
+      bytes[i] = binaryString.charCodeAt(i);
+    }
+    const blob = new Blob([bytes], { type: mimeType });
+    return URL.createObjectURL(blob);
+  };
+
+  // Run integrity check on open
+  useEffect(() => {
+    handleIntegrityCheck();
+  }, []);
+
+  const handleIntegrityCheck = async () => {
+    try {
+      setIsChecking(true);
+      setError('');
+      const report = await runIntegrityCheck(storage);
+      setIntegrityReport(report);
+    } catch (err) {
+      console.error('Integrity check failed:', err);
+      setError(`Integrity check failed: ${err instanceof Error ? err.message : String(err)}`);
+    } finally {
+      setIsChecking(false);
+    }
+  };
 
   const handleCreateBackup = async () => {
     try {
@@ -28,36 +69,24 @@ export function BackupManager({ onClose }: BackupManagerProps) {
       setError('');
       setSuccess('');
 
-      // Create backup
-      console.log('Creating backup...');
-      const backup = await backupService.createBackup();
-      const stats = backupService.getBackupStats(backup);
-      setLastBackupStats(stats);
-
-      // Generate filename with timestamp
       const timestamp = new Date().toISOString().replace(/[:.]/g, '-').slice(0, -5);
-      const filename = `PersonalHub_Backup_${timestamp}.encrypted.json`;
+      const filename = `PersonalHub_Backup_${timestamp}.phub`;
 
-      // Show save dialog
       const filePath = await showSaveDialog({
         defaultPath: `~/Downloads/${filename}`,
-        filters: [{
-          name: 'Encrypted Backup',
-          extensions: ['json']
-        }]
+        filters: [{ name: 'PersonalHub Backup', extensions: ['phub'] }]
       });
 
       if (!filePath) {
         setIsBackingUp(false);
-        return; // User cancelled
+        return;
       }
 
-      // Write encrypted backup to file
-      console.log('Encrypting and writing backup to:', filePath);
-      const encryptedJson = await backupService.exportBackupToJson(backup);
-      await writeTextFile(filePath, encryptedJson);
+      const manifest = await createBackup(filePath);
+      setBackupManifest(manifest);
 
-      setSuccess(`✅ Encrypted backup created! ${stats.totalRecords} records backed up to ${filePath}`);
+      const totalFiles = manifest.dataFiles.length + manifest.documentFiles.length;
+      setSuccess(`Backup created successfully! ${totalFiles} files backed up.`);
     } catch (err) {
       console.error('Backup failed:', err);
       setError(`Backup failed: ${err instanceof Error ? err.message : String(err)}`);
@@ -66,64 +95,204 @@ export function BackupManager({ onClose }: BackupManagerProps) {
     }
   };
 
-  const handleRestoreBackup = async () => {
-    if (!window.confirm('⚠️ Warning: This will replace ALL your current data with the backup. Are you sure?')) {
+  const handleOpenRestore = async () => {
+    try {
+      setError('');
+      setSuccess('');
+      setReconciliation(null);
+
+      const filePathResult = await showOpenDialog({
+        defaultPath: '~/Downloads/',
+        multiple: false,
+        filters: [
+          { name: 'PersonalHub Backup', extensions: ['phub'] },
+          { name: 'Legacy Backup', extensions: ['json'] }
+        ]
+      });
+
+      if (!filePathResult) return;
+
+      const filePath = typeof filePathResult === 'string' ? filePathResult : filePathResult[0];
+
+      // Check if legacy format
+      if (filePath.endsWith('.json') || filePath.includes('.encrypted.json')) {
+        await handleLegacyImport(filePath);
+        return;
+      }
+
+      setIsRestoring(true);
+      setRestoreFilePath(filePath);
+
+      const report = await getReconciliationReport(filePath);
+      setReconciliation(report);
+
+      // Pre-select all new files and conflicts for restore
+      const selections = new Set<string>();
+      for (const entry of report.newFiles) {
+        selections.add(entry.path);
+      }
+      for (const entry of report.conflicts) {
+        selections.add(entry.path);
+      }
+      setRestoreSelections(selections);
+    } catch (err) {
+      console.error('Failed to read backup:', err);
+      setError(`Failed to read backup: ${err instanceof Error ? err.message : String(err)}`);
+    } finally {
+      setIsRestoring(false);
+    }
+  };
+
+  const handleExecuteRestore = async () => {
+    if (!reconciliation || !restoreFilePath) return;
+
+    const selectedFiles = Array.from(restoreSelections);
+    if (selectedFiles.length === 0) {
+      setError('No files selected for restore');
       return;
     }
+
+    // Include .master.key in the restore
+    const filesToRestore = [...selectedFiles, '.master.key'];
 
     try {
       setIsRestoring(true);
       setError('');
-      setSuccess('');
 
-      // Show open dialog
-      const filePathResult = await showOpenDialog({
-        defaultPath: '~/Downloads/',
-        multiple: false,
-        filters: [{
-          name: 'Encrypted Backup',
-          extensions: ['json']
-        }]
-      });
+      const result = await restoreBackup(restoreFilePath, filesToRestore);
 
-      if (!filePathResult) {
-        setIsRestoring(false);
-        return; // User cancelled
+      if (result.errors.length > 0) {
+        setError(`Restored ${result.restoredCount} files with ${result.errors.length} errors:\n${result.errors.join('\n')}`);
+      } else {
+        setSuccess(`Restored ${result.restoredCount} files successfully. Restart the app to see changes.`);
       }
 
-      // Extract single file path (not array)
-      const filePath = typeof filePathResult === 'string' ? filePathResult : filePathResult[0];
+      setReconciliation(null);
+      setRestoreFilePath('');
 
-      // Read and decrypt backup file
-      console.log('Reading and decrypting backup from:', filePath);
-      const encryptedJson = await readTextFile(filePath);
-      const backup = await backupService.importBackupFromJson(encryptedJson);
-
-      // Show preview
-      const stats = backupService.getBackupStats(backup);
-      const backupDate = new Date(backup.timestamp).toLocaleString();
-
-      if (!window.confirm(
-        `Restore backup from ${backupDate}?\n\n` +
-        `This backup contains ${stats.totalRecords} records.\n\n` +
-        `Click OK to restore (this will overwrite your current data).`
-      )) {
-        setIsRestoring(false);
-        return;
-      }
-
-      // Restore backup
-      console.log('Restoring backup...');
-      await backupService.restoreBackup(backup);
-      setLastBackupStats(stats);
-
-      setSuccess(`Backup restored successfully! ${stats.totalRecords} records restored. Please restart the app to see changes.`);
+      // Re-run integrity check
+      await handleIntegrityCheck();
     } catch (err) {
       console.error('Restore failed:', err);
       setError(`Restore failed: ${err instanceof Error ? err.message : String(err)}`);
     } finally {
       setIsRestoring(false);
     }
+  };
+
+  const handleLegacyImport = async (filePath: string) => {
+    try {
+      setIsRestoring(true);
+      setError('');
+
+      const result = await importLegacyBackup(filePath, masterKey);
+      setSuccess(`Legacy backup imported: ${result.records} records across ${result.keys.length} categories. Restart the app to see changes.`);
+    } catch (err) {
+      console.error('Legacy import failed:', err);
+      setError(`Legacy import failed: ${err instanceof Error ? err.message : String(err)}`);
+    } finally {
+      setIsRestoring(false);
+    }
+  };
+
+  const toggleRestoreSelection = (path: string) => {
+    setRestoreSelections(prev => {
+      const next = new Set(prev);
+      if (next.has(path)) {
+        next.delete(path);
+      } else {
+        next.add(path);
+      }
+      return next;
+    });
+  };
+
+  const handleViewOrphan = async (category: string, file: FileInfo) => {
+    try {
+      setError('');
+      const filePath = `PersonalHub/documents/${category}/${file.path}`;
+      const result = await window.electronAPI?.docs.readTextFile(filePath);
+      if (!result?.success || !result.content) {
+        setError(`Failed to read file: ${result?.error || 'Unknown error'}`);
+        return;
+      }
+      // Decrypt - content is an encrypted data URL
+      const cleaned = result.content.replace(/\s/g, '');
+      const dataUrl = await decrypt(cleaned, masterKey);
+      // Open in new window
+      const win = window.open('', '_blank');
+      if (win) {
+        if (dataUrl.startsWith('data:application/pdf')) {
+          // Use blob URL for better rendering of large PDFs
+          const blobUrl = dataUrlToBlobUrl(dataUrl);
+          win.document.write(`<iframe src="${blobUrl}" style="width:100%;height:100%;border:none;position:fixed;top:0;left:0;"></iframe>`);
+        } else if (dataUrl.startsWith('data:image/')) {
+          win.document.write(`<img src="${dataUrl}" style="max-width:100%;"/>`);
+        } else {
+          win.document.write(`<p>File type: ${dataUrl.split(';')[0].replace('data:', '')}</p><p><a href="${dataUrl}" download="${file.path.replace('.encrypted', '')}">Download</a></p>`);
+        }
+      }
+    } catch (err) {
+      setOrphanRetry({ category, file });
+      setOrphanPassword('');
+      setError(`Cannot decrypt "${file.path}" with current key. Enter your previous password below to retry.`);
+    }
+  };
+
+  const handleRetryOrphanDecrypt = async () => {
+    if (!orphanRetry || !orphanPassword) return;
+    try {
+      setError('');
+      const filePath = `PersonalHub/documents/${orphanRetry.category}/${orphanRetry.file.path}`;
+      const result = await window.electronAPI?.docs.readTextFile(filePath);
+      if (!result?.success || !result.content) return;
+      const cleaned = result.content.replace(/\s/g, '');
+      const dataUrl = await decrypt(cleaned, orphanPassword);
+      setOrphanRetry(null);
+      setOrphanPassword('');
+      const win = window.open('', '_blank');
+      if (win) {
+        if (dataUrl.startsWith('data:application/pdf')) {
+          // Use blob URL for better rendering of large PDFs
+          const blobUrl = dataUrlToBlobUrl(dataUrl);
+          win.document.write(`<iframe src="${blobUrl}" style="width:100%;height:100%;border:none;position:fixed;top:0;left:0;"></iframe>`);
+        } else if (dataUrl.startsWith('data:image/')) {
+          win.document.write(`<img src="${dataUrl}" style="max-width:100%;"/>`);
+        } else {
+          win.document.write(`<p>File type: ${dataUrl.split(';')[0].replace('data:', '')}</p><p><a href="${dataUrl}" download="${orphanRetry.file.path.replace('.encrypted', '')}">Download</a></p>`);
+        }
+      }
+    } catch {
+      setError(`Cannot decrypt "${orphanRetry.file.path}" with that password either. File is unrecoverable. Safe to delete.`);
+      setOrphanRetry(null);
+      setOrphanPassword('');
+    }
+  };
+
+  const handleDeleteOrphan = async (category: string, file: FileInfo) => {
+    if (!window.confirm(`Delete orphaned file?\n\n${category}/${file.path}\n(${formatSize(file.size)})\n\nThis cannot be undone.`)) {
+      return;
+    }
+    try {
+      setError('');
+      const filePath = `PersonalHub/documents/${category}/${file.path}`;
+      const result = await window.electronAPI?.docs.remove(filePath);
+      if (!result?.success) {
+        setError(`Failed to delete: ${result?.error || 'Unknown error'}`);
+        return;
+      }
+      setSuccess(`Deleted ${category}/${file.path}`);
+      // Re-run integrity check
+      await handleIntegrityCheck();
+    } catch (err) {
+      setError(`Failed to delete: ${err instanceof Error ? err.message : String(err)}`);
+    }
+  };
+
+  const formatSize = (bytes: number) => {
+    if (bytes < 1024) return `${bytes} B`;
+    if (bytes < 1024 * 1024) return `${(bytes / 1024).toFixed(1)} KB`;
+    return `${(bytes / (1024 * 1024)).toFixed(1)} MB`;
   };
 
   return (
@@ -137,7 +306,7 @@ export function BackupManager({ onClose }: BackupManagerProps) {
               </div>
               <div>
                 <h2 className="text-xl font-semibold text-gray-900">Backup & Restore</h2>
-                <p className="text-sm text-gray-500 mt-1">Protect your encrypted data</p>
+                <p className="text-sm text-gray-500 mt-1">Full encrypted backup with document files</p>
               </div>
             </div>
             <button
@@ -171,6 +340,110 @@ export function BackupManager({ onClose }: BackupManagerProps) {
           )}
 
           <div className="space-y-4">
+            {/* Integrity Status */}
+            <div className="p-4 bg-gray-50 rounded-xl border border-gray-200">
+              <div className="flex items-center justify-between mb-2">
+                <div className="flex items-center gap-2">
+                  <Shield className="w-5 h-5 text-gray-600" />
+                  <h3 className="font-semibold text-gray-900">Data Integrity</h3>
+                </div>
+                <button
+                  onClick={handleIntegrityCheck}
+                  disabled={isChecking}
+                  className="text-sm text-blue-600 hover:text-blue-800 flex items-center gap-1"
+                >
+                  <RefreshCw className={`w-3 h-3 ${isChecking ? 'animate-spin' : ''}`} />
+                  {isChecking ? 'Checking...' : 'Re-check'}
+                </button>
+              </div>
+
+              {integrityReport && (
+                <div className="text-sm space-y-1">
+                  <div className="flex justify-between text-gray-600">
+                    <span>Data records</span>
+                    <span className="font-medium">{integrityReport.totalDataRecords}</span>
+                  </div>
+                  <div className="flex justify-between text-gray-600">
+                    <span>Data files on disk</span>
+                    <span className="font-medium">{integrityReport.dataFiles.length}</span>
+                  </div>
+                  <div className="flex justify-between text-gray-600">
+                    <span>Document files matched</span>
+                    <span className="font-medium text-green-700">{integrityReport.matched.length}</span>
+                  </div>
+                  {integrityReport.missingFiles.length > 0 && (
+                    <div className="flex justify-between text-red-600">
+                      <span>Missing document files</span>
+                      <span className="font-medium">{integrityReport.missingFiles.length}</span>
+                    </div>
+                  )}
+                  {integrityReport.orphanedFiles.length > 0 && (
+                    <div className="text-amber-600">
+                      <div className="flex justify-between">
+                        <span>Orphaned files (no metadata)</span>
+                        <span className="font-medium">{integrityReport.orphanedFiles.length}</span>
+                      </div>
+                      <div className="mt-1 text-xs text-amber-500 space-y-1">
+                        {integrityReport.orphanedFiles.map((f, i) => (
+                          <div key={i} className="flex items-center gap-2 pl-2">
+                            <span className="truncate flex-1">{f.category}/{f.file.path}</span>
+                            <span className="flex-shrink-0 text-gray-500">{formatSize(f.file.size)}</span>
+                            <button
+                              onClick={() => handleViewOrphan(f.category, f.file)}
+                              className="p-1 text-blue-600 hover:bg-blue-50 rounded"
+                              title="View file"
+                            >
+                              <Eye className="w-3 h-3" />
+                            </button>
+                            <button
+                              onClick={() => handleDeleteOrphan(f.category, f.file)}
+                              className="p-1 text-red-600 hover:bg-red-50 rounded"
+                              title="Delete file"
+                            >
+                              <Trash2 className="w-3 h-3" />
+                            </button>
+                          </div>
+                        ))}
+                      </div>
+                    </div>
+                  )}
+                  {integrityReport.missingFiles.length === 0 && integrityReport.orphanedFiles.length === 0 && (
+                    <div className="mt-2 text-green-700 font-medium flex items-center gap-1">
+                      <CheckCircle className="w-4 h-4" />
+                      All files verified
+                    </div>
+                  )}
+
+                  {orphanRetry && (
+                    <div className="mt-2 flex items-center gap-2">
+                      <input
+                        type="password"
+                        value={orphanPassword}
+                        onChange={(e) => setOrphanPassword(e.target.value)}
+                        onKeyDown={(e) => e.key === 'Enter' && handleRetryOrphanDecrypt()}
+                        placeholder="Previous password..."
+                        className="flex-1 text-xs px-2 py-1 border border-amber-300 rounded focus:outline-none focus:ring-1 focus:ring-amber-400"
+                        autoFocus
+                      />
+                      <button
+                        onClick={handleRetryOrphanDecrypt}
+                        disabled={!orphanPassword}
+                        className="text-xs px-2 py-1 bg-amber-600 text-white rounded hover:bg-amber-700 disabled:bg-gray-300"
+                      >
+                        Retry
+                      </button>
+                      <button
+                        onClick={() => { setOrphanRetry(null); setOrphanPassword(''); setError(''); }}
+                        className="text-xs px-2 py-1 border border-gray-300 rounded hover:bg-gray-50"
+                      >
+                        Cancel
+                      </button>
+                    </div>
+                  )}
+                </div>
+              )}
+            </div>
+
             {/* Backup Section */}
             <div className="p-6 bg-gradient-to-br from-blue-50 to-indigo-50 rounded-xl border border-blue-200">
               <div className="flex items-start gap-4">
@@ -180,7 +453,7 @@ export function BackupManager({ onClose }: BackupManagerProps) {
                 <div className="flex-1">
                   <h3 className="text-lg font-semibold text-gray-900 mb-2">Create Backup</h3>
                   <p className="text-sm text-gray-600 mb-4">
-                    Export all your data to an <strong>encrypted</strong> backup file. The backup is protected with your master password.
+                    Saves all encrypted data and document files into a single <strong>.phub</strong> backup file. No decryption occurs - files are copied as-is.
                   </p>
                   <button
                     onClick={handleCreateBackup}
@@ -203,6 +476,30 @@ export function BackupManager({ onClose }: BackupManagerProps) {
               </div>
             </div>
 
+            {/* Backup Stats */}
+            {backupManifest && (
+              <div className="p-4 bg-gray-50 rounded-xl border border-gray-200">
+                <div className="flex items-center gap-2 mb-3">
+                  <Database className="w-5 h-5 text-gray-600" />
+                  <h3 className="font-semibold text-gray-900">Last Backup</h3>
+                </div>
+                <div className="grid grid-cols-3 gap-3">
+                  <div className="bg-white p-3 rounded-lg">
+                    <p className="text-xs text-gray-500">Data Files</p>
+                    <p className="text-xl font-bold text-gray-900">{backupManifest.dataFiles.length}</p>
+                  </div>
+                  <div className="bg-white p-3 rounded-lg">
+                    <p className="text-xs text-gray-500">Documents</p>
+                    <p className="text-xl font-bold text-gray-900">{backupManifest.documentFiles.length}</p>
+                  </div>
+                  <div className="bg-white p-3 rounded-lg">
+                    <p className="text-xs text-gray-500">Master Key</p>
+                    <p className="text-xl font-bold text-green-700">{backupManifest.hasMasterKey ? 'Yes' : 'No'}</p>
+                  </div>
+                </div>
+              </div>
+            )}
+
             {/* Restore Section */}
             <div className="p-6 bg-gradient-to-br from-amber-50 to-orange-50 rounded-xl border border-amber-200">
               <div className="flex items-start gap-4">
@@ -212,22 +509,22 @@ export function BackupManager({ onClose }: BackupManagerProps) {
                 <div className="flex-1">
                   <h3 className="text-lg font-semibold text-gray-900 mb-2">Restore Backup</h3>
                   <p className="text-sm text-gray-600 mb-4">
-                    ⚠️ <strong>Warning:</strong> This will replace ALL current data with the backup file.
+                    Opens a .phub backup and shows what would change before restoring. Also supports legacy .encrypted.json format.
                   </p>
                   <button
-                    onClick={handleRestoreBackup}
+                    onClick={handleOpenRestore}
                     disabled={isRestoring}
                     className="px-4 py-2 bg-amber-600 text-white rounded-lg hover:bg-amber-700 transition-colors disabled:bg-amber-400 disabled:cursor-not-allowed flex items-center gap-2"
                   >
                     {isRestoring ? (
                       <>
                         <div className="animate-spin rounded-full h-4 w-4 border-b-2 border-white"></div>
-                        Restoring...
+                        Reading Backup...
                       </>
                     ) : (
                       <>
                         <Upload className="w-4 h-4" />
-                        Restore from Backup
+                        Open Backup File
                       </>
                     )}
                   </button>
@@ -235,34 +532,118 @@ export function BackupManager({ onClose }: BackupManagerProps) {
               </div>
             </div>
 
-            {/* Stats */}
-            {lastBackupStats && (
-              <div className="p-6 bg-gray-50 rounded-xl border border-gray-200">
+            {/* Reconciliation Report */}
+            {reconciliation && (
+              <div className="p-4 bg-white rounded-xl border border-gray-300">
                 <div className="flex items-center gap-2 mb-3">
-                  <Database className="w-5 h-5 text-gray-600" />
-                  <h3 className="font-semibold text-gray-900">Last Operation Statistics</h3>
+                  <FileWarning className="w-5 h-5 text-gray-600" />
+                  <h3 className="font-semibold text-gray-900">Restore Preview</h3>
                 </div>
-                <div className="grid grid-cols-2 gap-4">
-                  <div className="bg-white p-3 rounded-lg">
-                    <p className="text-sm text-gray-600">Total Records</p>
-                    <p className="text-2xl font-bold text-gray-900">{lastBackupStats.totalRecords}</p>
+
+                <div className="text-sm text-gray-600 mb-3">
+                  Backup from: {new Date(reconciliation.manifest.timestamp).toLocaleString()}
+                </div>
+
+                <div className="grid grid-cols-4 gap-2 mb-4 text-center text-xs">
+                  <div className="bg-green-50 p-2 rounded">
+                    <div className="font-bold text-green-700">{reconciliation.newFiles.length}</div>
+                    <div className="text-green-600">New</div>
                   </div>
-                  <div className="bg-white p-3 rounded-lg">
-                    <p className="text-sm text-gray-600">Categories</p>
-                    <p className="text-2xl font-bold text-gray-900">
-                      {Object.keys(lastBackupStats.categories).filter(k => lastBackupStats.categories[k] > 0).length}
-                    </p>
+                  <div className="bg-gray-50 p-2 rounded">
+                    <div className="font-bold text-gray-700">{reconciliation.sameFiles.length}</div>
+                    <div className="text-gray-600">Same</div>
+                  </div>
+                  <div className="bg-amber-50 p-2 rounded">
+                    <div className="font-bold text-amber-700">{reconciliation.conflicts.length}</div>
+                    <div className="text-amber-600">Conflicts</div>
+                  </div>
+                  <div className="bg-blue-50 p-2 rounded">
+                    <div className="font-bold text-blue-700">{reconciliation.orphansOnDisk.length}</div>
+                    <div className="text-blue-600">Orphans</div>
                   </div>
                 </div>
-                <div className="mt-3 text-xs text-gray-500 space-y-1">
-                  {Object.entries(lastBackupStats.categories)
-                    .filter(([_, count]) => count > 0)
-                    .map(([key, count]) => (
-                      <div key={key} className="flex justify-between">
-                        <span>{key.replace(/_/g, ' ')}</span>
-                        <span className="font-medium">{count} records</span>
+
+                {/* File list with checkboxes */}
+                <div className="max-h-48 overflow-y-auto border rounded-lg">
+                  {reconciliation.newFiles.length > 0 && (
+                    <div className="p-2 bg-green-50 border-b">
+                      <div className="text-xs font-medium text-green-700 mb-1">New files (will be added):</div>
+                      {reconciliation.newFiles.map(entry => (
+                        <label key={entry.path} className="flex items-center gap-2 text-xs py-0.5 cursor-pointer">
+                          <input
+                            type="checkbox"
+                            checked={restoreSelections.has(entry.path)}
+                            onChange={() => toggleRestoreSelection(entry.path)}
+                          />
+                          <span className="truncate flex-1">{entry.path}</span>
+                          <span className="text-gray-500">{formatSize(entry.sizeInBackup)}</span>
+                        </label>
+                      ))}
+                    </div>
+                  )}
+
+                  {reconciliation.conflicts.length > 0 && (
+                    <div className="p-2 bg-amber-50 border-b">
+                      <div className="text-xs font-medium text-amber-700 mb-1">Conflicts (different size):</div>
+                      {reconciliation.conflicts.map(entry => (
+                        <label key={entry.path} className="flex items-center gap-2 text-xs py-0.5 cursor-pointer">
+                          <input
+                            type="checkbox"
+                            checked={restoreSelections.has(entry.path)}
+                            onChange={() => toggleRestoreSelection(entry.path)}
+                          />
+                          <span className="truncate flex-1">{entry.path}</span>
+                          <span className="text-gray-500">
+                            {formatSize(entry.sizeInBackup)} vs {formatSize(entry.sizeOnDisk || 0)}
+                          </span>
+                        </label>
+                      ))}
+                    </div>
+                  )}
+
+                  {reconciliation.sameFiles.length > 0 && (
+                    <div className="p-2 bg-gray-50 border-b">
+                      <div className="text-xs font-medium text-gray-600 mb-1">
+                        Unchanged ({reconciliation.sameFiles.length} files)
                       </div>
-                    ))}
+                    </div>
+                  )}
+
+                  {reconciliation.orphansOnDisk.length > 0 && (
+                    <div className="p-2 bg-blue-50">
+                      <div className="text-xs font-medium text-blue-700 mb-1">
+                        On disk only (not in backup - will be kept):
+                      </div>
+                      {reconciliation.orphansOnDisk.map(entry => (
+                        <div key={entry.path} className="text-xs py-0.5 text-gray-600 truncate">
+                          {entry.path} ({formatSize(entry.sizeOnDisk || 0)})
+                        </div>
+                      ))}
+                    </div>
+                  )}
+                </div>
+
+                <div className="mt-3 flex gap-2">
+                  <button
+                    onClick={handleExecuteRestore}
+                    disabled={restoreSelections.size === 0 || isRestoring}
+                    className="px-4 py-2 bg-amber-600 text-white rounded-lg hover:bg-amber-700 transition-colors disabled:bg-gray-400 disabled:cursor-not-allowed text-sm flex items-center gap-2"
+                  >
+                    {isRestoring ? (
+                      <>
+                        <div className="animate-spin rounded-full h-3 w-3 border-b-2 border-white"></div>
+                        Restoring...
+                      </>
+                    ) : (
+                      <>Restore {restoreSelections.size} files</>
+                    )}
+                  </button>
+                  <button
+                    onClick={() => setReconciliation(null)}
+                    className="px-4 py-2 border border-gray-300 text-gray-700 rounded-lg hover:bg-gray-50 text-sm"
+                  >
+                    Cancel
+                  </button>
                 </div>
               </div>
             )}
@@ -271,14 +652,13 @@ export function BackupManager({ onClose }: BackupManagerProps) {
             <div className="p-4 bg-blue-50 rounded-lg border border-blue-200 flex items-start gap-3">
               <Clock className="w-5 h-5 text-blue-600 flex-shrink-0 mt-0.5" />
               <div className="flex-1 text-sm text-blue-900">
-                <p className="font-medium mb-1">Backup Best Practices:</p>
+                <p className="font-medium mb-1">About Backups:</p>
                 <ul className="space-y-1 text-blue-800">
-                  <li>• Create backups regularly (weekly recommended)</li>
-                  <li>• Store backups in a safe location (external drive, cloud storage)</li>
-                  <li>• Keep multiple backup versions</li>
-                  <li>• Test your backups periodically</li>
-                  <li>• <strong>Backups are encrypted with AES-256-GCM</strong> using your master password</li>
-                  <li>• Without your master password, backups cannot be decrypted!</li>
+                  <li>Backups include all data files, documents, and your encrypted master key</li>
+                  <li>No decryption happens during backup - files are copied as-is</li>
+                  <li>Your password is needed to restore (it unlocks the master key)</li>
+                  <li>Restore shows a preview before making changes</li>
+                  <li>Legacy .encrypted.json backups are still supported</li>
                 </ul>
               </div>
             </div>

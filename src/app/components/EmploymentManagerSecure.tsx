@@ -197,23 +197,22 @@ export function EmploymentManagerSecure({ onClose }: EmploymentManagerSecureProp
   }
 
   return (
-    <div className="fixed inset-0 bg-black/50 flex items-center justify-center z-50 p-4">
-      <div className="bg-white rounded-2xl max-w-5xl w-full max-h-[90vh] overflow-hidden flex flex-col">
-        <div className="p-6 border-b border-gray-200 bg-gradient-to-r from-green-50 to-indigo-50">
+    <div className="fixed inset-0 bg-black/50 z-50 overflow-hidden">
+      <div className="absolute inset-2 bg-white rounded-2xl flex flex-col shadow-2xl">
+        <div className="p-6 border-b border-gray-200 bg-gradient-to-r from-green-600 to-indigo-600 text-white rounded-t-2xl">
           <div className="flex items-center justify-between">
             <div className="flex items-center gap-3">
-              <div className="p-3 bg-gradient-to-br from-green-600 to-indigo-600 text-white rounded-xl relative">
+              <div className="p-3 bg-white/20 text-white rounded-xl relative">
                 <Briefcase className="w-6 h-6" />
-                <div className="absolute -top-1 -right-1 bg-green-500 rounded-full p-1">
+                <div className="absolute -top-1 -right-1 bg-white/30 rounded-full p-1">
                   <Key className="w-3 h-3 text-white" />
                 </div>
               </div>
               <div>
-                <h2 className="text-gray-900 flex items-center gap-2">
+                <h2 className="text-white flex items-center gap-2 text-xl font-semibold">
                   Employment History
-                  <span className="text-xs px-2 py-1 bg-green-100 text-green-700 rounded-full">Encrypted</span>
                 </h2>
-                <p className="text-sm text-gray-500 mt-1">Track your career journey, roles, and pension details</p>
+                <p className="text-sm text-white/80 mt-1">Track your career journey, roles, and pension details</p>
               </div>
             </div>
             <div className="flex items-center gap-2">
@@ -221,8 +220,8 @@ export function EmploymentManagerSecure({ onClose }: EmploymentManagerSecureProp
                 onClick={() => setViewMode('grid')}
                 className={`p-2 rounded-lg transition-colors ${
                   viewMode === 'grid'
-                    ? 'bg-white/60'
-                    : 'hover:bg-white/30'
+                    ? 'bg-white/20'
+                    : 'hover:bg-white/10'
                 }`}
                 title="Grid view"
               >
@@ -232,8 +231,8 @@ export function EmploymentManagerSecure({ onClose }: EmploymentManagerSecureProp
                 onClick={() => setViewMode('list')}
                 className={`p-2 rounded-lg transition-colors ${
                   viewMode === 'list'
-                    ? 'bg-white/60'
-                    : 'hover:bg-white/30'
+                    ? 'bg-white/20'
+                    : 'hover:bg-white/10'
                 }`}
                 title="List view"
               >
@@ -241,14 +240,14 @@ export function EmploymentManagerSecure({ onClose }: EmploymentManagerSecureProp
               </button>
               <button
                 onClick={() => setShowSummary(!showSummary)}
-                className="p-2 hover:bg-white/30 rounded-lg transition-colors"
+                className="p-2 hover:bg-white/10 rounded-lg transition-colors"
                 title={showSummary ? "Hide summary" : "Show summary"}
               >
                 {showSummary ? <Eye className="w-4 h-4" /> : <EyeOff className="w-4 h-4" />}
               </button>
               <button
                 onClick={onClose}
-                className="p-2 hover:bg-white rounded-lg transition-colors"
+                className="p-2 hover:bg-green-700 rounded-lg transition-colors"
               >
                 <X className="w-5 h-5" />
               </button>
@@ -333,7 +332,7 @@ export function EmploymentManagerSecure({ onClose }: EmploymentManagerSecureProp
           </div>
         </div>
 
-        <div className="flex-1 overflow-y-auto p-6">
+        <div className="flex-1 overflow-y-auto min-h-0 p-6" style={{ willChange: 'transform', transform: 'translateZ(0)' }}>
           {showAddForm && (
             <div className="mb-6 p-6 rounded-xl bg-gradient-to-br from-blue-50 to-purple-50 border-2 border-blue-200">
               <h3 className="mb-4 text-lg font-semibold text-gray-900">Add Employment Record</h3>
@@ -554,7 +553,6 @@ export function EmploymentManagerSecure({ onClose }: EmploymentManagerSecureProp
                       >
                         <Trash className="w-4 h-4" />
                       </button>
-                      <div className="text-gray-400 group-hover:text-indigo-600 transition-colors ml-2">→</div>
                     </div>
                   </div>
                 ))}

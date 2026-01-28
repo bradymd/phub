@@ -394,62 +394,59 @@ export function VirtualHighStreetSecure({ onClose }: VirtualHighStreetSecureProp
   }
 
   return (
-    <div className="fixed inset-0 bg-black/50 flex items-center justify-center z-50 p-4">
-      <div className="bg-white rounded-2xl max-w-7xl w-full max-h-[90vh] overflow-hidden flex flex-col">
+    <div className="fixed inset-0 bg-black/50 z-50 overflow-hidden">
+      <div className="absolute inset-2 bg-white rounded-2xl flex flex-col shadow-2xl">
         {/* Header */}
-        <div className="p-6 border-b border-gray-200 bg-gradient-to-r from-blue-50 to-purple-50">
+        <div className="p-6 border-b border-gray-200 bg-gradient-to-r from-blue-600 to-purple-600 text-white rounded-t-2xl">
           <div className="flex items-center justify-between mb-4">
             <div className="flex items-center gap-3">
-              <div className="p-3 bg-gradient-to-br from-blue-600 to-purple-600 text-white rounded-xl relative">
+              <div className="p-3 bg-white/20 text-white rounded-xl relative">
                 <Store className="w-6 h-6" />
-                <div className="absolute -top-1 -right-1 bg-green-500 rounded-full p-1">
+                <div className="absolute -top-1 -right-1 bg-white/30 rounded-full p-1">
                   <Key className="w-3 h-3 text-white" />
                 </div>
               </div>
               <div>
-                <h2 className="text-gray-900 flex items-center gap-2">
+                <h2 className="text-white flex items-center gap-2 text-xl font-semibold">
                   My Virtual High Street
-                  <span className="text-xs px-2 py-1 bg-green-100 text-green-700 rounded-full">Encrypted</span>
                 </h2>
-                <p className="text-sm text-gray-500 mt-1">Your online life organized and secured</p>
+                <p className="text-sm text-white/80 mt-1">Your online life organized and secured</p>
               </div>
             </div>
             <div className="flex items-center gap-2">
               <button
                 onClick={exportData}
-                className="p-2 bg-white text-gray-600 hover:bg-gray-100 rounded-lg transition-colors flex items-center gap-2 px-3"
+                className="p-2 bg-white text-blue-600 hover:bg-white/90 rounded-lg transition-colors flex items-center gap-2 px-3"
                 title="Export backup"
               >
                 <Download className="w-4 h-4" />
                 <span className="text-sm">Export</span>
               </button>
-              <label className="p-2 bg-white text-gray-600 hover:bg-gray-100 rounded-lg transition-colors flex items-center gap-2 px-3 cursor-pointer">
+              <label className="p-2 bg-white text-blue-600 hover:bg-white/90 rounded-lg transition-colors flex items-center gap-2 px-3 cursor-pointer">
                 <Upload className="w-4 h-4" />
                 <span className="text-sm">Import</span>
                 <input type="file" accept=".json" onChange={importData} className="hidden" />
               </label>
-              <div className="w-px h-8 bg-gray-300 mx-2"></div>
               <button
                 onClick={() => setViewMode('street')}
                 className={`p-2 rounded-lg transition-colors ${
                   viewMode === 'street'
-                    ? 'bg-blue-600 text-white'
-                    : 'bg-white text-gray-600 hover:bg-gray-100'
+                    ? 'bg-white/20'
+                    : 'hover:bg-white/10'
                 }`}
               >
-                <Grid3x3 className="w-5 h-5" />
+                <Grid3x3 className="w-4 h-4" />
               </button>
               <button
                 onClick={() => setViewMode('list')}
                 className={`p-2 rounded-lg transition-colors ${
                   viewMode === 'list'
-                    ? 'bg-blue-600 text-white'
-                    : 'bg-white text-gray-600 hover:bg-gray-100'
+                    ? 'bg-white/20'
+                    : 'hover:bg-white/10'
                 }`}
               >
-                <List className="w-5 h-5" />
+                <List className="w-4 h-4" />
               </button>
-              <div className="w-px h-8 bg-gray-300 mx-2"></div>
               <button
                 onClick={() => {
                   setSelectionMode(!selectionMode);
@@ -459,8 +456,8 @@ export function VirtualHighStreetSecure({ onClose }: VirtualHighStreetSecureProp
                 }}
                 className={`p-2 rounded-lg transition-colors flex items-center gap-2 px-3 ${
                   selectionMode
-                    ? 'bg-purple-600 text-white'
-                    : 'bg-white text-gray-600 hover:bg-gray-100'
+                    ? 'bg-white text-purple-600'
+                    : 'bg-white/90 text-blue-600 hover:bg-white'
                 }`}
                 title={selectionMode ? 'Exit selection mode' : 'Select multiple'}
               >
@@ -469,7 +466,7 @@ export function VirtualHighStreetSecure({ onClose }: VirtualHighStreetSecureProp
               </button>
               <button
                 onClick={() => setShowAddForm(!showAddForm)}
-                className="flex items-center gap-2 px-4 py-2 bg-white text-blue-600 rounded-lg hover:bg-blue-50 transition-colors"
+                className="flex items-center gap-2 px-4 py-2 bg-white text-blue-600 rounded-lg hover:bg-white/90 transition-colors"
                 title="Add website"
               >
                 <Plus className="w-4 h-4" />
@@ -477,7 +474,7 @@ export function VirtualHighStreetSecure({ onClose }: VirtualHighStreetSecureProp
               </button>
               <button
                 onClick={onClose}
-                className="p-2 hover:bg-white rounded-lg transition-colors ml-2"
+                className="p-2 hover:bg-blue-700 rounded-lg transition-colors ml-2"
               >
                 <X className="w-5 h-5" />
               </button>
@@ -600,7 +597,7 @@ export function VirtualHighStreetSecure({ onClose }: VirtualHighStreetSecureProp
         )}
 
         {/* Content */}
-        <div className="flex-1 overflow-y-auto p-6">
+        <div className="flex-1 overflow-y-auto min-h-0 p-6" style={{ willChange: 'transform', transform: 'translateZ(0)' }}>
           {showAddForm && (
             <div className="mb-6 p-6 bg-gradient-to-br from-blue-50 to-purple-50 rounded-2xl border-2 border-blue-200">
               <h3 className="mb-4 flex items-center gap-2">

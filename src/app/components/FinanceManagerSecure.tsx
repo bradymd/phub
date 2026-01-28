@@ -219,8 +219,8 @@ export function FinanceManagerSecure({ onClose }: FinanceManagerSecureProps) {
   }
 
   return (
-    <div className="fixed inset-0 bg-black/50 flex items-center justify-center z-50 p-4">
-      <div className="bg-white rounded-2xl w-full max-w-6xl h-[90vh] flex flex-col shadow-2xl">
+    <div className="fixed inset-0 bg-black/50 z-50 overflow-hidden">
+      <div className="absolute inset-2 bg-white rounded-2xl flex flex-col shadow-2xl">
         <div className="p-6 border-b border-gray-200 flex items-center justify-between bg-gradient-to-r from-blue-600 to-purple-600 text-white rounded-t-2xl">
           <div className="flex items-center gap-3">
             <Wallet className="w-6 h-6" />
@@ -354,7 +354,7 @@ export function FinanceManagerSecure({ onClose }: FinanceManagerSecureProps) {
           </div>
         </div>
 
-        <div className="flex-1 overflow-y-auto p-6">
+        <div className="flex-1 overflow-y-auto min-h-0 p-6" style={{ willChange: 'transform', transform: 'translateZ(0)' }}>
           {showAddForm && (
             <div className="mb-6 p-6 rounded-xl bg-gradient-to-br from-blue-50 to-purple-50 border-2 border-blue-200">
               <h3 className="mb-4 text-lg font-semibold text-gray-900">Add Account</h3>

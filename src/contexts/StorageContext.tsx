@@ -20,6 +20,7 @@ interface StorageContextType {
   storage: StorageService;
   documentService: DocumentService;
   masterPassword: string;
+  masterKeyString: string;
   changePassword: (currentPassword: string, newPassword: string) => Promise<void>;
 }
 
@@ -114,7 +115,7 @@ export function StorageProvider({ masterPassword, children }: StorageProviderPro
   }
 
   return (
-    <StorageContext.Provider value={{ storage, documentService, masterPassword: currentPassword, changePassword }}>
+    <StorageContext.Provider value={{ storage, documentService, masterPassword: currentPassword, masterKeyString: masterKeyString!, changePassword }}>
       {children}
     </StorageContext.Provider>
   );
@@ -151,6 +152,17 @@ export function useMasterPassword(): string {
   }
 
   return context.masterPassword;
+}
+
+// Custom hook to get master key string (for legacy backup import)
+export function useMasterKey(): string {
+  const context = useContext(StorageContext);
+
+  if (!context) {
+    throw new Error('useMasterKey must be used within a StorageProvider');
+  }
+
+  return context.masterKeyString;
 }
 
 // Custom hook to access password change functionality

@@ -19,7 +19,19 @@ declare global {
         mkdir: (relativePath: string) => Promise<{ success: boolean; error?: string }>;
         readTextFile: (relativePath: string) => Promise<{ success: boolean; content?: string; error?: string }>;
         writeTextFile: (relativePath: string, content: string) => Promise<{ success: boolean; error?: string }>;
+        writeBinaryFile: (relativePath: string, base64Data: string) => Promise<{ success: boolean; path?: string; error?: string }>;
         remove: (relativePath: string) => Promise<{ success: boolean; error?: string }>;
+        listDir: (relativePath: string) => Promise<{ success: boolean; files?: Array<{ path: string; size: number; modifiedAt: string }>; error?: string }>;
+        listSubDirs: (relativePath: string) => Promise<{ success: boolean; dirs?: string[]; error?: string }>;
+      };
+      backup: {
+        create: (outputPath: string) => Promise<{ success: boolean; manifest?: any; error?: string }>;
+        reconcile: (backupPath: string) => Promise<{ success: boolean; report?: any; error?: string }>;
+        restore: (backupPath: string, filesToRestore: string[] | null) => Promise<{ success: boolean; restoredCount?: number; errors?: string[]; error?: string }>;
+        importLegacy: (filePath: string, masterKey: string) => Promise<{ success: boolean; records?: number; keys?: string[]; error?: string }>;
+      };
+      shell: {
+        openPath: (filePath: string) => Promise<{ success: boolean; error?: string }>;
       };
     };
   }
@@ -31,6 +43,7 @@ export interface DocumentReference {
   mimeType: string;
   uploadDate: string;
   encryptedPath: string;
+  thumbnailPath?: string;
   size: number;
 }
 
@@ -147,8 +160,50 @@ export class DocumentService {
   }
 
   /**
+   * Generate a thumbnail data URL from an image data URL
+   * Returns undefined for non-image types
+   */
+  private generateThumbnail(dataUrl: string, mimeType: string): Promise<string | undefined> {
+    return new Promise((resolve) => {
+      if (!mimeType.startsWith('image/')) {
+        resolve(undefined);
+        return;
+      }
+
+      const img = new Image();
+      img.onload = () => {
+        const canvas = document.createElement('canvas');
+        const maxSize = 200;
+        let width = img.width;
+        let height = img.height;
+
+        if (width > height) {
+          if (width > maxSize) {
+            height = Math.round((height * maxSize) / width);
+            width = maxSize;
+          }
+        } else {
+          if (height > maxSize) {
+            width = Math.round((width * maxSize) / height);
+            height = maxSize;
+          }
+        }
+
+        canvas.width = width;
+        canvas.height = height;
+        const ctx = canvas.getContext('2d');
+        ctx?.drawImage(img, 0, 0, width, height);
+        resolve(canvas.toDataURL('image/jpeg', 0.7));
+      };
+      img.onerror = () => resolve(undefined);
+      img.src = dataUrl;
+    });
+  }
+
+  /**
    * Save a new document
    * Takes a data URL and returns a document reference
+   * Automatically generates and saves a thumbnail for image files
    */
   async saveDocument(
     category: DocumentCategory,
@@ -172,21 +227,38 @@ export class DocumentService {
       const encryptedContent = await encrypt(dataUrl, this.masterPassword);
 
       if (isElectron && window.electronAPI) {
-        // Electron path
         const writeResult = await window.electronAPI.docs.writeTextFile(filePath, encryptedContent);
         if (!writeResult.success) {
           throw new Error(writeResult.error || 'Failed to write file');
         }
       } else {
-        // Tauri path
         const { writeTextFile, BaseDirectory } = await import('@tauri-apps/plugin-fs');
         await writeTextFile(filePath, encryptedContent, {
           baseDir: BaseDirectory.Document
         });
       }
 
+      // Generate and save thumbnail for images
+      let thumbnailPath: string | undefined;
+      const thumbnailDataUrl = await this.generateThumbnail(dataUrl, mimeType);
+      if (thumbnailDataUrl) {
+        const thumbFilename = `${docId}.${extension}.thumb.encrypted`;
+        const thumbFilePath = `${this.documentsBaseDir}/${category}/${thumbFilename}`;
+        const encryptedThumb = await encrypt(thumbnailDataUrl, this.masterPassword);
+
+        if (isElectron && window.electronAPI) {
+          const thumbResult = await window.electronAPI.docs.writeTextFile(thumbFilePath, encryptedThumb);
+          if (thumbResult.success) {
+            thumbnailPath = thumbFilename;
+          }
+        } else {
+          const { writeTextFile, BaseDirectory } = await import('@tauri-apps/plugin-fs');
+          await writeTextFile(thumbFilePath, encryptedThumb, { baseDir: BaseDirectory.Document });
+          thumbnailPath = thumbFilename;
+        }
+      }
+
       // Calculate size (decode base64 to get actual byte size)
-      // Base64 encoding adds ~33% overhead: every 4 chars = 3 bytes
       const size = Math.ceil((base64Data.length * 3) / 4);
 
       // Return reference
@@ -196,10 +268,11 @@ export class DocumentService {
         mimeType,
         uploadDate,
         encryptedPath: encryptedFilename,
+        thumbnailPath,
         size
       };
 
-      console.log(`Saved document: ${filename} (${(size / 1024).toFixed(1)} KB) -> ${encryptedFilename}`);
+      console.log(`Saved document: ${filename} (${(size / 1024).toFixed(1)} KB) -> ${encryptedFilename}${thumbnailPath ? ' + thumbnail' : ''}`);
 
       return docRef;
     } catch (err) {
@@ -209,31 +282,128 @@ export class DocumentService {
   }
 
   /**
-   * Delete a document file
+   * Load a thumbnail by its path
+   * Returns the decrypted thumbnail data URL, or undefined if not found
+   */
+  async loadThumbnail(category: DocumentCategory, thumbnailPath: string): Promise<string | undefined> {
+    try {
+      const filePath = `${this.documentsBaseDir}/${category}/${thumbnailPath}`;
+
+      if (isElectron && window.electronAPI) {
+        const existsResult = await window.electronAPI.docs.exists(filePath);
+        if (!existsResult.exists) return undefined;
+
+        const readResult = await window.electronAPI.docs.readTextFile(filePath);
+        if (!readResult.success || !readResult.content) return undefined;
+
+        const cleaned = readResult.content.replace(/\s/g, '');
+        return await decrypt(cleaned, this.masterPassword);
+      } else {
+        const { exists, readTextFile, BaseDirectory } = await import('@tauri-apps/plugin-fs');
+        const fileExists = await exists(filePath, { baseDir: BaseDirectory.Document });
+        if (!fileExists) return undefined;
+
+        const content = await readTextFile(filePath, { baseDir: BaseDirectory.Document });
+        return await decrypt(content, this.masterPassword);
+      }
+    } catch (err) {
+      console.warn(`Failed to load thumbnail ${thumbnailPath}:`, err);
+      return undefined;
+    }
+  }
+
+  /**
+   * Regenerate thumbnail for an existing document
+   * Loads the document, generates a thumbnail, saves it, returns updated reference
+   */
+  async regenerateThumbnail(category: DocumentCategory, docRef: DocumentReference): Promise<DocumentReference> {
+    // Load the original document
+    const dataUrl = await this.loadDocument(category, docRef);
+    const { mimeType } = this.parseDataUrl(dataUrl);
+
+    if (!mimeType.startsWith('image/')) {
+      throw new Error('Thumbnails can only be generated for image files');
+    }
+
+    // Delete old thumbnail if it exists
+    if (docRef.thumbnailPath) {
+      const oldThumbPath = `${this.documentsBaseDir}/${category}/${docRef.thumbnailPath}`;
+      if (isElectron && window.electronAPI) {
+        const exists = await window.electronAPI.docs.exists(oldThumbPath);
+        if (exists.exists) {
+          await window.electronAPI.docs.remove(oldThumbPath);
+        }
+      } else {
+        const { exists, remove, BaseDirectory } = await import('@tauri-apps/plugin-fs');
+        if (await exists(oldThumbPath, { baseDir: BaseDirectory.Document })) {
+          await remove(oldThumbPath, { baseDir: BaseDirectory.Document });
+        }
+      }
+    }
+
+    // Generate new thumbnail
+    const thumbnailDataUrl = await this.generateThumbnail(dataUrl, mimeType);
+    if (!thumbnailDataUrl) {
+      throw new Error('Failed to generate thumbnail');
+    }
+
+    // Derive thumb filename from the document's encrypted path
+    const thumbFilename = docRef.encryptedPath.replace('.encrypted', '.thumb.encrypted');
+    const thumbFilePath = `${this.documentsBaseDir}/${category}/${thumbFilename}`;
+    const encryptedThumb = await encrypt(thumbnailDataUrl, this.masterPassword);
+
+    if (isElectron && window.electronAPI) {
+      const result = await window.electronAPI.docs.writeTextFile(thumbFilePath, encryptedThumb);
+      if (!result.success) {
+        throw new Error(result.error || 'Failed to write thumbnail');
+      }
+    } else {
+      const { writeTextFile, BaseDirectory } = await import('@tauri-apps/plugin-fs');
+      await writeTextFile(thumbFilePath, encryptedThumb, { baseDir: BaseDirectory.Document });
+    }
+
+    console.log(`Regenerated thumbnail for ${docRef.filename} -> ${thumbFilename}`);
+    return { ...docRef, thumbnailPath: thumbFilename };
+  }
+
+  /**
+   * Delete a document file and its thumbnail
    */
   async deleteDocument(category: DocumentCategory, docRef: DocumentReference): Promise<void> {
     try {
       const filePath = `${this.documentsBaseDir}/${category}/${docRef.encryptedPath}`;
 
       if (isElectron && window.electronAPI) {
-        // Electron path
         const existsResult = await window.electronAPI.docs.exists(filePath);
         if (existsResult.exists) {
           const removeResult = await window.electronAPI.docs.remove(filePath);
           if (!removeResult.success) {
             throw new Error(removeResult.error || 'Failed to delete file');
           }
-          console.log(`Deleted document: ${docRef.filename}`);
+        }
+        // Also delete thumbnail if it exists
+        if (docRef.thumbnailPath) {
+          const thumbPath = `${this.documentsBaseDir}/${category}/${docRef.thumbnailPath}`;
+          const thumbExists = await window.electronAPI.docs.exists(thumbPath);
+          if (thumbExists.exists) {
+            await window.electronAPI.docs.remove(thumbPath);
+          }
         }
       } else {
-        // Tauri path
         const { exists, remove, BaseDirectory } = await import('@tauri-apps/plugin-fs');
         const fileExists = await exists(filePath, { baseDir: BaseDirectory.Document });
         if (fileExists) {
           await remove(filePath, { baseDir: BaseDirectory.Document });
-          console.log(`Deleted document: ${docRef.filename}`);
+        }
+        if (docRef.thumbnailPath) {
+          const thumbPath = `${this.documentsBaseDir}/${category}/${docRef.thumbnailPath}`;
+          const thumbExists = await exists(thumbPath, { baseDir: BaseDirectory.Document });
+          if (thumbExists) {
+            await remove(thumbPath, { baseDir: BaseDirectory.Document });
+          }
         }
       }
+      console.log(`Deleted document: ${docRef.filename}`);
     } catch (err) {
       console.error(`Failed to delete document ${docRef.filename}:`, err);
       throw new Error(`Failed to delete document: ${err instanceof Error ? err.message : 'Unknown error'}`);
@@ -246,6 +416,48 @@ export class DocumentService {
   async deleteDocuments(category: DocumentCategory, docRefs: DocumentReference[]): Promise<void> {
     for (const docRef of docRefs) {
       await this.deleteDocument(category, docRef);
+    }
+  }
+
+  /**
+   * Open a document in the system's default external viewer
+   * Decrypts the document to a temporary file and returns the FULL SYSTEM PATH
+   * Works cross-platform (Windows, macOS, Linux)
+   */
+  async openDocumentExternal(category: DocumentCategory, docRef: DocumentReference): Promise<string> {
+    try {
+      // Load and decrypt the document
+      const dataUrl = await this.loadDocument(category, docRef);
+
+      // Parse the data URL to get the binary data
+      const { mimeType, base64Data } = this.parseDataUrl(dataUrl);
+
+      // Create a temporary file path with original filename
+      const tempFilename = docRef.filename;
+      const tempPath = `PersonalHub/temp/${tempFilename}`;
+
+      if (isElectron && window.electronAPI) {
+        // Ensure temp directory exists
+        const tempDir = 'PersonalHub/temp';
+        const existsResult = await window.electronAPI.docs.exists(tempDir);
+        if (!existsResult.exists) {
+          await window.electronAPI.docs.mkdir(tempDir);
+        }
+
+        // Write as binary file
+        const writeResult = await window.electronAPI.docs.writeBinaryFile(tempPath, base64Data);
+        if (!writeResult.success || !writeResult.path) {
+          throw new Error(writeResult.error || 'Failed to write temp file');
+        }
+
+        // Return the full system path
+        return writeResult.path;
+      } else {
+        throw new Error('External viewer only supported in Electron');
+      }
+    } catch (err) {
+      console.error(`Failed to open document externally ${docRef.filename}:`, err);
+      throw new Error(`Failed to open externally: ${err instanceof Error ? err.message : 'Unknown error'}`);
     }
   }
 }

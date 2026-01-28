@@ -6,6 +6,7 @@ import { Label } from './ui/label';
 import { Alert, AlertDescription } from './ui/alert';
 import { Lock, Eye, EyeOff, Shield } from 'lucide-react';
 import { hashPassword } from '../../utils/crypto';
+import { unwrapMasterKey } from '../../services/master-key';
 
 interface MasterPasswordUnlockProps {
   onUnlockSuccess: (password: string) => void;
@@ -30,7 +31,38 @@ export default function MasterPasswordUnlock({ onUnlockSuccess }: MasterPassword
     try {
       setIsProcessing(true);
 
-      // Get stored hash
+      // Check if running in Electron with file-based master key
+      const isElectron = typeof window !== 'undefined' && 'electronAPI' in window;
+
+      if (isElectron) {
+        // Electron mode: verify by trying to unwrap the master key
+        try {
+          const result = await (window as any).electronAPI.masterKey.read();
+          if (!result.success || !result.content) {
+            setError('No master password found. Please reload the app.');
+            return;
+          }
+
+          // Try to unwrap the master key with the entered password
+          await unwrapMasterKey(result.content, password);
+          // If we get here, password is correct
+          onUnlockSuccess(password);
+          return;
+        } catch (unwrapErr) {
+          // Unwrap failed = wrong password
+          const newAttempts = attempts + 1;
+          setAttempts(newAttempts);
+          setError(`Incorrect password. Attempt ${newAttempts} of 5.`);
+          setPassword('');
+
+          if (newAttempts >= 5) {
+            setError('Too many failed attempts. Please reload the page to try again.');
+          }
+          return;
+        }
+      }
+
+      // Browser mode: verify against stored hash
       const storedHash = localStorage.getItem('master_password_hash');
       if (!storedHash) {
         setError('No master password found. Please reload the app.');

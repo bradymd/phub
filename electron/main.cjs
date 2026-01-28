@@ -3,17 +3,22 @@
  * Handles window management and file system IPC
  */
 
-const { app, BrowserWindow, ipcMain, dialog } = require('electron');
+const { app, BrowserWindow, ipcMain, dialog, shell } = require('electron');
 const path = require('path');
 const fs = require('fs').promises;
+const fsSync = require('fs');
 const os = require('os');
+const archiver = require('archiver');
+const yauzl = require('yauzl');
 
 // Data directories
-const dataDir = path.join(os.homedir(), 'Documents', 'PersonalHub', 'data');
+const hubDir = path.join(os.homedir(), 'Documents', 'PersonalHub');
+const dataDir = path.join(hubDir, 'data');
+const docsDir = path.join(hubDir, 'documents');
 // Document base dir should match Tauri's BaseDirectory.Document (~/Documents/)
 const documentsDir = path.join(os.homedir(), 'Documents');
 // Master key file location
-const masterKeyFile = path.join(os.homedir(), 'Documents', 'PersonalHub', '.master.key');
+const masterKeyFile = path.join(hubDir, '.master.key');
 
 // Create main window
 function createWindow() {
@@ -228,6 +233,19 @@ ipcMain.handle('docs:writeTextFile', async (event, relativePath, content) => {
   }
 });
 
+// Write binary file from base64 data
+ipcMain.handle('docs:writeBinaryFile', async (event, relativePath, base64Data) => {
+  try {
+    const fullPath = path.join(documentsDir, relativePath);
+    const buffer = Buffer.from(base64Data, 'base64');
+    await fs.writeFile(fullPath, buffer);
+    return { success: true, path: fullPath };
+  } catch (err) {
+    console.error('Failed to write binary file:', err);
+    return { success: false, error: err.message };
+  }
+});
+
 // Delete document file
 ipcMain.handle('docs:remove', async (event, relativePath) => {
   try {
@@ -236,6 +254,21 @@ ipcMain.handle('docs:remove', async (event, relativePath) => {
     return { success: true };
   } catch (err) {
     console.error('Failed to delete document:', err);
+    return { success: false, error: err.message };
+  }
+});
+
+// Open file or URL with system default application
+ipcMain.handle('shell:openPath', async (event, filePath) => {
+  try {
+    const result = await shell.openPath(filePath);
+    if (result) {
+      // If result is non-empty string, it's an error message
+      return { success: false, error: result };
+    }
+    return { success: true };
+  } catch (err) {
+    console.error('Failed to open path:', err);
     return { success: false, error: err.message };
   }
 });
@@ -277,3 +310,455 @@ ipcMain.handle('masterKey:write', async (event, content) => {
     return { success: false, error: err.message };
   }
 });
+
+// List files in a directory (relative to ~/Documents/)
+ipcMain.handle('docs:listDir', async (event, relativePath) => {
+  try {
+    const fullPath = path.join(documentsDir, relativePath);
+    const entries = await fs.readdir(fullPath, { withFileTypes: true });
+    const files = [];
+
+    for (const entry of entries) {
+      if (entry.isFile()) {
+        const filePath = path.join(fullPath, entry.name);
+        const stat = await fs.stat(filePath);
+        files.push({
+          path: entry.name,
+          size: stat.size,
+          modifiedAt: stat.mtime.toISOString()
+        });
+      }
+    }
+
+    return { success: true, files };
+  } catch (err) {
+    if (err.code === 'ENOENT') {
+      return { success: true, files: [] };
+    }
+    console.error('Failed to list directory:', err);
+    return { success: false, error: err.message };
+  }
+});
+
+// List subdirectories in a directory (relative to ~/Documents/)
+ipcMain.handle('docs:listSubDirs', async (event, relativePath) => {
+  try {
+    const fullPath = path.join(documentsDir, relativePath);
+    const entries = await fs.readdir(fullPath, { withFileTypes: true });
+    const dirs = entries.filter(e => e.isDirectory()).map(e => e.name);
+    return { success: true, dirs };
+  } catch (err) {
+    if (err.code === 'ENOENT') {
+      return { success: true, dirs: [] };
+    }
+    console.error('Failed to list subdirectories:', err);
+    return { success: false, error: err.message };
+  }
+});
+
+// Backup operations
+
+/**
+ * Recursively collect all files from a directory
+ * Returns array of { absolutePath, relativePath, size }
+ */
+async function collectFiles(baseDir, subDir = '') {
+  const results = [];
+  const dirPath = subDir ? path.join(baseDir, subDir) : baseDir;
+
+  try {
+    const entries = await fs.readdir(dirPath, { withFileTypes: true });
+    for (const entry of entries) {
+      const relPath = subDir ? path.join(subDir, entry.name) : entry.name;
+      const absPath = path.join(dirPath, entry.name);
+
+      if (entry.isFile()) {
+        const stat = await fs.stat(absPath);
+        results.push({
+          absolutePath: absPath,
+          relativePath: relPath,
+          size: stat.size,
+          modifiedAt: stat.mtime.toISOString()
+        });
+      } else if (entry.isDirectory()) {
+        const subFiles = await collectFiles(baseDir, relPath);
+        results.push(...subFiles);
+      }
+    }
+  } catch (err) {
+    if (err.code !== 'ENOENT') {
+      console.warn(`Failed to read directory ${dirPath}:`, err.message);
+    }
+  }
+
+  return results;
+}
+
+// Create ZIP backup
+ipcMain.handle('backup:create', async (event, outputPath) => {
+  try {
+    // Collect all files to backup
+    const dataFiles = await collectFiles(dataDir);
+    const documentFiles = await collectFiles(docsDir);
+
+    // Check master key exists
+    let hasMasterKey = false;
+    try {
+      await fs.access(masterKeyFile);
+      hasMasterKey = true;
+    } catch {}
+
+    // Build manifest
+    const manifest = {
+      version: '2.0.0',
+      timestamp: new Date().toISOString(),
+      dataFiles: dataFiles.map(f => ({ path: f.relativePath, size: f.size })),
+      documentFiles: documentFiles.map(f => ({ path: f.relativePath, size: f.size })),
+      hasMasterKey
+    };
+
+    // Create ZIP archive
+    const output = fsSync.createWriteStream(outputPath);
+    const archive = archiver('zip', { zlib: { level: 1 } }); // Low compression - data is already encrypted (random bytes)
+
+    const archivePromise = new Promise((resolve, reject) => {
+      output.on('close', resolve);
+      archive.on('error', reject);
+      output.on('error', reject);
+    });
+
+    archive.pipe(output);
+
+    // Add manifest
+    archive.append(JSON.stringify(manifest, null, 2), { name: 'manifest.json' });
+
+    // Add master key
+    if (hasMasterKey) {
+      archive.file(masterKeyFile, { name: '.master.key' });
+    }
+
+    // Add data files
+    for (const file of dataFiles) {
+      archive.file(file.absolutePath, { name: `data/${file.relativePath}` });
+    }
+
+    // Add document files
+    for (const file of documentFiles) {
+      archive.file(file.absolutePath, { name: `documents/${file.relativePath}` });
+    }
+
+    await archive.finalize();
+    await archivePromise;
+
+    return { success: true, manifest };
+  } catch (err) {
+    console.error('Backup creation failed:', err);
+    return { success: false, error: err.message };
+  }
+});
+
+// Read backup ZIP and compare with disk state
+ipcMain.handle('backup:reconcile', async (event, backupPath) => {
+  try {
+    const zipEntries = await readZipEntries(backupPath);
+
+    // Parse manifest from ZIP
+    const manifestEntry = zipEntries.find(e => e.fileName === 'manifest.json');
+    if (!manifestEntry) {
+      return { success: false, error: 'Backup file is missing manifest.json' };
+    }
+
+    const manifestContent = await extractZipEntry(backupPath, 'manifest.json');
+    const manifest = JSON.parse(manifestContent.toString('utf-8'));
+
+    // Build reconciliation report
+    const entries = [];
+
+    // Check data files
+    for (const backupFile of manifest.dataFiles) {
+      const diskPath = path.join(dataDir, backupFile.path);
+      const entry = await compareWithDisk(backupFile, diskPath, `data/${backupFile.path}`);
+      entries.push(entry);
+    }
+
+    // Check document files
+    for (const backupFile of manifest.documentFiles) {
+      const diskPath = path.join(docsDir, backupFile.path);
+      const entry = await compareWithDisk(backupFile, diskPath, `documents/${backupFile.path}`);
+      entries.push(entry);
+    }
+
+    // Check for orphans on disk not in backup
+    const backupDataPaths = new Set(manifest.dataFiles.map(f => f.path));
+    const backupDocPaths = new Set(manifest.documentFiles.map(f => f.path));
+
+    const diskDataFiles = await collectFiles(dataDir);
+    const diskDocFiles = await collectFiles(docsDir);
+
+    for (const diskFile of diskDataFiles) {
+      if (!backupDataPaths.has(diskFile.relativePath)) {
+        entries.push({
+          path: `data/${diskFile.relativePath}`,
+          sizeInBackup: 0,
+          sizeOnDisk: diskFile.size,
+          modifiedOnDisk: diskFile.modifiedAt,
+          status: 'orphan'
+        });
+      }
+    }
+
+    for (const diskFile of diskDocFiles) {
+      if (!backupDocPaths.has(diskFile.relativePath)) {
+        entries.push({
+          path: `documents/${diskFile.relativePath}`,
+          sizeInBackup: 0,
+          sizeOnDisk: diskFile.size,
+          modifiedOnDisk: diskFile.modifiedAt,
+          status: 'orphan'
+        });
+      }
+    }
+
+    const report = {
+      manifest,
+      entries,
+      newFiles: entries.filter(e => e.status === 'new'),
+      sameFiles: entries.filter(e => e.status === 'same'),
+      conflicts: entries.filter(e => e.status === 'conflict'),
+      orphansOnDisk: entries.filter(e => e.status === 'orphan')
+    };
+
+    return { success: true, report };
+  } catch (err) {
+    console.error('Reconciliation failed:', err);
+    return { success: false, error: err.message };
+  }
+});
+
+// Restore files from backup ZIP
+ipcMain.handle('backup:restore', async (event, backupPath, filesToRestore) => {
+  try {
+    const zipEntries = await readZipEntries(backupPath);
+    let restoredCount = 0;
+    const errors = [];
+
+    // Determine which files to restore
+    let entriesToRestore;
+    if (filesToRestore === null) {
+      // Restore everything except manifest
+      entriesToRestore = zipEntries.filter(e =>
+        e.fileName !== 'manifest.json' && !e.fileName.endsWith('/')
+      );
+    } else {
+      entriesToRestore = zipEntries.filter(e => filesToRestore.includes(e.fileName));
+    }
+
+    for (const entry of entriesToRestore) {
+      try {
+        const content = await extractZipEntry(backupPath, entry.fileName);
+
+        let targetPath;
+        if (entry.fileName === '.master.key') {
+          targetPath = masterKeyFile;
+        } else if (entry.fileName.startsWith('data/')) {
+          const relPath = entry.fileName.slice(5); // Remove 'data/' prefix
+          targetPath = path.join(dataDir, relPath);
+        } else if (entry.fileName.startsWith('documents/')) {
+          const relPath = entry.fileName.slice(10); // Remove 'documents/' prefix
+          targetPath = path.join(docsDir, relPath);
+        } else {
+          continue; // Skip unknown entries
+        }
+
+        // Ensure parent directory exists
+        await fs.mkdir(path.dirname(targetPath), { recursive: true });
+
+        // Write file
+        await fs.writeFile(targetPath, content);
+        restoredCount++;
+      } catch (err) {
+        errors.push(`Failed to restore ${entry.fileName}: ${err.message}`);
+      }
+    }
+
+    return { success: true, restoredCount, errors };
+  } catch (err) {
+    console.error('Restore failed:', err);
+    return { success: false, error: err.message };
+  }
+});
+
+// Import legacy .encrypted.json backup format
+ipcMain.handle('backup:importLegacy', async (event, backupFilePath, masterKey) => {
+  try {
+    const crypto = require('crypto');
+    const { subtle } = crypto.webcrypto;
+    const content = await fs.readFile(backupFilePath, 'utf-8');
+
+    // Decode master key from base64
+    const keyBytes = Buffer.from(masterKey, 'base64');
+
+    // Parse the encrypted content: [salt(16) | iv(12) | ciphertext] in base64
+    const rawData = Buffer.from(content, 'base64');
+    const salt = rawData.slice(0, 16);
+    const iv = rawData.slice(16, 28);
+    const encrypted = rawData.slice(28);
+
+    // Derive decryption key using PBKDF2 (matching crypto.ts: 10000 iterations)
+    const keyMaterial = await subtle.importKey('raw', keyBytes, 'PBKDF2', false, ['deriveKey']);
+    const aesKey = await subtle.deriveKey(
+      { name: 'PBKDF2', salt, iterations: 10000, hash: 'SHA-256' },
+      keyMaterial,
+      { name: 'AES-GCM', length: 256 },
+      false,
+      ['decrypt']
+    );
+
+    const decrypted = await subtle.decrypt({ name: 'AES-GCM', iv }, aesKey, encrypted);
+    const json = Buffer.from(decrypted).toString('utf-8');
+    const backupData = JSON.parse(json);
+
+    if (!backupData.data) {
+      return { success: false, error: 'Invalid legacy backup format' };
+    }
+
+    // Write each key's data as encrypted JSON to data dir
+    // Format must match ElectronStorageService: base64([salt(16) | iv(12) | ciphertext])
+    let totalRecords = 0;
+    const keys = Object.keys(backupData.data);
+
+    await fs.mkdir(dataDir, { recursive: true });
+
+    for (const [key, items] of Object.entries(backupData.data)) {
+      if (Array.isArray(items) && items.length > 0) {
+        const jsonStr = JSON.stringify(items);
+
+        // Generate fresh salt and IV for each file
+        const newSalt = crypto.randomBytes(16);
+        const newIv = crypto.randomBytes(12);
+
+        // Derive encryption key from master key + new salt
+        const encKeyMaterial = await subtle.importKey('raw', keyBytes, 'PBKDF2', false, ['deriveKey']);
+        const encKey = await subtle.deriveKey(
+          { name: 'PBKDF2', salt: newSalt, iterations: 10000, hash: 'SHA-256' },
+          encKeyMaterial,
+          { name: 'AES-GCM', length: 256 },
+          false,
+          ['encrypt']
+        );
+
+        // Encrypt the data
+        const encryptedData = await subtle.encrypt(
+          { name: 'AES-GCM', iv: newIv },
+          encKey,
+          Buffer.from(jsonStr, 'utf-8')
+        );
+
+        // Combine: salt + iv + ciphertext -> base64
+        const combined = Buffer.concat([newSalt, newIv, Buffer.from(encryptedData)]);
+        const outputPath = path.join(dataDir, `${key}.encrypted.json`);
+        await fs.writeFile(outputPath, combined.toString('base64'), 'utf-8');
+
+        totalRecords += items.length;
+      }
+    }
+
+    return { success: true, records: totalRecords, keys };
+  } catch (err) {
+    console.error('Legacy import failed:', err);
+    return { success: false, error: err.message };
+  }
+});
+
+// Helper: Compare a backup file entry with its disk counterpart
+async function compareWithDisk(backupFile, diskPath, zipPath) {
+  try {
+    const stat = await fs.stat(diskPath);
+    const sizeOnDisk = stat.size;
+    const modifiedOnDisk = stat.mtime.toISOString();
+
+    if (sizeOnDisk === backupFile.size) {
+      return {
+        path: zipPath,
+        sizeInBackup: backupFile.size,
+        sizeOnDisk,
+        modifiedOnDisk,
+        status: 'same'
+      };
+    } else {
+      return {
+        path: zipPath,
+        sizeInBackup: backupFile.size,
+        sizeOnDisk,
+        modifiedOnDisk,
+        status: 'conflict'
+      };
+    }
+  } catch (err) {
+    if (err.code === 'ENOENT') {
+      return {
+        path: zipPath,
+        sizeInBackup: backupFile.size,
+        sizeOnDisk: null,
+        modifiedOnDisk: null,
+        status: 'new'
+      };
+    }
+    throw err;
+  }
+}
+
+// Helper: Read all entries from a ZIP file
+function readZipEntries(zipPath) {
+  return new Promise((resolve, reject) => {
+    yauzl.open(zipPath, { lazyEntries: true }, (err, zipfile) => {
+      if (err) return reject(err);
+
+      const entries = [];
+      zipfile.readEntry();
+
+      zipfile.on('entry', (entry) => {
+        entries.push({
+          fileName: entry.fileName,
+          uncompressedSize: entry.uncompressedSize
+        });
+        zipfile.readEntry();
+      });
+
+      zipfile.on('end', () => resolve(entries));
+      zipfile.on('error', reject);
+    });
+  });
+}
+
+// Helper: Extract a single entry from a ZIP file
+function extractZipEntry(zipPath, entryName) {
+  return new Promise((resolve, reject) => {
+    yauzl.open(zipPath, { lazyEntries: true }, (err, zipfile) => {
+      if (err) return reject(err);
+
+      zipfile.readEntry();
+
+      zipfile.on('entry', (entry) => {
+        if (entry.fileName === entryName) {
+          zipfile.openReadStream(entry, (err, readStream) => {
+            if (err) return reject(err);
+
+            const chunks = [];
+            readStream.on('data', (chunk) => chunks.push(chunk));
+            readStream.on('end', () => {
+              zipfile.close();
+              resolve(Buffer.concat(chunks));
+            });
+            readStream.on('error', reject);
+          });
+        } else {
+          zipfile.readEntry();
+        }
+      });
+
+      zipfile.on('end', () => reject(new Error(`Entry not found: ${entryName}`)));
+      zipfile.on('error', reject);
+    });
+  });
+}

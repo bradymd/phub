@@ -21,7 +21,10 @@ contextBridge.exposeInMainWorld('electronAPI', {
     mkdir: (relativePath) => ipcRenderer.invoke('docs:mkdir', relativePath),
     readTextFile: (relativePath) => ipcRenderer.invoke('docs:readTextFile', relativePath),
     writeTextFile: (relativePath, content) => ipcRenderer.invoke('docs:writeTextFile', relativePath, content),
-    remove: (relativePath) => ipcRenderer.invoke('docs:remove', relativePath)
+    writeBinaryFile: (relativePath, base64Data) => ipcRenderer.invoke('docs:writeBinaryFile', relativePath, base64Data),
+    remove: (relativePath) => ipcRenderer.invoke('docs:remove', relativePath),
+    listDir: (relativePath) => ipcRenderer.invoke('docs:listDir', relativePath),
+    listSubDirs: (relativePath) => ipcRenderer.invoke('docs:listSubDirs', relativePath)
   },
   dialog: {
     save: (options) => ipcRenderer.invoke('dialog:save', options),
@@ -31,5 +34,14 @@ contextBridge.exposeInMainWorld('electronAPI', {
     exists: () => ipcRenderer.invoke('masterKey:exists'),
     read: () => ipcRenderer.invoke('masterKey:read'),
     write: (content) => ipcRenderer.invoke('masterKey:write', content)
+  },
+  backup: {
+    create: (outputPath) => ipcRenderer.invoke('backup:create', outputPath),
+    reconcile: (backupPath) => ipcRenderer.invoke('backup:reconcile', backupPath),
+    restore: (backupPath, filesToRestore) => ipcRenderer.invoke('backup:restore', backupPath, filesToRestore),
+    importLegacy: (filePath, masterKey) => ipcRenderer.invoke('backup:importLegacy', filePath, masterKey)
+  },
+  shell: {
+    openPath: (filePath) => ipcRenderer.invoke('shell:openPath', filePath)
   }
 });

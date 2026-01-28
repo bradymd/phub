@@ -1,5 +1,5 @@
 import { useState, useEffect } from 'react';
-import { X, Plus, Trash, Heart, Calendar, Edit2, Key, FileText, ExternalLink, Hospital, Stethoscope, Search, AlertCircle, Upload, Eye, EyeOff } from 'lucide-react';
+import { X, Plus, Trash, Heart, Calendar, Edit2, Key, FileText, ExternalLink, Hospital, Stethoscope, Search, AlertCircle, Upload, Eye, EyeOff, Download } from 'lucide-react';
 import { useStorage, useDocumentService } from '../../contexts/StorageContext';
 import { DocumentReference } from '../../services/document-service';
 
@@ -46,7 +46,7 @@ export function MedicalHistoryManagerSecure({ onClose }: MedicalHistoryManagerSe
   const [expandedRecord, setExpandedRecord] = useState<string | null>(null);
   const [scrollPosition, setScrollPosition] = useState(0);
   const [searchQuery, setSearchQuery] = useState('');
-  const [viewingDocument, setViewingDocument] = useState<{ docRef: DocumentReference; dataUrl: string } | null>(null);
+  const [viewingDocument, setViewingDocument] = useState<{ docRef: DocumentReference; dataUrl: string; blobUrl: string } | null>(null);
   const [loadingDocument, setLoadingDocument] = useState(false);
   const [showSummary, setShowSummary] = useState(true);
 
@@ -185,11 +185,34 @@ export function MedicalHistoryManagerSecure({ onClose }: MedicalHistoryManagerSe
     return new Blob([byteArray], { type: mimeType });
   };
 
+  // Convert data URL to Blob URL for better iframe rendering (especially for large PDFs)
+  const dataUrlToBlobUrl = (dataUrl: string): string => {
+    const match = dataUrl.match(/^data:([^;]+);base64,(.+)$/);
+    if (!match) {
+      console.error('Invalid data URL format');
+      return dataUrl;
+    }
+    const mimeType = match[1];
+    const base64Data = match[2];
+    const binaryString = atob(base64Data);
+    const bytes = new Uint8Array(binaryString.length);
+    for (let i = 0; i < binaryString.length; i++) {
+      bytes[i] = binaryString.charCodeAt(i);
+    }
+    const blob = new Blob([bytes], { type: mimeType });
+    return URL.createObjectURL(blob);
+  };
+
   const viewFile = async (docRef: DocumentReference) => {
     if (!docRef) {
       console.error('No document reference available');
       setError('Document reference is missing');
       return;
+    }
+
+    // Clean up any existing blob URL
+    if (viewingDocument?.blobUrl) {
+      URL.revokeObjectURL(viewingDocument.blobUrl);
     }
 
     try {
@@ -198,13 +221,52 @@ export function MedicalHistoryManagerSecure({ onClose }: MedicalHistoryManagerSe
 
       // Load document on-demand from separate encrypted file
       const dataUrl = await documentService.loadDocument('medical', docRef);
+      const blobUrl = dataUrlToBlobUrl(dataUrl);
 
-      setViewingDocument({ docRef, dataUrl });
+      setViewingDocument({ docRef, dataUrl, blobUrl });
     } catch (err) {
       console.error('Failed to load document:', err);
       setError(`Failed to load document: ${err instanceof Error ? err.message : 'Unknown error'}`);
     } finally {
       setLoadingDocument(false);
+    }
+  };
+
+  const downloadFile = async (docRef: DocumentReference) => {
+    if (!docRef) {
+      setError('Document reference is missing');
+      return;
+    }
+
+    try {
+      setError('');
+      const dataUrl = await documentService.loadDocument('medical', docRef);
+      const match = dataUrl.match(/^data:([^;]+);base64,(.+)$/);
+      if (!match) {
+        setError('Invalid file data format');
+        return;
+      }
+
+      const mimeType = match[1];
+      const base64Data = match[2];
+      const binaryString = atob(base64Data);
+      const bytes = new Uint8Array(binaryString.length);
+      for (let i = 0; i < binaryString.length; i++) {
+        bytes[i] = binaryString.charCodeAt(i);
+      }
+
+      const blob = new Blob([bytes], { type: mimeType });
+      const url = URL.createObjectURL(blob);
+      const a = document.createElement('a');
+      a.href = url;
+      a.download = docRef.filename;
+      document.body.appendChild(a);
+      a.click();
+      document.body.removeChild(a);
+      URL.revokeObjectURL(url);
+    } catch (err) {
+      setError('Failed to download file');
+      console.error('Download error:', err);
     }
   };
 
@@ -945,17 +1007,32 @@ export function MedicalHistoryManagerSecure({ onClose }: MedicalHistoryManagerSe
             flexDirection: 'column'
           }}
         >
-          <div style={{ padding: '20px', display: 'flex', justifyContent: 'space-between', alignItems: 'center', background: '#1a1a1a' }}>
-            <h3 style={{ color: 'white', margin: 0 }}>{viewingDocument.docRef.filename}</h3>
-            <button
-              onClick={() => setViewingDocument(null)}
-              style={{ color: 'white', background: '#333', border: 'none', padding: '10px 20px', borderRadius: '4px', cursor: 'pointer' }}
-            >
-              Close
-            </button>
+          <div className="p-4 flex justify-between items-center bg-[#1a1a1a]">
+            <h3 className="text-white font-medium truncate mr-4">{viewingDocument.docRef.filename}</h3>
+            <div className="flex items-center gap-2">
+              <button
+                onClick={() => downloadFile(viewingDocument.docRef)}
+                className="p-2 hover:bg-white/10 rounded-lg transition-colors"
+                title="Download"
+              >
+                <Download className="w-5 h-5 text-white" />
+              </button>
+              <button
+                onClick={() => {
+                  if (viewingDocument.blobUrl) {
+                    URL.revokeObjectURL(viewingDocument.blobUrl);
+                  }
+                  setViewingDocument(null);
+                }}
+                className="p-2 hover:bg-white/10 rounded-lg transition-colors"
+                title="Close"
+              >
+                <X className="w-5 h-5 text-white" />
+              </button>
+            </div>
           </div>
           <iframe
-            src={viewingDocument.dataUrl}
+            src={viewingDocument.blobUrl}
             style={{ flex: 1, border: 'none', width: '100%' }}
             title={viewingDocument.docRef.filename}
           />

@@ -1,5 +1,5 @@
 import { useState, useEffect } from 'react';
-import { X, Plus, Trash, GraduationCap, Calendar, Edit2, Award, Key, FileText, ExternalLink, Upload, Search, Eye, EyeOff, Grid3x3, List } from 'lucide-react';
+import { X, Plus, Trash, GraduationCap, Calendar, Edit2, Award, Key, FileText, ExternalLink, Upload, Search, Eye, EyeOff, Grid3x3, List, ImagePlus, Download } from 'lucide-react';
 import { useStorage, useDocumentService } from '../../contexts/StorageContext';
 import { DocumentReference } from '../../services/document-service';
 
@@ -41,16 +41,44 @@ export function EducationManagerSecure({ onClose }: EducationManagerSecureProps)
   const [isLoading, setIsLoading] = useState(true);
   const [error, setError] = useState('');
   const [newRecord, setNewRecord] = useState(emptyRecord);
-  const [viewingDocument, setViewingDocument] = useState<{ docRef: DocumentReference; dataUrl: string } | null>(null);
+  const [viewingDocument, setViewingDocument] = useState<{ docRef: DocumentReference; dataUrl: string; blobUrl: string } | null>(null);
   const [loadingDocument, setLoadingDocument] = useState(false);
   const [searchQuery, setSearchQuery] = useState('');
   const [showSummary, setShowSummary] = useState(true);
   const [viewMode, setViewMode] = useState<'grid' | 'list'>('grid');
   const [viewingDetails, setViewingDetails] = useState<EducationRecord | null>(null);
+  const [thumbnails, setThumbnails] = useState<Record<string, string>>({});
 
   useEffect(() => {
     loadRecords();
   }, []);
+
+  // Load thumbnails for all records that have them
+  useEffect(() => {
+    async function loadThumbnails() {
+      const thumbMap: Record<string, string> = {};
+      for (const record of records) {
+        if (record.documents) {
+          for (const doc of record.documents) {
+            if (doc.thumbnailPath && !thumbnails[doc.id]) {
+              try {
+                const dataUrl = await documentService.loadThumbnail('education', doc.thumbnailPath);
+                if (dataUrl) {
+                  thumbMap[doc.id] = dataUrl;
+                }
+              } catch {}
+            }
+          }
+        }
+      }
+      if (Object.keys(thumbMap).length > 0) {
+        setThumbnails(prev => ({ ...prev, ...thumbMap }));
+      }
+    }
+    if (records.length > 0) {
+      loadThumbnails();
+    }
+  }, [records]);
 
   // Scroll to top when add form opens (edit is now in modal)
   useEffect(() => {
@@ -236,11 +264,34 @@ export function EducationManagerSecure({ onClose }: EducationManagerSecureProps)
     }
   };
 
+  // Convert data URL to Blob URL for better iframe rendering (especially for large PDFs)
+  const dataUrlToBlobUrl = (dataUrl: string): string => {
+    const match = dataUrl.match(/^data:([^;]+);base64,(.+)$/);
+    if (!match) {
+      console.error('Invalid data URL format');
+      return dataUrl;
+    }
+    const mimeType = match[1];
+    const base64Data = match[2];
+    const binaryString = atob(base64Data);
+    const bytes = new Uint8Array(binaryString.length);
+    for (let i = 0; i < binaryString.length; i++) {
+      bytes[i] = binaryString.charCodeAt(i);
+    }
+    const blob = new Blob([bytes], { type: mimeType });
+    return URL.createObjectURL(blob);
+  };
+
   const viewFile = async (docRef: DocumentReference) => {
     if (!docRef) {
       console.error('No document reference available');
       setError('Document reference is missing');
       return;
+    }
+
+    // Clean up any existing blob URL
+    if (viewingDocument?.blobUrl) {
+      URL.revokeObjectURL(viewingDocument.blobUrl);
     }
 
     try {
@@ -249,13 +300,85 @@ export function EducationManagerSecure({ onClose }: EducationManagerSecureProps)
 
       // Load document on-demand from separate encrypted file
       const dataUrl = await documentService.loadDocument('education', docRef);
+      const blobUrl = dataUrlToBlobUrl(dataUrl);
 
-      setViewingDocument({ docRef, dataUrl });
+      setViewingDocument({ docRef, dataUrl, blobUrl });
     } catch (err) {
       console.error('Failed to load document:', err);
       setError(`Failed to load document: ${err instanceof Error ? err.message : 'Unknown error'}`);
     } finally {
       setLoadingDocument(false);
+    }
+  };
+
+  const downloadFile = async (docRef: DocumentReference) => {
+    if (!docRef) {
+      setError('Document reference is missing');
+      return;
+    }
+
+    try {
+      setError('');
+      // Load and decrypt the document
+      const dataUrl = await documentService.loadDocument('education', docRef);
+
+      // Extract MIME type and base64 data from data URL
+      const match = dataUrl.match(/^data:([^;]+);base64,(.+)$/);
+      if (!match) {
+        setError('Invalid file data format');
+        return;
+      }
+
+      const mimeType = match[1];
+      const base64Data = match[2];
+
+      // Convert base64 to binary
+      const binaryString = atob(base64Data);
+      const bytes = new Uint8Array(binaryString.length);
+      for (let i = 0; i < binaryString.length; i++) {
+        bytes[i] = binaryString.charCodeAt(i);
+      }
+
+      // Create blob and download
+      const blob = new Blob([bytes], { type: mimeType });
+      const url = URL.createObjectURL(blob);
+      const a = document.createElement('a');
+      a.href = url;
+      a.download = docRef.filename;
+      document.body.appendChild(a);
+      a.click();
+      document.body.removeChild(a);
+      URL.revokeObjectURL(url);
+    } catch (err) {
+      setError(`Failed to download: ${err instanceof Error ? err.message : 'Unknown error'}`);
+      console.error('Download error:', err);
+    }
+  };
+
+  const regenerateThumb = async (docRef: DocumentReference, record: EducationRecord) => {
+    try {
+      setError('');
+      const updatedRef = await documentService.regenerateThumbnail('education', docRef);
+
+      // Update the record's documents array with the new reference
+      const updatedDocs = (record.documents || []).map(d =>
+        d.id === docRef.id ? updatedRef : d
+      );
+      const updatedRecord = { ...record, documents: updatedDocs };
+      await storage.update('education_records', record.id, updatedRecord);
+
+      // Update local state
+      setRecords(prev => prev.map(r => r.id === record.id ? updatedRecord : r));
+
+      // Load the new thumbnail
+      if (updatedRef.thumbnailPath) {
+        const dataUrl = await documentService.loadThumbnail('education', updatedRef.thumbnailPath);
+        if (dataUrl) {
+          setThumbnails(prev => ({ ...prev, [docRef.id]: dataUrl }));
+        }
+      }
+    } catch (err) {
+      setError(`Failed to generate thumbnail: ${err instanceof Error ? err.message : 'Unknown error'}`);
     }
   };
 
@@ -290,23 +413,22 @@ export function EducationManagerSecure({ onClose }: EducationManagerSecureProps)
   }
 
   return (
-    <div className="fixed inset-0 bg-black/50 flex items-center justify-center z-50 p-4">
-      <div className="bg-white rounded-2xl max-w-5xl w-full max-h-[90vh] overflow-hidden flex flex-col">
-        <div className="p-6 border-b border-gray-200 bg-gradient-to-r from-purple-50 to-blue-50">
+    <div className="fixed inset-0 bg-black/50 z-50 overflow-hidden">
+      <div className="absolute inset-2 bg-white rounded-2xl flex flex-col shadow-2xl">
+        <div className="p-6 border-b border-gray-200 bg-gradient-to-r from-purple-600 to-blue-600 text-white rounded-t-2xl">
           <div className="flex items-center justify-between">
             <div className="flex items-center gap-3">
-              <div className="p-3 bg-gradient-to-br from-purple-600 to-blue-600 text-white rounded-xl relative">
+              <div className="p-3 bg-white/20 text-white rounded-xl relative">
                 <GraduationCap className="w-6 h-6" />
-                <div className="absolute -top-1 -right-1 bg-green-500 rounded-full p-1">
+                <div className="absolute -top-1 -right-1 bg-white/30 rounded-full p-1">
                   <Key className="w-3 h-3 text-white" />
                 </div>
               </div>
               <div>
-                <h2 className="text-gray-900 flex items-center gap-2">
+                <h2 className="text-white flex items-center gap-2 text-xl font-semibold">
                   Education & Training
-                  <span className="text-xs px-2 py-1 bg-green-100 text-green-700 rounded-full">Encrypted</span>
                 </h2>
-                <p className="text-sm text-gray-500 mt-1">Track your qualifications, certifications, and training</p>
+                <p className="text-sm text-white/80 mt-1">Track your qualifications, certifications, and training</p>
               </div>
             </div>
             <div className="flex items-center gap-2">
@@ -332,42 +454,41 @@ export function EducationManagerSecure({ onClose }: EducationManagerSecureProps)
                 onClick={() => setViewMode('grid')}
                 className={`p-2 rounded-lg transition-colors ${
                   viewMode === 'grid'
-                    ? 'bg-purple-600 text-white'
-                    : 'bg-white text-gray-600 hover:bg-gray-100'
+                    ? 'bg-white/20'
+                    : 'hover:bg-white/10'
                 }`}
                 title="Grid view"
               >
-                <Grid3x3 className="w-5 h-5" />
+                <Grid3x3 className="w-4 h-4" />
               </button>
               <button
                 onClick={() => setViewMode('list')}
                 className={`p-2 rounded-lg transition-colors ${
                   viewMode === 'list'
-                    ? 'bg-purple-600 text-white'
-                    : 'bg-white text-gray-600 hover:bg-gray-100'
+                    ? 'bg-white/20'
+                    : 'hover:bg-white/10'
                 }`}
                 title="List view"
               >
-                <List className="w-5 h-5" />
+                <List className="w-4 h-4" />
               </button>
               <button
                 onClick={() => setShowSummary(!showSummary)}
-                className="p-2 bg-white rounded-lg hover:bg-purple-50 transition-colors"
+                className="p-2 bg-white/90 rounded-lg hover:bg-white transition-colors text-purple-600"
                 title={showSummary ? "Hide summary" : "Show summary"}
               >
                 {showSummary ? <EyeOff className="w-4 h-4" /> : <Eye className="w-4 h-4" />}
               </button>
-              <div className="w-px h-8 bg-gray-300 mx-1"></div>
               <button
                 onClick={() => setShowAddForm(!showAddForm)}
-                className="flex items-center gap-2 px-4 py-2 bg-white text-purple-600 rounded-lg hover:bg-purple-50 transition-colors"
+                className="flex items-center gap-2 px-4 py-2 bg-white text-purple-600 rounded-lg hover:bg-white/90 transition-colors"
               >
                 <Plus className="w-4 h-4" />
                 Add
               </button>
               <button
                 onClick={onClose}
-                className="p-2 hover:bg-white rounded-lg transition-colors"
+                className="p-2 hover:bg-purple-700 rounded-lg transition-colors"
               >
                 <X className="w-5 h-5" />
               </button>
@@ -424,7 +545,7 @@ export function EducationManagerSecure({ onClose }: EducationManagerSecureProps)
           </div>
         )}
 
-        <div className="flex-1 overflow-y-auto p-6">
+        <div className="flex-1 overflow-y-auto min-h-0 p-6" style={{ willChange: 'transform', transform: 'translateZ(0)' }}>
           {showAddForm && (
             <div className="mb-6 p-6 rounded-xl bg-gradient-to-br from-blue-50 to-purple-50 border-2 border-blue-200">
               <h3 className="mb-4 flex items-center gap-2">Add Education Record</h3>
@@ -559,22 +680,49 @@ export function EducationManagerSecure({ onClose }: EducationManagerSecureProps)
                             <h3 className="text-gray-900 mb-1">{record.qualification}</h3>
                             <p className="text-gray-700 mb-2">{record.institution}</p>
 
-                            {/* Display new embedded documents */}
+                            {/* Display documents with thumbnails */}
                             {record.documents && record.documents.length > 0 && (
                               <div className="mb-2">
                                 <div className="flex flex-wrap gap-2">
                                   {record.documents.map((doc, idx) => (
-                                    <button
-                                      key={idx}
-                                      onClick={(e) => {
-                                        e.stopPropagation();
-                                        viewFile(doc);
-                                      }}
-                                      className="flex items-center gap-1 px-3 py-1 bg-green-100 text-green-700 rounded hover:bg-green-200 transition-colors text-xs"
-                                    >
-                                      <FileText className="w-3 h-3" />
-                                      {doc.filename}
-                                    </button>
+                                    thumbnails[doc.id] ? (
+                                      <img
+                                        key={idx}
+                                        src={thumbnails[doc.id]}
+                                        alt={doc.filename}
+                                        title={doc.filename}
+                                        onClick={(e) => {
+                                          e.stopPropagation();
+                                          viewFile(doc);
+                                        }}
+                                        className="w-16 h-16 object-cover rounded-lg border border-gray-200 cursor-pointer hover:shadow-md transition-shadow"
+                                      />
+                                    ) : (
+                                      <div key={idx} className="flex items-center gap-1">
+                                        <button
+                                          onClick={(e) => {
+                                            e.stopPropagation();
+                                            viewFile(doc);
+                                          }}
+                                          className="flex items-center gap-1 px-3 py-1 bg-green-100 text-green-700 rounded hover:bg-green-200 transition-colors text-xs"
+                                        >
+                                          <FileText className="w-3 h-3" />
+                                          {doc.filename}
+                                        </button>
+                                        {(doc.mimeType?.startsWith('image/') || /\.(jpg|jpeg|png|gif|webp|tif|tiff)$/i.test(doc.filename)) && (
+                                          <button
+                                            onClick={(e) => {
+                                              e.stopPropagation();
+                                              regenerateThumb(doc, record);
+                                            }}
+                                            title="Generate thumbnail"
+                                            className="p-1 text-gray-400 hover:text-green-600 transition-colors"
+                                          >
+                                            <ImagePlus className="w-3 h-3" />
+                                          </button>
+                                        )}
+                                      </div>
+                                    )
                                   ))}
                                 </div>
                               </div>
@@ -617,12 +765,12 @@ export function EducationManagerSecure({ onClose }: EducationManagerSecureProps)
                           <button
                             onClick={(e) => {
                               e.stopPropagation();
-                              viewFile(record.documents[0]);
+                              downloadFile(record.documents[0]);
                             }}
                             className="p-2 hover:bg-white rounded-lg transition-colors text-green-600"
-                            title="View document"
+                            title="Download document"
                           >
-                            <Eye className="w-4 h-4" />
+                            <Download className="w-4 h-4" />
                           </button>
                         )}
                         <button
@@ -695,12 +843,12 @@ export function EducationManagerSecure({ onClose }: EducationManagerSecureProps)
                       <button
                         onClick={(e) => {
                           e.stopPropagation();
-                          viewFile(record.documents[0]);
+                          downloadFile(record.documents[0]);
                         }}
                         className="p-2 hover:bg-white rounded-lg transition-colors text-green-600"
-                        title="View document"
+                        title="Download document"
                       >
-                        <Eye className="w-4 h-4" />
+                        <Download className="w-4 h-4" />
                       </button>
                     )}
                     <button
@@ -723,7 +871,6 @@ export function EducationManagerSecure({ onClose }: EducationManagerSecureProps)
                     >
                       <Trash className="w-4 h-4" />
                     </button>
-                    <div className="text-gray-400 group-hover:text-purple-600 transition-colors ml-2">→</div>
                   </div>
                 </div>
               ))}
@@ -898,32 +1045,32 @@ export function EducationManagerSecure({ onClose }: EducationManagerSecureProps)
           display: 'flex',
           flexDirection: 'column'
         }}>
-          <div style={{
-            padding: '20px',
-            display: 'flex',
-            justifyContent: 'space-between',
-            alignItems: 'center',
-            background: '#1a1a1a'
-          }}>
-            <h3 style={{ color: 'white', margin: 0 }}>{viewingDocument.docRef.filename}</h3>
-            <button
-              onClick={() => setViewingDocument(null)}
-              style={{
-                padding: '8px 16px',
-                background: '#ef4444',
-                color: 'white',
-                border: 'none',
-                borderRadius: '8px',
-                cursor: 'pointer',
-                fontSize: '14px',
-                fontWeight: '500'
-              }}
-            >
-              Close
-            </button>
+          <div className="p-4 flex justify-between items-center bg-[#1a1a1a]">
+            <h3 className="text-white font-medium truncate mr-4">{viewingDocument.docRef.filename}</h3>
+            <div className="flex items-center gap-2">
+              <button
+                onClick={() => downloadFile(viewingDocument.docRef)}
+                className="p-2 hover:bg-white/10 rounded-lg transition-colors"
+                title="Download"
+              >
+                <Download className="w-5 h-5 text-white" />
+              </button>
+              <button
+                onClick={() => {
+                  if (viewingDocument.blobUrl) {
+                    URL.revokeObjectURL(viewingDocument.blobUrl);
+                  }
+                  setViewingDocument(null);
+                }}
+                className="p-2 hover:bg-white/10 rounded-lg transition-colors"
+                title="Close"
+              >
+                <X className="w-5 h-5 text-white" />
+              </button>
+            </div>
           </div>
           <iframe
-            src={viewingDocument.dataUrl}
+            src={viewingDocument.blobUrl}
             style={{ flex: 1, border: 'none', width: '100%' }}
             title={viewingDocument.docRef.filename}
           />
