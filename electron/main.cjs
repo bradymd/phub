@@ -671,6 +671,8 @@ ipcMain.handle('backup:importLegacy', async (event, backupFilePath, masterKey) =
 });
 
 // Helper: Compare a backup file entry with its disk counterpart
+// Note: This is now only used for display purposes, not for determining what to restore
+// Restore always replaces ALL files (full backup/restore model)
 async function compareWithDisk(backupFile, diskPath, zipPath) {
   try {
     const stat = await fs.stat(diskPath);

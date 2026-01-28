@@ -123,18 +123,12 @@ export function BackupManager({ onClose }: BackupManagerProps) {
       setIsRestoring(true);
       setRestoreFilePath(filePath);
 
+      // Read backup manifest to show user what will be restored
       const report = await getReconciliationReport(filePath);
       setReconciliation(report);
 
-      // Pre-select all new files and conflicts for restore
-      const selections = new Set<string>();
-      for (const entry of report.newFiles) {
-        selections.add(entry.path);
-      }
-      for (const entry of report.conflicts) {
-        selections.add(entry.path);
-      }
-      setRestoreSelections(selections);
+      // Don't pre-select anything - we'll do full restore with confirmation
+      setRestoreSelections(new Set());
     } catch (err) {
       console.error('Failed to read backup:', err);
       setError(`Failed to read backup: ${err instanceof Error ? err.message : String(err)}`);
@@ -146,25 +140,79 @@ export function BackupManager({ onClose }: BackupManagerProps) {
   const handleExecuteRestore = async () => {
     if (!reconciliation || !restoreFilePath) return;
 
-    const selectedFiles = Array.from(restoreSelections);
-    if (selectedFiles.length === 0) {
-      setError('No files selected for restore');
+    const totalFiles = reconciliation.manifest.dataFiles.length + reconciliation.manifest.documentFiles.length;
+    const backupDate = new Date(reconciliation.manifest.timestamp).toLocaleString();
+
+    // Step 1: Confirm full restore
+    const confirmed = window.confirm(
+      `⚠️ FULL RESTORE WARNING ⚠️\n\n` +
+      `This will REPLACE ALL your current data with the backup from:\n` +
+      `${backupDate}\n\n` +
+      `Files to restore: ${totalFiles}\n\n` +
+      `Your current data will be DELETED.\n\n` +
+      `Do you want to continue?`
+    );
+
+    if (!confirmed) {
       return;
     }
 
-    // Include .master.key in the restore
-    const filesToRestore = [...selectedFiles, '.master.key'];
+    // Step 2: Offer to create safety backup
+    const createSafetyBackup = window.confirm(
+      `Create a safety backup of your CURRENT data first?\n\n` +
+      `Recommended: This will save your current state to:\n` +
+      `~/Documents/PersonalHub-pre-restore-backup-[timestamp]/\n\n` +
+      `Click OK to create safety backup, or Cancel to skip.`
+    );
 
     try {
       setIsRestoring(true);
       setError('');
 
-      const result = await restoreBackup(restoreFilePath, filesToRestore);
+      // Step 3: Create safety backup if requested
+      if (createSafetyBackup) {
+        const timestamp = new Date().toISOString().replace(/[:.]/g, '-').slice(0, -5);
+        const filename = `PersonalHub_Safety_Backup_${timestamp}.phub`;
+
+        // Ask user where to save the safety backup
+        const safetyBackupPath = await showSaveDialog({
+          defaultPath: `~/Downloads/${filename}`,
+          filters: [{ name: 'PersonalHub Backup', extensions: ['phub'] }]
+        });
+
+        if (!safetyBackupPath) {
+          const continueWithoutBackup = window.confirm(
+            `You cancelled the safety backup.\n\n` +
+            `Continue with restore anyway? (NOT RECOMMENDED - your current data will be lost)`
+          );
+          if (!continueWithoutBackup) {
+            setIsRestoring(false);
+            return;
+          }
+        } else {
+          try {
+            await createBackup(safetyBackupPath);
+            setSuccess(`Safety backup created: ${safetyBackupPath}\n\nNow restoring...`);
+          } catch (err) {
+            const continueAnyway = window.confirm(
+              `Failed to create safety backup:\n${err instanceof Error ? err.message : String(err)}\n\n` +
+              `Continue with restore anyway? (NOT RECOMMENDED)`
+            );
+            if (!continueAnyway) {
+              setIsRestoring(false);
+              return;
+            }
+          }
+        }
+      }
+
+      // Step 4: Perform FULL restore (null = restore everything)
+      const result = await restoreBackup(restoreFilePath, null);
 
       if (result.errors.length > 0) {
-        setError(`Restored ${result.restoredCount} files with ${result.errors.length} errors:\n${result.errors.join('\n')}`);
+        setError(`Restored ${result.restoredCount} files with ${result.errors.length} errors:\n${result.errors.join('\n')}\n\nPlease restart the app.`);
       } else {
-        setSuccess(`Restored ${result.restoredCount} files successfully. Restart the app to see changes.`);
+        setSuccess(`✅ Full restore complete!\n\nRestored ${result.restoredCount} files from backup.\n\n⚠️ IMPORTANT: You MUST restart the app now to load the restored data.`);
       }
 
       setReconciliation(null);
@@ -532,115 +580,81 @@ export function BackupManager({ onClose }: BackupManagerProps) {
               </div>
             </div>
 
-            {/* Reconciliation Report */}
+            {/* Restore Confirmation */}
             {reconciliation && (
-              <div className="p-4 bg-white rounded-xl border border-gray-300">
-                <div className="flex items-center gap-2 mb-3">
-                  <FileWarning className="w-5 h-5 text-gray-600" />
-                  <h3 className="font-semibold text-gray-900">Restore Preview</h3>
-                </div>
-
-                <div className="text-sm text-gray-600 mb-3">
-                  Backup from: {new Date(reconciliation.manifest.timestamp).toLocaleString()}
-                </div>
-
-                <div className="grid grid-cols-4 gap-2 mb-4 text-center text-xs">
-                  <div className="bg-green-50 p-2 rounded">
-                    <div className="font-bold text-green-700">{reconciliation.newFiles.length}</div>
-                    <div className="text-green-600">New</div>
+              <div className="p-6 bg-red-50 rounded-xl border-2 border-red-300">
+                <div className="flex items-center gap-3 mb-4">
+                  <div className="p-3 bg-red-100 text-red-600 rounded-lg">
+                    <AlertCircle className="w-6 h-6" />
                   </div>
-                  <div className="bg-gray-50 p-2 rounded">
-                    <div className="font-bold text-gray-700">{reconciliation.sameFiles.length}</div>
-                    <div className="text-gray-600">Same</div>
-                  </div>
-                  <div className="bg-amber-50 p-2 rounded">
-                    <div className="font-bold text-amber-700">{reconciliation.conflicts.length}</div>
-                    <div className="text-amber-600">Conflicts</div>
-                  </div>
-                  <div className="bg-blue-50 p-2 rounded">
-                    <div className="font-bold text-blue-700">{reconciliation.orphansOnDisk.length}</div>
-                    <div className="text-blue-600">Orphans</div>
+                  <div>
+                    <h3 className="font-bold text-gray-900 text-lg">Full Restore - Replace All Data</h3>
+                    <p className="text-sm text-red-800 mt-1">This will DELETE your current data and restore the backup</p>
                   </div>
                 </div>
 
-                {/* File list with checkboxes */}
-                <div className="max-h-48 overflow-y-auto border rounded-lg">
-                  {reconciliation.newFiles.length > 0 && (
-                    <div className="p-2 bg-green-50 border-b">
-                      <div className="text-xs font-medium text-green-700 mb-1">New files (will be added):</div>
-                      {reconciliation.newFiles.map(entry => (
-                        <label key={entry.path} className="flex items-center gap-2 text-xs py-0.5 cursor-pointer">
-                          <input
-                            type="checkbox"
-                            checked={restoreSelections.has(entry.path)}
-                            onChange={() => toggleRestoreSelection(entry.path)}
-                          />
-                          <span className="truncate flex-1">{entry.path}</span>
-                          <span className="text-gray-500">{formatSize(entry.sizeInBackup)}</span>
-                        </label>
-                      ))}
+                <div className="bg-white p-4 rounded-lg mb-4">
+                  <div className="text-sm space-y-2">
+                    <div className="flex justify-between">
+                      <span className="text-gray-600">Backup date:</span>
+                      <span className="font-semibold text-gray-900">
+                        {new Date(reconciliation.manifest.timestamp).toLocaleString()}
+                      </span>
                     </div>
-                  )}
-
-                  {reconciliation.conflicts.length > 0 && (
-                    <div className="p-2 bg-amber-50 border-b">
-                      <div className="text-xs font-medium text-amber-700 mb-1">Conflicts (different size):</div>
-                      {reconciliation.conflicts.map(entry => (
-                        <label key={entry.path} className="flex items-center gap-2 text-xs py-0.5 cursor-pointer">
-                          <input
-                            type="checkbox"
-                            checked={restoreSelections.has(entry.path)}
-                            onChange={() => toggleRestoreSelection(entry.path)}
-                          />
-                          <span className="truncate flex-1">{entry.path}</span>
-                          <span className="text-gray-500">
-                            {formatSize(entry.sizeInBackup)} vs {formatSize(entry.sizeOnDisk || 0)}
-                          </span>
-                        </label>
-                      ))}
+                    <div className="flex justify-between">
+                      <span className="text-gray-600">Data files:</span>
+                      <span className="font-semibold text-gray-900">{reconciliation.manifest.dataFiles.length}</span>
                     </div>
-                  )}
-
-                  {reconciliation.sameFiles.length > 0 && (
-                    <div className="p-2 bg-gray-50 border-b">
-                      <div className="text-xs font-medium text-gray-600 mb-1">
-                        Unchanged ({reconciliation.sameFiles.length} files)
-                      </div>
+                    <div className="flex justify-between">
+                      <span className="text-gray-600">Document files:</span>
+                      <span className="font-semibold text-gray-900">{reconciliation.manifest.documentFiles.length}</span>
                     </div>
-                  )}
-
-                  {reconciliation.orphansOnDisk.length > 0 && (
-                    <div className="p-2 bg-blue-50">
-                      <div className="text-xs font-medium text-blue-700 mb-1">
-                        On disk only (not in backup - will be kept):
-                      </div>
-                      {reconciliation.orphansOnDisk.map(entry => (
-                        <div key={entry.path} className="text-xs py-0.5 text-gray-600 truncate">
-                          {entry.path} ({formatSize(entry.sizeOnDisk || 0)})
-                        </div>
-                      ))}
+                    <div className="flex justify-between">
+                      <span className="text-gray-600">Master key included:</span>
+                      <span className={`font-semibold ${reconciliation.manifest.hasMasterKey ? 'text-green-700' : 'text-red-700'}`}>
+                        {reconciliation.manifest.hasMasterKey ? 'Yes' : 'No'}
+                      </span>
                     </div>
-                  )}
+                  </div>
                 </div>
 
-                <div className="mt-3 flex gap-2">
+                <div className="bg-amber-50 border border-amber-300 rounded-lg p-4 mb-4">
+                  <div className="flex items-start gap-2">
+                    <AlertCircle className="w-5 h-5 text-amber-700 flex-shrink-0 mt-0.5" />
+                    <div className="text-sm text-amber-900">
+                      <p className="font-semibold mb-2">What will happen:</p>
+                      <ol className="list-decimal list-inside space-y-1 text-amber-800">
+                        <li>You'll be asked if you want to create a safety backup of current data</li>
+                        <li>ALL current data and document files will be deleted</li>
+                        <li>ALL files from the backup will be restored</li>
+                        <li>You MUST restart the app to see the restored data</li>
+                      </ol>
+                    </div>
+                  </div>
+                </div>
+
+                <div className="flex gap-3">
                   <button
                     onClick={handleExecuteRestore}
-                    disabled={restoreSelections.size === 0 || isRestoring}
-                    className="px-4 py-2 bg-amber-600 text-white rounded-lg hover:bg-amber-700 transition-colors disabled:bg-gray-400 disabled:cursor-not-allowed text-sm flex items-center gap-2"
+                    disabled={isRestoring}
+                    className="flex-1 px-4 py-3 bg-red-600 text-white rounded-lg hover:bg-red-700 transition-colors disabled:bg-gray-400 disabled:cursor-not-allowed font-semibold flex items-center justify-center gap-2"
                   >
                     {isRestoring ? (
                       <>
-                        <div className="animate-spin rounded-full h-3 w-3 border-b-2 border-white"></div>
+                        <div className="animate-spin rounded-full h-4 w-4 border-b-2 border-white"></div>
                         Restoring...
                       </>
                     ) : (
-                      <>Restore {restoreSelections.size} files</>
+                      <>
+                        <Upload className="w-5 h-5" />
+                        Start Full Restore
+                      </>
                     )}
                   </button>
                   <button
                     onClick={() => setReconciliation(null)}
-                    className="px-4 py-2 border border-gray-300 text-gray-700 rounded-lg hover:bg-gray-50 text-sm"
+                    disabled={isRestoring}
+                    className="px-6 py-3 border-2 border-gray-300 text-gray-700 rounded-lg hover:bg-gray-50 font-semibold"
                   >
                     Cancel
                   </button>
@@ -652,12 +666,13 @@ export function BackupManager({ onClose }: BackupManagerProps) {
             <div className="p-4 bg-blue-50 rounded-lg border border-blue-200 flex items-start gap-3">
               <Clock className="w-5 h-5 text-blue-600 flex-shrink-0 mt-0.5" />
               <div className="flex-1 text-sm text-blue-900">
-                <p className="font-medium mb-1">About Backups:</p>
+                <p className="font-medium mb-1">About Backups & Restore:</p>
                 <ul className="space-y-1 text-blue-800">
-                  <li>Backups include all data files, documents, and your encrypted master key</li>
-                  <li>No decryption happens during backup - files are copied as-is</li>
-                  <li>Your password is needed to restore (it unlocks the master key)</li>
-                  <li>Restore shows a preview before making changes</li>
+                  <li><strong>Full backup system:</strong> Each backup is a complete snapshot of all your data</li>
+                  <li><strong>Backup:</strong> No decryption happens - files are copied as-is with your encrypted master key</li>
+                  <li><strong>Restore:</strong> REPLACES all current data with the backup (not a merge)</li>
+                  <li><strong>Safety:</strong> You'll be offered a safety backup before restore begins</li>
+                  <li><strong>Password:</strong> Needed to restore (unlocks the master key in the backup)</li>
                   <li>Legacy .encrypted.json backups are still supported</li>
                 </ul>
               </div>
