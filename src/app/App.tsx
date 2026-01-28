@@ -1,17 +1,7 @@
 import { useState, useEffect } from 'react';
 import {
-  Award,
-  GraduationCap,
-  Heart,
-  Wallet,
-  Camera,
-  Users,
-  Store,
   Brain,
   LayoutDashboard,
-  Briefcase,
-  PiggyBank,
-  Receipt,
   Download,
   Upload,
   HardDrive,
@@ -22,8 +12,9 @@ import {
   AlertCircle,
   Settings,
   Eye,
-  EyeOff
+  EyeOff,
 } from 'lucide-react';
+import { panels, getPanelGroups, getDefaultVisiblePanels, PanelId } from '../config/panels';
 import { CategoryCard } from './components/CategoryCard';
 import { DocumentManagerSecure } from './components/DocumentManagerSecure';
 import { FinanceManagerSecure } from './components/FinanceManagerSecure';
@@ -34,6 +25,9 @@ import { AIOverview } from './components/AIOverview';
 import { EmploymentManagerSecure } from './components/EmploymentManagerSecure';
 import { EducationManagerSecure } from './components/EducationManagerSecure';
 import { CertificateManagerSecure } from './components/CertificateManagerSecure';
+import { VehicleManagerSecure } from './components/VehicleManagerSecure';
+import { PropertyManagerSecure } from './components/PropertyManagerSecure';
+import { KakeiboManagerSecure } from './components/KakeiboManagerSecure';
 import { MedicalHistoryManagerSecure } from './components/MedicalHistoryManagerSecure';
 import { PensionManagerSecure } from './components/PensionManagerSecure';
 import { BudgetManagerSecure } from './components/BudgetManagerSecure';
@@ -44,7 +38,7 @@ import { ImportWizard } from './components/ImportWizard';
 import { BackupManager } from './components/BackupManager';
 import { PasswordChangeModal } from './components/PasswordChangeModal';
 
-type ModalType = 'certificates' | 'education' | 'health' | 'finance' | 'pensions' | 'budget' | 'photos' | 'contacts' | 'websites' | 'employment' | 'ai' | 'backup' | null;
+type ModalType = PanelId | 'ai' | 'backup' | null;
 
 export default function App() {
   const [isUnlocked, setIsUnlocked] = useState(false);
@@ -59,13 +53,44 @@ export default function App() {
   const [hiddenCategories, setHiddenCategories] = useState<Set<string>>(() => {
     // Load hidden categories from localStorage
     const saved = localStorage.getItem('hidden_categories');
-    return saved ? new Set(JSON.parse(saved)) : new Set();
+    if (saved) {
+      // Existing user - use their saved preferences
+      return new Set(JSON.parse(saved));
+    }
+    // New user - hide panels where defaultVisible is false
+    const defaultHidden = panels
+      .filter(p => !p.defaultVisible)
+      .map(p => p.id);
+    return new Set(defaultHidden);
   });
 
   // Check if user has already set up a master password
   useEffect(() => {
-    const hasPassword = localStorage.getItem('master_password_hash');
-    setHasMasterPassword(!!hasPassword);
+    const checkMasterPassword = async () => {
+      // Check localStorage first (browser mode)
+      const hasPasswordInStorage = localStorage.getItem('master_password_hash');
+      if (hasPasswordInStorage) {
+        setHasMasterPassword(true);
+        return;
+      }
+
+      // Check Electron file-based master key
+      if (typeof window !== 'undefined' && 'electronAPI' in window) {
+        try {
+          const result = await (window as any).electronAPI.masterKey.exists();
+          if (result.exists) {
+            setHasMasterPassword(true);
+            return;
+          }
+        } catch (err) {
+          console.error('Error checking master key:', err);
+        }
+      }
+
+      setHasMasterPassword(false);
+    };
+
+    checkMasterPassword();
   }, []);
 
   const handleSetupComplete = (password: string) => {
@@ -237,68 +262,8 @@ export default function App() {
     return <ImportWizard masterPassword={masterPassword} onImportComplete={handleImportComplete} />;
   }
 
-  const categories = [
-    {
-      id: 'certificates' as const,
-      title: 'Certificates',
-      icon: Award,
-      description: 'Birth certificate, marriage license, and other official documents'
-    },
-    {
-      id: 'education' as const,
-      title: 'Education',
-      icon: GraduationCap,
-      description: 'Diplomas, transcripts, and educational records'
-    },
-    {
-      id: 'employment' as const,
-      title: 'Employment',
-      icon: Briefcase,
-      description: 'Work history, roles, responsibilities, and pension tracking'
-    },
-    {
-      id: 'health' as const,
-      title: 'Health',
-      icon: Heart,
-      description: 'Medical records, insurance, and health documents'
-    },
-    {
-      id: 'finance' as const,
-      title: 'Banks & Savings',
-      icon: Wallet,
-      description: 'Bank accounts, savings, and ISAs'
-    },
-    {
-      id: 'pensions' as const,
-      title: 'Pensions',
-      icon: PiggyBank,
-      description: 'Retirement savings, DB and DC pension funds'
-    },
-    {
-      id: 'budget' as const,
-      title: 'Budget',
-      icon: Receipt,
-      description: 'Monthly expenses, bills, and direct debits'
-    },
-    {
-      id: 'photos' as const,
-      title: 'Photos',
-      icon: Camera,
-      description: 'Personal photos and cherished memories'
-    },
-    {
-      id: 'contacts' as const,
-      title: 'Contacts',
-      icon: Users,
-      description: 'Important people in your life'
-    },
-    {
-      id: 'websites' as const,
-      title: 'Websites',
-      icon: Store,
-      description: 'Your virtual high street of favorite websites'
-    }
-  ];
+  // Use panels from central registry
+  const categories = panels;
 
   return (
     <StorageProvider masterPassword={masterPassword}>
@@ -451,6 +416,15 @@ export default function App() {
       {activeModal === 'budget' && (
         <BudgetManagerSecure onClose={handleModalClose} />
       )}
+      {activeModal === 'kakeibo' && (
+        <KakeiboManagerSecure onClose={handleModalClose} />
+      )}
+      {activeModal === 'vehicles' && (
+        <VehicleManagerSecure onClose={handleModalClose} />
+      )}
+      {activeModal === 'property' && (
+        <PropertyManagerSecure onClose={handleModalClose} />
+      )}
       {activeModal === 'photos' && (
         <PhotoGallerySecure onClose={handleModalClose} />
       )}
@@ -502,49 +476,70 @@ export default function App() {
               </p>
             </div>
 
-            {/* Category List */}
-            <div className="space-y-2">
-              {categories.map((category) => {
-                const Icon = category.icon;
-                const isVisible = isCategoryVisible(category.id);
+            {/* Category List - Grouped */}
+            <div className="space-y-6">
+              {getPanelGroups().map(({ group, label, panels: groupPanels }) => (
+                <div key={group}>
+                  <h3 className="text-sm font-semibold text-gray-500 uppercase tracking-wider mb-3">
+                    {label}
+                  </h3>
+                  <div className="space-y-2">
+                    {groupPanels.map((panel) => {
+                      const Icon = panel.icon;
+                      const isVisible = isCategoryVisible(panel.id);
 
-                return (
-                  <button
-                    key={category.id}
-                    onClick={() => toggleCategoryVisibility(category.id)}
-                    className={`w-full p-4 rounded-xl border-2 transition-all flex items-center justify-between ${
-                      isVisible
-                        ? 'border-blue-200 bg-blue-50 hover:bg-blue-100'
-                        : 'border-gray-200 bg-gray-50 hover:bg-gray-100 opacity-60'
-                    }`}
-                  >
-                    <div className="flex items-center gap-3">
-                      <div className={`p-2 rounded-lg ${isVisible ? 'bg-blue-100 text-blue-600' : 'bg-gray-200 text-gray-500'}`}>
-                        <Icon className="w-5 h-5" />
-                      </div>
-                      <div className="text-left">
-                        <p className={`font-medium ${isVisible ? 'text-gray-900' : 'text-gray-500'}`}>
-                          {category.title}
-                        </p>
-                        <p className="text-sm text-gray-500">{category.description}</p>
-                      </div>
-                    </div>
-                    <div className="flex items-center gap-2">
-                      {isVisible ? (
-                        <>
-                          <Eye className="w-5 h-5 text-blue-600" />
-                          <span className="text-sm font-medium text-blue-600">Visible</span>
-                        </>
-                      ) : (
-                        <>
-                          <EyeOff className="w-5 h-5 text-gray-400" />
-                          <span className="text-sm font-medium text-gray-500">Hidden</span>
-                        </>
-                      )}
-                    </div>
-                  </button>
-                );
-              })}
+                      return (
+                        <button
+                          key={panel.id}
+                          onClick={() => toggleCategoryVisibility(panel.id)}
+                          className={`w-full p-4 rounded-xl border-2 transition-all flex items-center justify-between ${
+                            isVisible
+                              ? 'border-blue-200 bg-blue-50 hover:bg-blue-100'
+                              : 'border-gray-200 bg-gray-50 hover:bg-gray-100 opacity-60'
+                          }`}
+                        >
+                          <div className="flex items-center gap-3">
+                            <div className={`p-2 rounded-lg ${isVisible ? 'bg-blue-100 text-blue-600' : 'bg-gray-200 text-gray-500'}`}>
+                              <Icon className="w-5 h-5" />
+                            </div>
+                            <div className="text-left">
+                              <div className="flex items-center gap-2">
+                                <p className={`font-medium ${isVisible ? 'text-gray-900' : 'text-gray-500'}`}>
+                                  {panel.title}
+                                </p>
+                                {!panel.defaultVisible && (
+                                  <span className="text-xs px-1.5 py-0.5 bg-gray-200 text-gray-600 rounded">
+                                    Optional
+                                  </span>
+                                )}
+                                {panel.region !== 'global' && (
+                                  <span className="text-xs px-1.5 py-0.5 bg-amber-100 text-amber-700 rounded uppercase">
+                                    {panel.region}
+                                  </span>
+                                )}
+                              </div>
+                              <p className="text-sm text-gray-500">{panel.description}</p>
+                            </div>
+                          </div>
+                          <div className="flex items-center gap-2">
+                            {isVisible ? (
+                              <>
+                                <Eye className="w-5 h-5 text-blue-600" />
+                                <span className="text-sm font-medium text-blue-600">Visible</span>
+                              </>
+                            ) : (
+                              <>
+                                <EyeOff className="w-5 h-5 text-gray-400" />
+                                <span className="text-sm font-medium text-gray-500">Hidden</span>
+                              </>
+                            )}
+                          </div>
+                        </button>
+                      );
+                    })}
+                  </div>
+                </div>
+              ))}
             </div>
 
             {/* Footer */}
