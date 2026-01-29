@@ -1264,7 +1264,7 @@ export function CertificateManagerSecure({ onClose }: CertificateManagerSecurePr
                   <button
                     onClick={() => {
                       setViewingDetails(null);
-                      setViewingCertificate(viewingDetails);
+                      viewFile(viewingDetails);
                     }}
                     className="flex-1 px-4 py-2 bg-green-600 text-white rounded-lg hover:bg-green-700 transition-colors flex items-center justify-center gap-2"
                   >

@@ -1,7 +1,34 @@
 import { useState, useEffect } from 'react';
-import { X, Plus, Trash, Heart, Calendar, Edit2, Key, FileText, ExternalLink, Hospital, Stethoscope, Search, AlertCircle, Upload, Eye, EyeOff, Download } from 'lucide-react';
+import { X, Plus, Trash, Heart, Calendar, Edit2, Key, FileText, ExternalLink, Hospital, Stethoscope, Search, AlertCircle, Upload, Eye, EyeOff, Download, User, Building, Shield, Phone, MapPin, CreditCard, ChevronDown, ChevronUp } from 'lucide-react';
 import { useStorage, useDocumentService } from '../../contexts/StorageContext';
 import { DocumentReference } from '../../services/document-service';
+
+interface HealthcareProvider {
+  id: string;
+  type: 'nhs_gp' | 'nhs_surgery' | 'private_gp' | 'private_specialist' | 'insurance';
+  name: string;
+  role?: string; // e.g., "GP", "Cardiologist", "Surgeon"
+  practiceName?: string; // Surgery/Clinic name
+  address?: string;
+  phone?: string;
+  email?: string;
+  website?: string;
+  // NHS specific
+  nhsNumber?: string; // Patient's NHS number (only for NHS GP)
+  surgeryNHSCode?: string; // Surgery NHS code
+  // Private specific
+  registrationNumber?: string; // GMC number for doctors
+  consultationFee?: number;
+  // Insurance specific
+  policyNumber?: string;
+  membershipNumber?: string;
+  groupNumber?: string;
+  coverageDetails?: string;
+  renewalDate?: string;
+  // Common
+  notes?: string;
+  documents?: DocumentReference[];
+}
 
 interface MedicalRecord {
   id: string;
@@ -10,11 +37,22 @@ interface MedicalRecord {
   specialty: string; // e.g., Cardiology, Gastroenterology, Orthopedics
   provider: string; // Doctor name or hospital
   condition: string;
+  medicalSummary?: string; // Critical information for emergency/quick reference
   notes: string;
   treatment: string;
   outcome: string;
   attachments: string[]; // Legacy: Filenames only (for backwards compatibility)
   documents?: DocumentReference[]; // Document references (stored separately, loaded on-demand)
+}
+
+interface MedicalProfile {
+  nhsNumber?: string;
+  bloodType?: string;
+  allergies?: string;
+  chronicConditions?: string;
+  currentMedications?: string;
+  emergencyContact?: string;
+  providers?: HealthcareProvider[];
 }
 
 interface MedicalHistoryManagerSecureProps {
@@ -27,6 +65,7 @@ const emptyRecord = {
   specialty: '',
   provider: '',
   condition: '',
+  medicalSummary: '',
   notes: '',
   treatment: '',
   outcome: '',
@@ -50,8 +89,18 @@ export function MedicalHistoryManagerSecure({ onClose }: MedicalHistoryManagerSe
   const [loadingDocument, setLoadingDocument] = useState(false);
   const [showSummary, setShowSummary] = useState(true);
 
+  // Medical Profile state
+  const [medicalProfile, setMedicalProfile] = useState<MedicalProfile>({});
+  const [editingProfile, setEditingProfile] = useState(false);
+  const [showProviders, setShowProviders] = useState(false);
+  const [editingProvider, setEditingProvider] = useState<HealthcareProvider | null>(null);
+  const [addingProvider, setAddingProvider] = useState(false);
+  const [expandedProvider, setExpandedProvider] = useState<string | null>(null);
+  const [expandedNHSInfo, setExpandedNHSInfo] = useState(true);
+
   useEffect(() => {
     loadRecords();
+    loadMedicalProfile();
   }, []);
 
   useEffect(() => {
@@ -111,6 +160,33 @@ export function MedicalHistoryManagerSecure({ onClose }: MedicalHistoryManagerSe
       console.error('Error loading medical records:', err);
     } finally {
       setIsLoading(false);
+    }
+  };
+
+  const loadMedicalProfile = async () => {
+    try {
+      const profiles = await storage.get<MedicalProfile>('medical_profile');
+      if (profiles.length > 0) {
+        setMedicalProfile(profiles[0]);
+      }
+    } catch (err) {
+      console.error('Error loading medical profile:', err);
+    }
+  };
+
+  const saveMedicalProfile = async (profile: MedicalProfile) => {
+    try {
+      const profiles = await storage.get<MedicalProfile>('medical_profile');
+      if (profiles.length > 0) {
+        await storage.update('medical_profile', profiles[0].id as string, profile);
+      } else {
+        await storage.add('medical_profile', { ...profile, id: Date.now().toString() });
+      }
+      setMedicalProfile(profile);
+      setEditingProfile(false);
+    } catch (err) {
+      setError('Failed to save medical profile');
+      console.error(err);
     }
   };
 
@@ -466,6 +542,13 @@ export function MedicalHistoryManagerSecure({ onClose }: MedicalHistoryManagerSe
                 {showSummary ? <EyeOff className="w-4 h-4 text-red-600" /> : <Eye className="w-4 h-4 text-red-600" />}
               </button>
               <button
+                onClick={() => setShowProviders(!showProviders)}
+                className="flex items-center gap-2 px-3 py-2 bg-white text-blue-600 rounded-lg hover:bg-blue-50 transition-colors"
+              >
+                <Stethoscope className="w-4 h-4" />
+                Providers
+              </button>
+              <button
                 onClick={() => setShowAddForm(!showAddForm)}
                 className="flex items-center gap-2 px-4 py-2 bg-white text-red-600 rounded-lg hover:bg-red-50 transition-colors"
               >
@@ -529,6 +612,298 @@ export function MedicalHistoryManagerSecure({ onClose }: MedicalHistoryManagerSe
             </div>
           </div>
         </div>
+        )}
+
+        {/* Healthcare Providers Section */}
+        {showProviders && (
+          <div className="px-6 py-4 bg-blue-50 border-b border-blue-200 max-h-[60vh] overflow-y-auto">
+            <div className="mb-4">
+              <div className="flex items-center justify-between mb-3">
+                <h3 className="text-lg font-semibold text-gray-900 flex items-center gap-2">
+                  <Stethoscope className="w-5 h-5 text-blue-600" />
+                  Healthcare Providers & NHS Details
+                </h3>
+                <button
+                  onClick={() => setAddingProvider(true)}
+                  className="px-3 py-1.5 bg-blue-600 text-white rounded-lg hover:bg-blue-700 text-sm flex items-center gap-1"
+                >
+                  <Plus className="w-3 h-3" />
+                  Add Provider
+                </button>
+              </div>
+
+              {/* NHS Number and Basic Info */}
+              <div className="bg-white rounded-lg p-4 mb-3">
+                <div
+                  className="flex items-center justify-between cursor-pointer"
+                  onClick={() => !editingProfile && setExpandedNHSInfo(!expandedNHSInfo)}
+                >
+                  <h4 className="font-medium text-gray-700 flex items-center gap-2">
+                    <Shield className="w-4 h-4 text-blue-600" />
+                    NHS & Medical Information
+                  </h4>
+                  <div className="flex items-center gap-2">
+                    {!editingProfile ? (
+                      <>
+                        <button
+                          onClick={(e) => {
+                            e.stopPropagation();
+                            setEditingProfile(true);
+                            setExpandedNHSInfo(true);
+                          }}
+                          className="text-sm text-blue-600 hover:text-blue-700"
+                        >
+                          <Edit2 className="w-3 h-3 inline mr-1" />
+                          Edit
+                        </button>
+                        {expandedNHSInfo ?
+                          <ChevronUp className="w-4 h-4 text-gray-400" /> :
+                          <ChevronDown className="w-4 h-4 text-gray-400" />
+                        }
+                      </>
+                    ) : (
+                      <div className="flex gap-2">
+                      <button
+                        onClick={() => saveMedicalProfile(medicalProfile)}
+                        className="text-sm text-green-600 hover:text-green-700"
+                      >
+                        Save
+                      </button>
+                      <button
+                        onClick={() => {
+                          setEditingProfile(false);
+                          loadMedicalProfile();
+                        }}
+                        className="text-sm text-gray-600 hover:text-gray-700"
+                      >
+                        Cancel
+                      </button>
+                    </div>
+                  )}
+                </div>
+              </div>
+
+                {expandedNHSInfo && (
+                  <>
+                    {editingProfile ? (
+                  <div className="grid grid-cols-1 md:grid-cols-3 gap-3">
+                    <div>
+                      <label className="block text-xs text-gray-500 mb-1">NHS Number</label>
+                      <input
+                        type="text"
+                        value={medicalProfile.nhsNumber || ''}
+                        onChange={(e) => setMedicalProfile({ ...medicalProfile, nhsNumber: e.target.value })}
+                        placeholder="000-000-0000"
+                        className="w-full px-3 py-1.5 border border-gray-300 rounded text-sm"
+                      />
+                    </div>
+                    <div>
+                      <label className="block text-xs text-gray-500 mb-1">Blood Type</label>
+                      <input
+                        type="text"
+                        value={medicalProfile.bloodType || ''}
+                        onChange={(e) => setMedicalProfile({ ...medicalProfile, bloodType: e.target.value })}
+                        placeholder="e.g., O+"
+                        className="w-full px-3 py-1.5 border border-gray-300 rounded text-sm"
+                      />
+                    </div>
+                    <div>
+                      <label className="block text-xs text-gray-500 mb-1">Emergency Contact</label>
+                      <input
+                        type="text"
+                        value={medicalProfile.emergencyContact || ''}
+                        onChange={(e) => setMedicalProfile({ ...medicalProfile, emergencyContact: e.target.value })}
+                        placeholder="Name & Phone"
+                        className="w-full px-3 py-1.5 border border-gray-300 rounded text-sm"
+                      />
+                    </div>
+                    <div className="md:col-span-3">
+                      <label className="block text-xs text-gray-500 mb-1">Allergies</label>
+                      <input
+                        type="text"
+                        value={medicalProfile.allergies || ''}
+                        onChange={(e) => setMedicalProfile({ ...medicalProfile, allergies: e.target.value })}
+                        placeholder="List any allergies"
+                        className="w-full px-3 py-1.5 border border-gray-300 rounded text-sm"
+                      />
+                    </div>
+                    <div className="md:col-span-3">
+                      <label className="block text-xs text-gray-500 mb-1">Chronic Conditions</label>
+                      <input
+                        type="text"
+                        value={medicalProfile.chronicConditions || ''}
+                        onChange={(e) => setMedicalProfile({ ...medicalProfile, chronicConditions: e.target.value })}
+                        placeholder="List chronic conditions"
+                        className="w-full px-3 py-1.5 border border-gray-300 rounded text-sm"
+                      />
+                    </div>
+                    <div className="md:col-span-3">
+                      <label className="block text-xs text-gray-500 mb-1">Current Medications</label>
+                      <textarea
+                        value={medicalProfile.currentMedications || ''}
+                        onChange={(e) => setMedicalProfile({ ...medicalProfile, currentMedications: e.target.value })}
+                        placeholder="List current medications and dosages"
+                        className="w-full px-3 py-1.5 border border-gray-300 rounded text-sm"
+                        rows={2}
+                      />
+                    </div>
+                  </div>
+                ) : (
+                  <div className="space-y-2 text-sm">
+                    {medicalProfile.nhsNumber && (
+                      <p><span className="text-gray-500">NHS Number:</span> <span className="font-medium">{medicalProfile.nhsNumber}</span></p>
+                    )}
+                    {medicalProfile.bloodType && (
+                      <p><span className="text-gray-500">Blood Type:</span> {medicalProfile.bloodType}</p>
+                    )}
+                    {medicalProfile.allergies && (
+                      <p><span className="text-gray-500">Allergies:</span> {medicalProfile.allergies}</p>
+                    )}
+                    {medicalProfile.chronicConditions && (
+                      <p><span className="text-gray-500">Chronic Conditions:</span> {medicalProfile.chronicConditions}</p>
+                    )}
+                    {medicalProfile.currentMedications && (
+                      <p><span className="text-gray-500">Current Medications:</span> {medicalProfile.currentMedications}</p>
+                    )}
+                    {medicalProfile.emergencyContact && (
+                      <p><span className="text-gray-500">Emergency Contact:</span> {medicalProfile.emergencyContact}</p>
+                    )}
+                    {!medicalProfile.nhsNumber && !medicalProfile.bloodType && (
+                      <p className="text-gray-400 italic">No medical information added yet</p>
+                    )}
+                  </div>
+                    )}
+                  </>
+                )}
+              </div>
+
+              {/* Providers List */}
+              {medicalProfile.providers && medicalProfile.providers.length > 0 && (
+                <div className="space-y-2">
+                  {medicalProfile.providers.map((provider) => (
+                    <div key={provider.id} className="bg-white rounded-lg p-3 border border-gray-200">
+                      <div
+                        className="flex items-center justify-between cursor-pointer"
+                        onClick={() => setExpandedProvider(expandedProvider === provider.id ? null : provider.id)}
+                      >
+                        <div className="flex items-center gap-3">
+                          <div className={`p-2 rounded-lg ${
+                            provider.type === 'nhs_gp' || provider.type === 'nhs_surgery' ? 'bg-blue-100 text-blue-600' :
+                            provider.type === 'insurance' ? 'bg-green-100 text-green-600' :
+                            'bg-purple-100 text-purple-600'
+                          }`}>
+                            {provider.type === 'insurance' ? <Shield className="w-4 h-4" /> :
+                             provider.type === 'nhs_surgery' ? <Building className="w-4 h-4" /> :
+                             <User className="w-4 h-4" />}
+                          </div>
+                          <div>
+                            <p className="font-medium text-gray-900">{provider.name}</p>
+                            <p className="text-xs text-gray-500">
+                              {provider.type === 'nhs_gp' ? 'NHS GP' :
+                               provider.type === 'nhs_surgery' ? 'NHS Surgery' :
+                               provider.type === 'private_gp' ? 'Private GP' :
+                               provider.type === 'private_specialist' ? `Private ${provider.role || 'Specialist'}` :
+                               'Health Insurance'}
+                              {provider.practiceName && ` • ${provider.practiceName}`}
+                            </p>
+                          </div>
+                        </div>
+                        <div className="flex items-center gap-2">
+                          <button
+                            onClick={(e) => {
+                              e.stopPropagation();
+                              setEditingProvider(provider);
+                            }}
+                            className="p-1 hover:bg-gray-100 rounded"
+                          >
+                            <Edit2 className="w-3 h-3 text-gray-500" />
+                          </button>
+                          {expandedProvider === provider.id ?
+                            <ChevronUp className="w-4 h-4 text-gray-400" /> :
+                            <ChevronDown className="w-4 h-4 text-gray-400" />
+                          }
+                        </div>
+                      </div>
+
+                      {expandedProvider === provider.id && (
+                        <div className="mt-3 pt-3 border-t border-gray-100 space-y-2 text-sm">
+                          {provider.address && (
+                            <p className="flex items-start gap-2">
+                              <MapPin className="w-3 h-3 text-gray-400 mt-0.5" />
+                              <span className="text-gray-600">{provider.address}</span>
+                            </p>
+                          )}
+                          {provider.phone && (
+                            <p className="flex items-center gap-2">
+                              <Phone className="w-3 h-3 text-gray-400" />
+                              <span className="text-gray-600">{provider.phone}</span>
+                            </p>
+                          )}
+                          {provider.policyNumber && (
+                            <p><span className="text-gray-500">Policy:</span> {provider.policyNumber}</p>
+                          )}
+                          {provider.membershipNumber && (
+                            <p><span className="text-gray-500">Membership:</span> {provider.membershipNumber}</p>
+                          )}
+                          {provider.registrationNumber && (
+                            <p><span className="text-gray-500">GMC Number:</span> {provider.registrationNumber}</p>
+                          )}
+                          {provider.consultationFee && (
+                            <p><span className="text-gray-500">Consultation Fee:</span> £{provider.consultationFee}</p>
+                          )}
+                          {provider.renewalDate && (
+                            <p><span className="text-gray-500">Renewal:</span> {new Date(provider.renewalDate).toLocaleDateString('en-GB')}</p>
+                          )}
+                          {provider.notes && (
+                            <p className="text-gray-600 italic">{provider.notes}</p>
+                          )}
+                          <div className="mt-2">
+                            <div className="flex flex-wrap gap-2">
+                              {provider.documents && provider.documents.map((doc, idx) => (
+                                <button
+                                  key={idx}
+                                  onClick={() => viewFile(doc)}
+                                  className="flex items-center gap-1 px-2 py-1 bg-blue-100 text-blue-700 rounded hover:bg-blue-200 text-xs"
+                                >
+                                  <FileText className="w-3 h-3" />
+                                  {doc.filename}
+                                </button>
+                              ))}
+                              <label className="flex items-center gap-1 px-2 py-1 bg-gray-100 text-gray-600 rounded hover:bg-gray-200 cursor-pointer text-xs">
+                                <Upload className="w-3 h-3" />
+                                Add Document
+                                <input
+                                  type="file"
+                                  accept="image/*,.pdf"
+                                  onChange={async (e) => {
+                                    if (e.target.files?.[0]) {
+                                      const docRef = await documentService.uploadDocument(e.target.files[0]);
+                                      const updatedProvider = {
+                                        ...provider,
+                                        documents: [...(provider.documents || []), docRef]
+                                      };
+                                      const updatedProfile = {
+                                        ...medicalProfile,
+                                        providers: medicalProfile.providers?.map(p =>
+                                          p.id === provider.id ? updatedProvider : p
+                                        ) || []
+                                      };
+                                      await saveMedicalProfile(updatedProfile);
+                                    }
+                                  }}
+                                  className="hidden"
+                                />
+                              </label>
+                            </div>
+                          </div>
+                        </div>
+                      )}
+                    </div>
+                  ))}
+                </div>
+              )}
+            </div>
+          </div>
         )}
 
         <div className="px-6 py-3 border-b border-gray-200">
@@ -604,6 +979,19 @@ export function MedicalHistoryManagerSecure({ onClose }: MedicalHistoryManagerSe
                   placeholder="Condition/Reason for visit..."
                   className="w-full px-4 py-2 border border-gray-300 rounded-lg bg-white"
                 />
+                <div>
+                  <label className="block text-sm font-medium text-gray-700 mb-1">
+                    Medical Summary
+                    <span className="text-xs text-gray-500 ml-2">(Critical information for emergency/quick reference)</span>
+                  </label>
+                  <textarea
+                    value={newRecord.medicalSummary}
+                    onChange={(e) => setNewRecord({ ...newRecord, medicalSummary: e.target.value })}
+                    placeholder="Important medical information, conditions, or medications that should be communicated..."
+                    className="w-full px-4 py-2 border border-gray-300 rounded-lg bg-white"
+                    rows={2}
+                  />
+                </div>
                 <textarea
                   value={newRecord.notes}
                   onChange={(e) => setNewRecord({ ...newRecord, notes: e.target.value })}
@@ -721,6 +1109,15 @@ export function MedicalHistoryManagerSecure({ onClose }: MedicalHistoryManagerSe
                             </div>
                             {expandedRecord === record.id && (
                               <div className="mt-4 space-y-3 text-sm">
+                                {record.medicalSummary && (
+                                  <div className="p-3 bg-yellow-50 border border-yellow-200 rounded-lg">
+                                    <p className="text-gray-700 font-medium mb-1 flex items-center gap-1">
+                                      <AlertCircle className="w-4 h-4 text-yellow-600" />
+                                      Medical Summary:
+                                    </p>
+                                    <p className="text-gray-700 whitespace-pre-line">{record.medicalSummary}</p>
+                                  </div>
+                                )}
                                 {record.notes && (
                                   <div>
                                     <p className="text-gray-500 font-medium mb-1">Notes:</p>
@@ -815,10 +1212,9 @@ export function MedicalHistoryManagerSecure({ onClose }: MedicalHistoryManagerSe
             )}
           </div>
         </div>
-      </div>
 
-      {/* Edit Modal */}
-      {editingRecord && (
+        {/* Edit Modal */}
+        {editingRecord && (
         <div className="fixed inset-0 bg-black/60 flex items-center justify-center z-[60] p-4">
           <div className="bg-white rounded-2xl max-w-3xl w-full p-6 shadow-2xl max-h-[90vh] overflow-y-auto">
             <div className="flex items-center justify-between mb-6">
@@ -887,6 +1283,20 @@ export function MedicalHistoryManagerSecure({ onClose }: MedicalHistoryManagerSe
                   value={editingRecord.condition}
                   onChange={(e) => setEditingRecord({ ...editingRecord, condition: e.target.value })}
                   className="w-full px-4 py-2 border border-gray-300 rounded-lg bg-white focus:ring-2 focus:ring-green-500 focus:border-transparent"
+                />
+              </div>
+
+              <div>
+                <label className="block text-sm font-medium text-gray-700 mb-1">
+                  Medical Summary
+                  <span className="text-xs text-gray-500 ml-2">(Critical information for emergency/quick reference)</span>
+                </label>
+                <textarea
+                  value={editingRecord.medicalSummary || ''}
+                  onChange={(e) => setEditingRecord({ ...editingRecord, medicalSummary: e.target.value })}
+                  className="w-full px-4 py-2 border border-gray-300 rounded-lg bg-white focus:ring-2 focus:ring-green-500 focus:border-transparent"
+                  rows={2}
+                  placeholder="Important medical information, conditions, or medications that should be communicated..."
                 />
               </div>
 
@@ -1048,6 +1458,447 @@ export function MedicalHistoryManagerSecure({ onClose }: MedicalHistoryManagerSe
           </div>
         </div>
       )}
+
+      {/* Add Provider Modal */}
+      {addingProvider && (
+        <div className="fixed inset-0 bg-black/60 flex items-center justify-center z-[60] p-4">
+          <div className="bg-white rounded-2xl max-w-2xl w-full p-6 shadow-2xl max-h-[90vh] overflow-y-auto">
+            <div className="flex items-center justify-between mb-4">
+              <h3 className="text-xl font-semibold text-gray-900">Add Healthcare Provider</h3>
+              <button
+                onClick={() => setAddingProvider(false)}
+                className="p-2 hover:bg-gray-100 rounded-lg"
+              >
+                <X className="w-5 h-5" />
+              </button>
+            </div>
+
+            <form onSubmit={(e) => {
+              e.preventDefault();
+              const newProvider: HealthcareProvider = {
+                id: Date.now().toString(),
+                type: 'nhs_gp',
+                name: '',
+                ...Object.fromEntries(new FormData(e.currentTarget))
+              } as HealthcareProvider;
+
+              const updatedProfile = {
+                ...medicalProfile,
+                providers: [...(medicalProfile.providers || []), newProvider]
+              };
+              saveMedicalProfile(updatedProfile);
+              setAddingProvider(false);
+            }}>
+              <div className="space-y-4">
+                <div>
+                  <label className="block text-sm font-medium text-gray-700 mb-1">Provider Type *</label>
+                  <select name="type" className="w-full px-3 py-2 border border-gray-300 rounded-lg" required>
+                    <option value="nhs_gp">NHS GP</option>
+                    <option value="nhs_surgery">NHS Surgery</option>
+                    <option value="private_gp">Private GP</option>
+                    <option value="private_specialist">Private Specialist</option>
+                    <option value="insurance">Health Insurance</option>
+                  </select>
+                </div>
+
+                <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                  <div>
+                    <label className="block text-sm font-medium text-gray-700 mb-1">Name *</label>
+                    <input
+                      type="text"
+                      name="name"
+                      placeholder="Dr. Name / Surgery / Company"
+                      className="w-full px-3 py-2 border border-gray-300 rounded-lg"
+                      required
+                    />
+                  </div>
+                  <div>
+                    <label className="block text-sm font-medium text-gray-700 mb-1">Practice/Clinic</label>
+                    <input
+                      type="text"
+                      name="practiceName"
+                      placeholder="Practice or clinic name"
+                      className="w-full px-3 py-2 border border-gray-300 rounded-lg"
+                    />
+                  </div>
+                </div>
+
+                <div>
+                  <label className="block text-sm font-medium text-gray-700 mb-1">Address</label>
+                  <textarea
+                    name="address"
+                    placeholder="Full address"
+                    className="w-full px-3 py-2 border border-gray-300 rounded-lg"
+                    rows={2}
+                  />
+                </div>
+
+                <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                  <div>
+                    <label className="block text-sm font-medium text-gray-700 mb-1">Phone</label>
+                    <input
+                      type="tel"
+                      name="phone"
+                      placeholder="Contact number"
+                      className="w-full px-3 py-2 border border-gray-300 rounded-lg"
+                    />
+                  </div>
+                  <div>
+                    <label className="block text-sm font-medium text-gray-700 mb-1">Email</label>
+                    <input
+                      type="email"
+                      name="email"
+                      placeholder="Email address"
+                      className="w-full px-3 py-2 border border-gray-300 rounded-lg"
+                    />
+                  </div>
+                </div>
+
+                <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                  <div>
+                    <label className="block text-sm font-medium text-gray-700 mb-1">Policy/Membership Number</label>
+                    <input
+                      type="text"
+                      name="policyNumber"
+                      placeholder="For insurance or NHS number"
+                      className="w-full px-3 py-2 border border-gray-300 rounded-lg"
+                    />
+                  </div>
+                  <div>
+                    <label className="block text-sm font-medium text-gray-700 mb-1">GMC/Registration Number</label>
+                    <input
+                      type="text"
+                      name="registrationNumber"
+                      placeholder="Professional registration"
+                      className="w-full px-3 py-2 border border-gray-300 rounded-lg"
+                    />
+                  </div>
+                </div>
+
+                <div>
+                  <label className="block text-sm font-medium text-gray-700 mb-1">Notes</label>
+                  <textarea
+                    name="notes"
+                    placeholder="Additional information"
+                    className="w-full px-3 py-2 border border-gray-300 rounded-lg"
+                    rows={2}
+                  />
+                </div>
+
+                <div className="flex justify-end gap-2 pt-4">
+                  <button
+                    type="button"
+                    onClick={() => setAddingProvider(false)}
+                    className="px-4 py-2 text-gray-600 border border-gray-300 rounded-lg hover:bg-gray-50"
+                  >
+                    Cancel
+                  </button>
+                  <button
+                    type="submit"
+                    className="px-4 py-2 bg-blue-600 text-white rounded-lg hover:bg-blue-700"
+                  >
+                    Add Provider
+                  </button>
+                </div>
+              </div>
+            </form>
+          </div>
+        </div>
+      )}
+
+      {/* Edit Provider Modal */}
+      {editingProvider && (
+        <div className="fixed inset-0 bg-black/60 flex items-center justify-center z-[60] p-4">
+          <div className="bg-white rounded-2xl max-w-2xl w-full p-6 shadow-2xl max-h-[90vh] overflow-y-auto">
+            <div className="flex items-center justify-between mb-4">
+              <h3 className="text-xl font-semibold text-gray-900">Edit Healthcare Provider</h3>
+              <button
+                onClick={() => setEditingProvider(null)}
+                className="p-2 hover:bg-gray-100 rounded-lg"
+              >
+                <X className="w-5 h-5" />
+              </button>
+            </div>
+
+            <div className="space-y-4">
+              <div>
+                <label className="block text-sm font-medium text-gray-700 mb-1">Provider Type *</label>
+                <select
+                  value={editingProvider.type}
+                  onChange={(e) => setEditingProvider({...editingProvider, type: e.target.value as HealthcareProvider['type']})}
+                  className="w-full px-3 py-2 border border-gray-300 rounded-lg"
+                >
+                  <option value="nhs_gp">NHS GP</option>
+                  <option value="nhs_surgery">NHS Surgery</option>
+                  <option value="private_gp">Private GP</option>
+                  <option value="private_specialist">Private Specialist</option>
+                  <option value="insurance">Health Insurance</option>
+                </select>
+              </div>
+
+              <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                <div>
+                  <label className="block text-sm font-medium text-gray-700 mb-1">Name *</label>
+                  <input
+                    type="text"
+                    value={editingProvider.name || ''}
+                    onChange={(e) => setEditingProvider({...editingProvider, name: e.target.value})}
+                    placeholder="Dr. Name / Surgery / Company"
+                    className="w-full px-3 py-2 border border-gray-300 rounded-lg"
+                    required
+                  />
+                </div>
+                <div>
+                  <label className="block text-sm font-medium text-gray-700 mb-1">
+                    {editingProvider.type === 'private_specialist' ? 'Specialty' : 'Practice/Clinic'}
+                  </label>
+                  <input
+                    type="text"
+                    value={editingProvider.type === 'private_specialist' ? editingProvider.role || '' : editingProvider.practiceName || ''}
+                    onChange={(e) => {
+                      if (editingProvider.type === 'private_specialist') {
+                        setEditingProvider({...editingProvider, role: e.target.value});
+                      } else {
+                        setEditingProvider({...editingProvider, practiceName: e.target.value});
+                      }
+                    }}
+                    placeholder={editingProvider.type === 'private_specialist' ? "e.g., Cardiologist" : "Practice or clinic name"}
+                    className="w-full px-3 py-2 border border-gray-300 rounded-lg"
+                  />
+                </div>
+              </div>
+
+              <div>
+                <label className="block text-sm font-medium text-gray-700 mb-1">Address</label>
+                <textarea
+                  value={editingProvider.address || ''}
+                  onChange={(e) => setEditingProvider({...editingProvider, address: e.target.value})}
+                  placeholder="Full address"
+                  className="w-full px-3 py-2 border border-gray-300 rounded-lg"
+                  rows={2}
+                />
+              </div>
+
+              <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                <div>
+                  <label className="block text-sm font-medium text-gray-700 mb-1">Phone</label>
+                  <input
+                    type="tel"
+                    value={editingProvider.phone || ''}
+                    onChange={(e) => setEditingProvider({...editingProvider, phone: e.target.value})}
+                    placeholder="Contact number"
+                    className="w-full px-3 py-2 border border-gray-300 rounded-lg"
+                  />
+                </div>
+                <div>
+                  <label className="block text-sm font-medium text-gray-700 mb-1">Email</label>
+                  <input
+                    type="email"
+                    value={editingProvider.email || ''}
+                    onChange={(e) => setEditingProvider({...editingProvider, email: e.target.value})}
+                    placeholder="Email address"
+                    className="w-full px-3 py-2 border border-gray-300 rounded-lg"
+                  />
+                </div>
+              </div>
+
+              {/* Insurance specific fields */}
+              {editingProvider.type === 'insurance' && (
+                <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                  <div>
+                    <label className="block text-sm font-medium text-gray-700 mb-1">Policy Number</label>
+                    <input
+                      type="text"
+                      value={editingProvider.policyNumber || ''}
+                      onChange={(e) => setEditingProvider({...editingProvider, policyNumber: e.target.value})}
+                      placeholder="Policy number"
+                      className="w-full px-3 py-2 border border-gray-300 rounded-lg"
+                    />
+                  </div>
+                  <div>
+                    <label className="block text-sm font-medium text-gray-700 mb-1">Membership Number</label>
+                    <input
+                      type="text"
+                      value={editingProvider.membershipNumber || ''}
+                      onChange={(e) => setEditingProvider({...editingProvider, membershipNumber: e.target.value})}
+                      placeholder="Membership number"
+                      className="w-full px-3 py-2 border border-gray-300 rounded-lg"
+                    />
+                  </div>
+                  <div>
+                    <label className="block text-sm font-medium text-gray-700 mb-1">Group Number</label>
+                    <input
+                      type="text"
+                      value={editingProvider.groupNumber || ''}
+                      onChange={(e) => setEditingProvider({...editingProvider, groupNumber: e.target.value})}
+                      placeholder="Group number"
+                      className="w-full px-3 py-2 border border-gray-300 rounded-lg"
+                    />
+                  </div>
+                  <div>
+                    <label className="block text-sm font-medium text-gray-700 mb-1">Renewal Date</label>
+                    <input
+                      type="date"
+                      value={editingProvider.renewalDate || ''}
+                      onChange={(e) => setEditingProvider({...editingProvider, renewalDate: e.target.value})}
+                      className="w-full px-3 py-2 border border-gray-300 rounded-lg"
+                    />
+                  </div>
+                </div>
+              )}
+
+              {/* NHS Surgery specific */}
+              {editingProvider.type === 'nhs_surgery' && (
+                <div>
+                  <label className="block text-sm font-medium text-gray-700 mb-1">Surgery NHS Code</label>
+                  <input
+                    type="text"
+                    value={editingProvider.surgeryNHSCode || ''}
+                    onChange={(e) => setEditingProvider({...editingProvider, surgeryNHSCode: e.target.value})}
+                    placeholder="NHS surgery code"
+                    className="w-full px-3 py-2 border border-gray-300 rounded-lg"
+                  />
+                </div>
+              )}
+
+              {/* Private provider specific */}
+              {(editingProvider.type === 'private_gp' || editingProvider.type === 'private_specialist') && (
+                <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                  <div>
+                    <label className="block text-sm font-medium text-gray-700 mb-1">GMC Registration Number</label>
+                    <input
+                      type="text"
+                      value={editingProvider.registrationNumber || ''}
+                      onChange={(e) => setEditingProvider({...editingProvider, registrationNumber: e.target.value})}
+                      placeholder="GMC number"
+                      className="w-full px-3 py-2 border border-gray-300 rounded-lg"
+                    />
+                  </div>
+                  <div>
+                    <label className="block text-sm font-medium text-gray-700 mb-1">Consultation Fee (£)</label>
+                    <input
+                      type="number"
+                      value={editingProvider.consultationFee || ''}
+                      onChange={(e) => setEditingProvider({...editingProvider, consultationFee: parseFloat(e.target.value) || 0})}
+                      placeholder="0.00"
+                      className="w-full px-3 py-2 border border-gray-300 rounded-lg"
+                    />
+                  </div>
+                </div>
+              )}
+
+              <div>
+                <label className="block text-sm font-medium text-gray-700 mb-1">Website</label>
+                <input
+                  type="url"
+                  value={editingProvider.website || ''}
+                  onChange={(e) => setEditingProvider({...editingProvider, website: e.target.value})}
+                  placeholder="https://..."
+                  className="w-full px-3 py-2 border border-gray-300 rounded-lg"
+                />
+              </div>
+
+              <div>
+                <label className="block text-sm font-medium text-gray-700 mb-1">Notes</label>
+                <textarea
+                  value={editingProvider.notes || ''}
+                  onChange={(e) => setEditingProvider({...editingProvider, notes: e.target.value})}
+                  placeholder="Additional information"
+                  className="w-full px-3 py-2 border border-gray-300 rounded-lg"
+                  rows={2}
+                />
+              </div>
+
+              {/* Documents Section */}
+              <div>
+                <label className="block text-sm font-medium text-gray-700 mb-1">Documents</label>
+                <div className="flex flex-wrap gap-2">
+                  {editingProvider.documents && editingProvider.documents.map((doc, idx) => (
+                    <div key={idx} className="flex items-center gap-1 px-2 py-1 bg-blue-100 text-blue-700 rounded text-sm">
+                      <FileText className="w-3 h-3" />
+                      <span>{doc.filename}</span>
+                      <button
+                        type="button"
+                        onClick={async () => {
+                          await documentService.removeDocument(doc);
+                          setEditingProvider({
+                            ...editingProvider,
+                            documents: editingProvider.documents?.filter((d, i) => i !== idx)
+                          });
+                        }}
+                        className="ml-1 hover:text-red-600"
+                      >
+                        <X className="w-3 h-3" />
+                      </button>
+                    </div>
+                  ))}
+                  <label className="flex items-center gap-1 px-3 py-1 bg-white border border-gray-300 rounded cursor-pointer hover:bg-gray-50 text-sm">
+                    <Upload className="w-3 h-3 text-gray-500" />
+                    <span className="text-gray-600">Add Document</span>
+                    <input
+                      type="file"
+                      accept="image/*,.pdf"
+                      onChange={async (e) => {
+                        if (e.target.files?.[0]) {
+                          const docRef = await documentService.uploadDocument(e.target.files[0]);
+                          setEditingProvider({
+                            ...editingProvider,
+                            documents: [...(editingProvider.documents || []), docRef]
+                          });
+                        }
+                      }}
+                      className="hidden"
+                    />
+                  </label>
+                </div>
+                <p className="text-xs text-gray-500 mt-1">Upload insurance cards, membership documents, invoices, etc.</p>
+              </div>
+
+              <div className="flex justify-between gap-2 pt-4">
+                <button
+                  onClick={async () => {
+                    if (confirm('Are you sure you want to delete this provider?')) {
+                      const updatedProfile = {
+                        ...medicalProfile,
+                        providers: medicalProfile.providers?.filter(p => p.id !== editingProvider.id) || []
+                      };
+                      await saveMedicalProfile(updatedProfile);
+                      setEditingProvider(null);
+                    }
+                  }}
+                  className="px-4 py-2 text-red-600 border border-red-300 rounded-lg hover:bg-red-50"
+                >
+                  Delete Provider
+                </button>
+                <div className="flex gap-2">
+                  <button
+                    onClick={() => setEditingProvider(null)}
+                    className="px-4 py-2 text-gray-600 border border-gray-300 rounded-lg hover:bg-gray-50"
+                  >
+                    Cancel
+                  </button>
+                  <button
+                    onClick={() => {
+                      const updatedProfile = {
+                        ...medicalProfile,
+                        providers: medicalProfile.providers?.map(p =>
+                          p.id === editingProvider.id ? editingProvider : p
+                        ) || []
+                      };
+                      saveMedicalProfile(updatedProfile);
+                      setEditingProvider(null);
+                    }}
+                    className="px-4 py-2 bg-blue-600 text-white rounded-lg hover:bg-blue-700"
+                  >
+                    Save Changes
+                  </button>
+                </div>
+              </div>
+            </div>
+          </div>
+        </div>
+      )}
+    </div>
     </div>
   );
 }

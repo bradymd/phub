@@ -16,6 +16,19 @@ interface ServiceEntry {
   documents?: DocumentReference[];
 }
 
+interface MOTRecord {
+  id: string;
+  testDate: string;
+  expiryDate: string;
+  testCentre: string;
+  mileage: number;
+  result: 'pass' | 'fail';
+  advisories?: string;
+  certificate?: DocumentReference;
+  receipt?: DocumentReference;
+  otherDocuments?: DocumentReference[];
+}
+
 interface Vehicle {
   id: string;
   // Basic info
@@ -49,6 +62,8 @@ interface Vehicle {
   // Important dates
   motDueDate: string;
   taxDueDate: string;
+  // MOT History
+  motHistory?: MOTRecord[];
   // Current status
   currentMileage: number;
   // Documents (legacy - for backwards compatibility)
@@ -89,6 +104,7 @@ const emptyVehicle: Omit<Vehicle, 'id'> = {
   breakdownDocuments: [],
   motDueDate: '',
   taxDueDate: '',
+  motHistory: [],
   currentMileage: 0,
   documents: [],
   serviceHistory: [],
@@ -1685,6 +1701,265 @@ export function VehicleManagerSecure({ onClose }: VehicleManagerSecureProps) {
                 </div>
               </div>
 
+              {/* MOT History */}
+              <div>
+                <h4 className="text-sm font-medium text-gray-700 mb-2">MOT History</h4>
+
+                {/* Add New MOT Record Button */}
+                <button
+                  type="button"
+                  onClick={() => {
+                    const newMOT: MOTRecord = {
+                      id: Date.now().toString(),
+                      testDate: new Date().toISOString().split('T')[0],
+                      expiryDate: '',
+                      testCentre: '',
+                      mileage: editingVehicle.currentMileage || 0,
+                      result: 'pass',
+                      advisories: ''
+                    };
+                    setEditingVehicle({
+                      ...editingVehicle,
+                      motHistory: [newMOT, ...(editingVehicle.motHistory || [])]
+                    });
+                  }}
+                  className="mb-3 px-4 py-2 bg-blue-600 text-white rounded-lg hover:bg-blue-700 flex items-center gap-2"
+                >
+                  <Plus className="w-4 h-4" />
+                  Add MOT Record
+                </button>
+
+                {/* MOT Records List */}
+                {editingVehicle.motHistory && editingVehicle.motHistory.length > 0 && (
+                  <div className="space-y-4">
+                    {editingVehicle.motHistory.map((mot, index) => (
+                      <div key={mot.id} className="border border-gray-200 rounded-lg p-4 bg-gray-50">
+                        <div className="flex items-center justify-between mb-3">
+                          <h5 className="font-medium text-sm">
+                            MOT Record {index === 0 ? '(Current)' : `#${editingVehicle.motHistory!.length - index}`}
+                          </h5>
+                          <button
+                            type="button"
+                            onClick={() => {
+                              // Remove MOT record and its documents
+                              if (mot.certificate) {
+                                documentService.removeDocument(mot.certificate);
+                              }
+                              if (mot.receipt) {
+                                documentService.removeDocument(mot.receipt);
+                              }
+                              if (mot.otherDocuments) {
+                                mot.otherDocuments.forEach(doc => documentService.removeDocument(doc));
+                              }
+                              setEditingVehicle({
+                                ...editingVehicle,
+                                motHistory: editingVehicle.motHistory!.filter(m => m.id !== mot.id)
+                              });
+                            }}
+                            className="p-1 hover:bg-red-100 rounded text-red-600"
+                          >
+                            <Trash className="w-4 h-4" />
+                          </button>
+                        </div>
+
+                        <div className="grid grid-cols-1 md:grid-cols-3 gap-3 mb-3">
+                          <div>
+                            <label className="block text-xs text-gray-500 mb-1">Test Date</label>
+                            <input
+                              type="date"
+                              value={mot.testDate}
+                              onChange={(e) => {
+                                const updated = [...editingVehicle.motHistory!];
+                                updated[index] = { ...mot, testDate: e.target.value };
+                                setEditingVehicle({ ...editingVehicle, motHistory: updated });
+                              }}
+                              className="w-full px-3 py-1.5 border border-gray-300 rounded text-sm"
+                            />
+                          </div>
+                          <div>
+                            <label className="block text-xs text-gray-500 mb-1">Expiry Date</label>
+                            <input
+                              type="date"
+                              value={mot.expiryDate}
+                              onChange={(e) => {
+                                const updated = [...editingVehicle.motHistory!];
+                                updated[index] = { ...mot, expiryDate: e.target.value };
+                                // Also update the main MOT due date if this is the current MOT
+                                if (index === 0) {
+                                  setEditingVehicle({
+                                    ...editingVehicle,
+                                    motHistory: updated,
+                                    motDueDate: e.target.value
+                                  });
+                                } else {
+                                  setEditingVehicle({ ...editingVehicle, motHistory: updated });
+                                }
+                              }}
+                              className="w-full px-3 py-1.5 border border-gray-300 rounded text-sm"
+                            />
+                          </div>
+                          <div>
+                            <label className="block text-xs text-gray-500 mb-1">Result</label>
+                            <select
+                              value={mot.result}
+                              onChange={(e) => {
+                                const updated = [...editingVehicle.motHistory!];
+                                updated[index] = { ...mot, result: e.target.value as 'pass' | 'fail' };
+                                setEditingVehicle({ ...editingVehicle, motHistory: updated });
+                              }}
+                              className="w-full px-3 py-1.5 border border-gray-300 rounded text-sm bg-white"
+                            >
+                              <option value="pass">Pass</option>
+                              <option value="fail">Fail</option>
+                            </select>
+                          </div>
+                          <div>
+                            <label className="block text-xs text-gray-500 mb-1">Test Centre</label>
+                            <input
+                              type="text"
+                              value={mot.testCentre}
+                              onChange={(e) => {
+                                const updated = [...editingVehicle.motHistory!];
+                                updated[index] = { ...mot, testCentre: e.target.value };
+                                setEditingVehicle({ ...editingVehicle, motHistory: updated });
+                              }}
+                              className="w-full px-3 py-1.5 border border-gray-300 rounded text-sm"
+                              placeholder="Test centre name"
+                            />
+                          </div>
+                          <div>
+                            <label className="block text-xs text-gray-500 mb-1">Mileage</label>
+                            <input
+                              type="number"
+                              value={mot.mileage || ''}
+                              onChange={(e) => {
+                                const updated = [...editingVehicle.motHistory!];
+                                updated[index] = { ...mot, mileage: parseInt(e.target.value) || 0 };
+                                setEditingVehicle({ ...editingVehicle, motHistory: updated });
+                              }}
+                              className="w-full px-3 py-1.5 border border-gray-300 rounded text-sm"
+                              placeholder="0"
+                            />
+                          </div>
+                        </div>
+
+                        <div className="mb-3">
+                          <label className="block text-xs text-gray-500 mb-1">Advisories/Notes</label>
+                          <textarea
+                            value={mot.advisories || ''}
+                            onChange={(e) => {
+                              const updated = [...editingVehicle.motHistory!];
+                              updated[index] = { ...mot, advisories: e.target.value };
+                              setEditingVehicle({ ...editingVehicle, motHistory: updated });
+                            }}
+                            className="w-full px-3 py-1.5 border border-gray-300 rounded text-sm"
+                            rows={2}
+                            placeholder="Any advisories or notes from the MOT test"
+                          />
+                        </div>
+
+                        {/* MOT Documents */}
+                        <div className="space-y-2">
+                          {/* Certificate */}
+                          <div>
+                            <label className="block text-xs text-gray-500 mb-1">MOT Certificate</label>
+                            {mot.certificate ? (
+                              <div className="flex items-center gap-2">
+                                <button
+                                  type="button"
+                                  onClick={() => viewFile(mot.certificate!)}
+                                  className="flex items-center gap-2 px-3 py-1.5 bg-green-100 text-green-700 rounded-lg hover:bg-green-200 text-sm"
+                                >
+                                  <FileText className="w-3 h-3" />
+                                  {mot.certificate.filename}
+                                </button>
+                                <button
+                                  type="button"
+                                  onClick={async () => {
+                                    await documentService.removeDocument(mot.certificate!);
+                                    const updated = [...editingVehicle.motHistory!];
+                                    updated[index] = { ...mot, certificate: undefined };
+                                    setEditingVehicle({ ...editingVehicle, motHistory: updated });
+                                  }}
+                                  className="p-1 hover:bg-red-100 rounded text-red-600"
+                                >
+                                  <Trash className="w-3 h-3" />
+                                </button>
+                              </div>
+                            ) : (
+                              <label className="flex items-center gap-2 px-3 py-1.5 bg-white border border-gray-300 rounded-lg cursor-pointer hover:bg-gray-50 w-fit text-sm">
+                                <Upload className="w-3 h-3 text-gray-500" />
+                                <span className="text-gray-600">Upload certificate</span>
+                                <input
+                                  type="file"
+                                  accept="image/*,.pdf"
+                                  onChange={async (e) => {
+                                    if (e.target.files?.[0]) {
+                                      const docRef = await documentService.uploadDocument(e.target.files[0]);
+                                      const updated = [...editingVehicle.motHistory!];
+                                      updated[index] = { ...mot, certificate: docRef };
+                                      setEditingVehicle({ ...editingVehicle, motHistory: updated });
+                                    }
+                                  }}
+                                  className="hidden"
+                                />
+                              </label>
+                            )}
+                          </div>
+
+                          {/* Receipt */}
+                          <div>
+                            <label className="block text-xs text-gray-500 mb-1">Receipt</label>
+                            {mot.receipt ? (
+                              <div className="flex items-center gap-2">
+                                <button
+                                  type="button"
+                                  onClick={() => viewFile(mot.receipt!)}
+                                  className="flex items-center gap-2 px-3 py-1.5 bg-blue-100 text-blue-700 rounded-lg hover:bg-blue-200 text-sm"
+                                >
+                                  <FileText className="w-3 h-3" />
+                                  {mot.receipt.filename}
+                                </button>
+                                <button
+                                  type="button"
+                                  onClick={async () => {
+                                    await documentService.removeDocument(mot.receipt!);
+                                    const updated = [...editingVehicle.motHistory!];
+                                    updated[index] = { ...mot, receipt: undefined };
+                                    setEditingVehicle({ ...editingVehicle, motHistory: updated });
+                                  }}
+                                  className="p-1 hover:bg-red-100 rounded text-red-600"
+                                >
+                                  <Trash className="w-3 h-3" />
+                                </button>
+                              </div>
+                            ) : (
+                              <label className="flex items-center gap-2 px-3 py-1.5 bg-white border border-gray-300 rounded-lg cursor-pointer hover:bg-gray-50 w-fit text-sm">
+                                <Upload className="w-3 h-3 text-gray-500" />
+                                <span className="text-gray-600">Upload receipt</span>
+                                <input
+                                  type="file"
+                                  accept="image/*,.pdf"
+                                  onChange={async (e) => {
+                                    if (e.target.files?.[0]) {
+                                      const docRef = await documentService.uploadDocument(e.target.files[0]);
+                                      const updated = [...editingVehicle.motHistory!];
+                                      updated[index] = { ...mot, receipt: docRef };
+                                      setEditingVehicle({ ...editingVehicle, motHistory: updated });
+                                    }
+                                  }}
+                                  className="hidden"
+                                />
+                              </label>
+                            )}
+                          </div>
+                        </div>
+                      </div>
+                    ))}
+                  </div>
+                )}
+              </div>
+
               {/* Notes */}
               <div>
                 <textarea
@@ -2046,6 +2321,70 @@ export function VehicleManagerSecure({ onClose }: VehicleManagerSecureProps) {
                     )}
                   </div>
                 </div>
+
+                {/* MOT History */}
+                {viewingDetails.motHistory && viewingDetails.motHistory.length > 0 && (
+                  <div className="bg-emerald-50 rounded-xl p-4">
+                    <h4 className="text-sm font-medium text-emerald-700 mb-3 flex items-center gap-2">
+                      <FileText className="w-4 h-4" /> MOT History
+                    </h4>
+                    <div className="space-y-3">
+                      {viewingDetails.motHistory.map((mot, index) => (
+                        <div key={mot.id} className={`p-3 rounded-lg ${index === 0 ? 'bg-white border-2 border-emerald-200' : 'bg-gray-50 border border-gray-200'}`}>
+                          <div className="flex items-start justify-between mb-2">
+                            <div>
+                              <div className="flex items-center gap-2">
+                                <span className="text-sm font-medium">
+                                  {formatDateUK(mot.testDate)}
+                                </span>
+                                {index === 0 && (
+                                  <span className="text-xs px-2 py-0.5 bg-emerald-100 text-emerald-700 rounded">Current</span>
+                                )}
+                                <span className={`text-xs px-2 py-0.5 rounded ${
+                                  mot.result === 'pass' ? 'bg-green-100 text-green-700' : 'bg-red-100 text-red-700'
+                                }`}>
+                                  {mot.result === 'pass' ? 'PASS' : 'FAIL'}
+                                </span>
+                              </div>
+                              <p className="text-xs text-gray-500 mt-1">
+                                Expires: {formatDateUK(mot.expiryDate)}
+                                {mot.testCentre && ` • ${mot.testCentre}`}
+                                {mot.mileage > 0 && ` • ${mot.mileage.toLocaleString()} miles`}
+                              </p>
+                            </div>
+                          </div>
+
+                          {mot.advisories && (
+                            <div className="text-xs text-gray-600 mb-2 p-2 bg-yellow-50 rounded">
+                              <span className="font-medium">Advisories:</span> {mot.advisories}
+                            </div>
+                          )}
+
+                          <div className="flex flex-wrap gap-2">
+                            {mot.certificate && (
+                              <button
+                                onClick={() => viewFile(mot.certificate!)}
+                                className="flex items-center gap-1.5 px-2.5 py-1.5 bg-green-100 text-green-700 rounded-lg hover:bg-green-200 text-xs"
+                              >
+                                <FileText className="w-3 h-3" />
+                                Certificate
+                              </button>
+                            )}
+                            {mot.receipt && (
+                              <button
+                                onClick={() => viewFile(mot.receipt!)}
+                                className="flex items-center gap-1.5 px-2.5 py-1.5 bg-blue-100 text-blue-700 rounded-lg hover:bg-blue-200 text-xs"
+                              >
+                                <FileText className="w-3 h-3" />
+                                Receipt
+                              </button>
+                            )}
+                          </div>
+                        </div>
+                      ))}
+                    </div>
+                  </div>
+                )}
               </div>
 
               {/* Right Column */}

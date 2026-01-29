@@ -1181,24 +1181,12 @@ export function PropertyManagerSecure({ onClose }: PropertyManagerSecureProps) {
                   <p className="text-sm text-gray-500">{viewingDetails.postcode}</p>
                 </div>
               </div>
-              <div className="flex items-center gap-2">
-                <button
-                  onClick={() => {
-                    setEditingProperty(viewingDetails);
-                    setViewingDetails(null);
-                  }}
-                  className="px-3 py-2 bg-slate-600 text-white rounded-lg hover:bg-slate-700 transition-colors flex items-center gap-2"
-                >
-                  <Edit2 className="w-4 h-4" />
-                  Edit
-                </button>
-                <button
-                  onClick={() => setViewingDetails(null)}
-                  className="p-2 hover:bg-gray-100 rounded-lg"
-                >
-                  <X className="w-5 h-5" />
-                </button>
-              </div>
+              <button
+                onClick={() => setViewingDetails(null)}
+                className="p-2 hover:bg-gray-100 rounded-lg"
+              >
+                <X className="w-5 h-5" />
+              </button>
             </div>
 
             <div className="p-6 space-y-6">
@@ -1418,6 +1406,26 @@ export function PropertyManagerSecure({ onClose }: PropertyManagerSecureProps) {
                   <p className="text-sm text-gray-600 whitespace-pre-wrap bg-gray-50 p-3 rounded-lg">{viewingDetails.notes}</p>
                 </div>
               )}
+            </div>
+
+            {/* Footer Actions */}
+            <div className="flex gap-2 p-6 border-t bg-gray-50">
+              <button
+                onClick={() => {
+                  setEditingProperty(viewingDetails);
+                  setViewingDetails(null);
+                }}
+                className="flex-1 px-4 py-2 bg-slate-600 text-white rounded-lg hover:bg-slate-700 transition-colors flex items-center justify-center gap-2"
+              >
+                <Edit2 className="w-4 h-4" />
+                Edit
+              </button>
+              <button
+                onClick={() => setViewingDetails(null)}
+                className="flex-1 px-4 py-2 bg-gray-200 text-gray-700 rounded-lg hover:bg-gray-300 transition-colors"
+              >
+                Close
+              </button>
             </div>
           </div>
         </div>
