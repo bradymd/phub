@@ -102,6 +102,11 @@ export function useReminders(): PanelReminders {
         try {
           const records = await storage.getAll('medical_records');
           records.forEach((record: any) => {
+            // Check for upcoming appointments (date is in the future within 30 days)
+            if (record.date && isDueSoon(record.date)) {
+              newReminders.health.dueSoon++;
+            }
+            // Check for follow-up dates
             if (record.followUpDate) {
               if (isPastDate(record.followUpDate)) {
                 newReminders.health.overdue++;

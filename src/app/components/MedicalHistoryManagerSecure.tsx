@@ -634,23 +634,34 @@ export function MedicalHistoryManagerSecure({ onClose }: MedicalHistoryManagerSe
             </div>
           </div>
 
-          {/* Follow-up Reminders */}
+          {/* Appointment & Follow-up Reminders */}
           {(() => {
-            const overdueCount = records.filter(r => r.followUpDate && isPastDate(r.followUpDate)).length;
-            const dueSoonCount = records.filter(r => r.followUpDate && isDueSoon(r.followUpDate) && !isPastDate(r.followUpDate)).length;
-            if (overdueCount === 0 && dueSoonCount === 0) return null;
+            // Upcoming appointments (date is in the future and within 30 days)
+            const upcomingAppointments = records.filter(r => r.date && isDueSoon(r.date)).length;
+            // Overdue follow-ups
+            const overdueFollowUps = records.filter(r => r.followUpDate && isPastDate(r.followUpDate)).length;
+            // Follow-ups due soon
+            const dueSoonFollowUps = records.filter(r => r.followUpDate && isDueSoon(r.followUpDate) && !isPastDate(r.followUpDate)).length;
+
+            if (upcomingAppointments === 0 && overdueFollowUps === 0 && dueSoonFollowUps === 0) return null;
             return (
-              <div className="mt-3 flex gap-4">
-                {overdueCount > 0 && (
-                  <div className="flex items-center gap-2 text-red-600">
-                    <AlertCircle className="w-4 h-4" />
-                    <span className="text-sm font-medium">{overdueCount} overdue follow-up{overdueCount > 1 ? 's' : ''}</span>
+              <div className="mt-3 flex flex-wrap gap-4">
+                {upcomingAppointments > 0 && (
+                  <div className="flex items-center gap-2 text-blue-600">
+                    <Calendar className="w-4 h-4" />
+                    <span className="text-sm font-medium">{upcomingAppointments} upcoming appointment{upcomingAppointments > 1 ? 's' : ''}</span>
                   </div>
                 )}
-                {dueSoonCount > 0 && (
+                {overdueFollowUps > 0 && (
+                  <div className="flex items-center gap-2 text-red-600">
+                    <AlertCircle className="w-4 h-4" />
+                    <span className="text-sm font-medium">{overdueFollowUps} overdue follow-up{overdueFollowUps > 1 ? 's' : ''}</span>
+                  </div>
+                )}
+                {dueSoonFollowUps > 0 && (
                   <div className="flex items-center gap-2 text-orange-600">
                     <Calendar className="w-4 h-4" />
-                    <span className="text-sm font-medium">{dueSoonCount} follow-up{dueSoonCount > 1 ? 's' : ''} due within 30 days</span>
+                    <span className="text-sm font-medium">{dueSoonFollowUps} follow-up{dueSoonFollowUps > 1 ? 's' : ''} due soon</span>
                   </div>
                 )}
               </div>
@@ -1168,21 +1179,27 @@ export function MedicalHistoryManagerSecure({ onClose }: MedicalHistoryManagerSe
                             <Heart className="w-6 h-6" />
                           </div>
                           <div className="flex-1">
-                            <div className="flex items-center gap-2 mb-2">
+                            <div className="flex items-center flex-wrap gap-2 mb-2">
                               <h3 className="text-gray-900">{record.condition}</h3>
                               <span className={`inline-block px-2 py-1 rounded text-xs ${getTypeColor(record.type)}`}>
                                 {getTypeLabel(record.type)}
                               </span>
+                              {record.date && isDueSoon(record.date) && (
+                                <span className="inline-flex items-center gap-1 px-2 py-1 rounded text-xs bg-blue-100 text-blue-700">
+                                  <Calendar className="w-3 h-3" />
+                                  Upcoming
+                                </span>
+                              )}
                               {record.followUpDate && isPastDate(record.followUpDate) && (
                                 <span className="inline-flex items-center gap-1 px-2 py-1 rounded text-xs bg-red-100 text-red-700">
                                   <AlertCircle className="w-3 h-3" />
-                                  Overdue
+                                  Follow-up Overdue
                                 </span>
                               )}
                               {record.followUpDate && isDueSoon(record.followUpDate) && !isPastDate(record.followUpDate) && (
                                 <span className="inline-flex items-center gap-1 px-2 py-1 rounded text-xs bg-orange-100 text-orange-700">
                                   <Calendar className="w-3 h-3" />
-                                  Due Soon
+                                  Follow-up Due
                                 </span>
                               )}
                             </div>
