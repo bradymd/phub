@@ -4,18 +4,19 @@ import { useStorage } from '../contexts/StorageContext';
 // Check if date is in the past
 const isPastDate = (dateStr: string): boolean => {
   if (!dateStr) return false;
-  const date = new Date(dateStr);
+  const date = new Date(dateStr + 'T00:00:00');
   const today = new Date();
   today.setHours(0, 0, 0, 0);
   return date < today;
 };
 
-// Check if date is within 30 days
+// Check if date is within 30 days (in the future)
 const isDueSoon = (dateStr: string): boolean => {
   if (!dateStr) return false;
-  const date = new Date(dateStr);
+  const date = new Date(dateStr + 'T00:00:00');
   const today = new Date();
-  const thirtyDays = new Date();
+  today.setHours(0, 0, 0, 0);
+  const thirtyDays = new Date(today);
   thirtyDays.setDate(today.getDate() + 30);
   return date >= today && date <= thirtyDays;
 };
