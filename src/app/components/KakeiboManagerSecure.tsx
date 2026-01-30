@@ -723,6 +723,82 @@ export function KakeiboManagerSecure({ onClose }: KakeiboManagerSecureProps) {
             </div>
           )}
 
+          {/* Monthly Summary - Running Totals */}
+          {isCurrentMonthSetup && (
+            <div className="mb-6 bg-gradient-to-r from-gray-50 to-slate-50 rounded-xl p-6 border border-gray-200">
+              <div className="flex items-center justify-between mb-4">
+                <h3 className="text-lg font-semibold text-gray-900">Monthly Summary</h3>
+                <button
+                  onClick={() => {
+                    setReflectionForm({
+                      actualSaved: currentMonth.reflection.actualSaved || projectedSavings,
+                      howSaved: currentMonth.reflection.howSaved || '',
+                      improvements: currentMonth.reflection.improvements || '',
+                      notes: currentMonth.reflection.notes || '',
+                      accountBalance: currentMonth.reflection.accountBalance || 0
+                    });
+                    setShowReflection(true);
+                  }}
+                  className="flex items-center gap-2 px-4 py-2 bg-white border border-gray-300 rounded-lg hover:bg-gray-50 transition-colors"
+                >
+                  {currentMonth.reflection.completed ? (
+                    <>
+                      <Check className="w-4 h-4 text-green-600" />
+                      View Reflection
+                    </>
+                  ) : (
+                    <>
+                      <Edit2 className="w-4 h-4" />
+                      Complete Review
+                    </>
+                  )}
+                </button>
+              </div>
+
+              <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
+                <div className="bg-white rounded-lg p-4">
+                  <p className="text-sm text-gray-600 mb-1">Total Spent</p>
+                  <p className="text-xl font-bold text-gray-900">
+                    {formatCurrency(totalSpent)}
+                    <span className="text-sm font-normal text-gray-500 ml-1">
+                      of {formatCurrency(availableBudget)}
+                    </span>
+                  </p>
+                  <div className="w-full h-2 bg-gray-100 rounded-full mt-2">
+                    <div
+                      className={`h-2 rounded-full transition-all ${
+                        totalSpent > availableBudget ? 'bg-red-500' : 'bg-rose-500'
+                      }`}
+                      style={{ width: `${Math.min((totalSpent / availableBudget) * 100, 100)}%` }}
+                    />
+                  </div>
+                </div>
+
+                <div className="bg-white rounded-lg p-4">
+                  <p className="text-sm text-gray-600 mb-1">Remaining</p>
+                  <p className={`text-xl font-bold ${remaining >= 0 ? 'text-green-600' : 'text-red-600'}`}>
+                    {formatCurrency(remaining)}
+                  </p>
+                </div>
+
+                <div className="bg-white rounded-lg p-4">
+                  <p className="text-sm text-gray-600 mb-1">Projected Savings</p>
+                  <p className={`text-xl font-bold flex items-center gap-2 ${isOnTrack ? 'text-green-600' : 'text-orange-600'}`}>
+                    {formatCurrency(projectedSavings)}
+                    {isOnTrack ? (
+                      <Check className="w-5 h-5" />
+                    ) : (
+                      <AlertCircle className="w-5 h-5" />
+                    )}
+                  </p>
+                  <p className="text-xs text-gray-500">
+                    Target: {formatCurrency(currentMonth.savingsGoal)}
+                  </p>
+                </div>
+              </div>
+            </div>
+          )}
+
           {/* Recent Expenses */}
           {isCurrentMonthSetup && currentMonth.expenses.length > 0 && (
             <div className="mb-6">
@@ -803,82 +879,6 @@ export function KakeiboManagerSecure({ onClose }: KakeiboManagerSecureProps) {
             </div>
           )}
 
-          {/* Monthly Summary - Bottom Section */}
-          {isCurrentMonthSetup && (
-            <div className="mt-6 bg-gradient-to-r from-gray-50 to-slate-50 rounded-xl p-6 border border-gray-200">
-              <div className="flex items-center justify-between mb-4">
-                <h3 className="text-lg font-semibold text-gray-900">Monthly Summary</h3>
-                <button
-                  onClick={() => {
-                    // Initialize form with existing values, defaulting actualSaved to projectedSavings if not set
-                    setReflectionForm({
-                      actualSaved: currentMonth.reflection.actualSaved || projectedSavings,
-                      howSaved: currentMonth.reflection.howSaved || '',
-                      improvements: currentMonth.reflection.improvements || '',
-                      notes: currentMonth.reflection.notes || '',
-                      accountBalance: currentMonth.reflection.accountBalance || 0
-                    });
-                    setShowReflection(true);
-                  }}
-                  className="flex items-center gap-2 px-4 py-2 bg-white border border-gray-300 rounded-lg hover:bg-gray-50 transition-colors"
-                >
-                  {currentMonth.reflection.completed ? (
-                    <>
-                      <Check className="w-4 h-4 text-green-600" />
-                      View Reflection
-                    </>
-                  ) : (
-                    <>
-                      <Edit2 className="w-4 h-4" />
-                      Complete Review
-                    </>
-                  )}
-                </button>
-              </div>
-
-              <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
-                <div className="bg-white rounded-lg p-4">
-                  <p className="text-sm text-gray-600 mb-1">Total Spent</p>
-                  <p className="text-xl font-bold text-gray-900">
-                    {formatCurrency(totalSpent)}
-                    <span className="text-sm font-normal text-gray-500 ml-1">
-                      of {formatCurrency(availableBudget)}
-                    </span>
-                  </p>
-                  <div className="w-full h-2 bg-gray-100 rounded-full mt-2">
-                    <div
-                      className={`h-2 rounded-full transition-all ${
-                        totalSpent > availableBudget ? 'bg-red-500' : 'bg-rose-500'
-                      }`}
-                      style={{ width: `${Math.min((totalSpent / availableBudget) * 100, 100)}%` }}
-                    />
-                  </div>
-                </div>
-
-                <div className="bg-white rounded-lg p-4">
-                  <p className="text-sm text-gray-600 mb-1">Remaining</p>
-                  <p className={`text-xl font-bold ${remaining >= 0 ? 'text-green-600' : 'text-red-600'}`}>
-                    {formatCurrency(remaining)}
-                  </p>
-                </div>
-
-                <div className="bg-white rounded-lg p-4">
-                  <p className="text-sm text-gray-600 mb-1">Projected Savings</p>
-                  <p className={`text-xl font-bold flex items-center gap-2 ${isOnTrack ? 'text-green-600' : 'text-orange-600'}`}>
-                    {formatCurrency(projectedSavings)}
-                    {isOnTrack ? (
-                      <Check className="w-5 h-5" />
-                    ) : (
-                      <AlertCircle className="w-5 h-5" />
-                    )}
-                  </p>
-                  <p className="text-xs text-gray-500">
-                    Target: {formatCurrency(currentMonth.savingsGoal)}
-                  </p>
-                </div>
-              </div>
-            </div>
-          )}
         </div>
         </div>
       </div>
