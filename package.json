@@ -1,7 +1,10 @@
 {
   "name": "personal-hub",
   "description": "Secure personal data management application",
-  "author": "PersonalHub Team",
+  "author": {
+    "name": "PersonalHub Team",
+    "email": "personalhub@example.com"
+  },
   "private": true,
   "version": "1.0.0",
   "type": "module",
@@ -65,6 +68,7 @@
     "mammoth": "^1.11.0",
     "motion": "12.23.24",
     "next-themes": "0.4.6",
+    "pdfjs-dist": "^5.4.530",
     "react-day-picker": "8.10.1",
     "react-dnd": "16.0.1",
     "react-dnd-html5-backend": "16.0.1",
@@ -119,18 +123,24 @@
       "electron/**/*"
     ],
     "linux": {
-      "target": "AppImage",
-      "category": "Utility"
+      "target": ["AppImage", "deb"],
+      "category": "Utility",
+      "icon": "build/icon.png"
     },
     "win": {
       "target": [
         {
           "target": "nsis",
-          "arch": ["x64", "ia32"]
+          "arch": [
+            "x64",
+            "ia32"
+          ]
         },
         {
           "target": "portable",
-          "arch": ["x64"]
+          "arch": [
+            "x64"
+          ]
         }
       ],
       "icon": "build/icon.ico"

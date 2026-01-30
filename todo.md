@@ -38,6 +38,66 @@
 
 ---
 
+## TODO: Auto-Updates with electron-updater (Before Public Release)
+
+**Priority: High** - Essential for distributing updates to users
+
+### How It Works
+- App checks GitHub releases on startup
+- Notifies user when new version available
+- Downloads and installs automatically (on restart)
+
+### Platform Support
+| Platform | Update Method | Code Signing |
+|----------|--------------|--------------|
+| Windows | Full automatic | Recommended (~$100-400/yr) to avoid "Unknown publisher" warning |
+| macOS | Full automatic | **Required** ($99/yr Apple Developer) for auto-update to work |
+| Linux AppImage | Full automatic | Not required |
+| Linux .deb | Notification only | Not required |
+
+### Implementation Steps
+
+1. **Install package:**
+   ```bash
+   npm install electron-updater
+   ```
+
+2. **Add to electron/main.cjs:**
+   ```javascript
+   const { autoUpdater } = require('electron-updater');
+
+   app.whenReady().then(() => {
+     autoUpdater.checkForUpdatesAndNotify();
+   });
+
+   autoUpdater.on('update-available', () => {
+     // Notify user
+   });
+
+   autoUpdater.on('update-downloaded', () => {
+     // Prompt to restart
+   });
+   ```
+
+3. **Configure package.json** - add publish config:
+   ```json
+   "build": {
+     "publish": {
+       "provider": "github",
+       "owner": "bradymd",
+       "repo": "phub"
+     }
+   }
+   ```
+
+4. **Release workflow:**
+   - Bump version in package.json
+   - Build: `npm run build:linux` (or build:all)
+   - Create GitHub release, upload the built files
+   - Users get notified automatically
+
+---
+
 ## TODO: Data Versioning & Migration System (Before Public Release)
 
 **Priority: High** - Required before distributing to other users
