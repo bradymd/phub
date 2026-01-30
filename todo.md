@@ -2,98 +2,109 @@
 
 ## Recently Completed
 
-### January 2026 - Session Work
+### January 2026 - Latest Session
 
-**Property Maintenance History** ✓
-- Added maintenance history for completed work (decorator, plumber, electrician, etc.)
-- Fields: date, type, description, cost, company/person, contact details, notes, documents
-- View modal with print functionality
-- Notes field uses larger textarea
+**Pets Panel** ✓
+- Pet basic info: name, species, breed, DOB, gender, microchip, neutered, passport
+- Health records: weight, allergies, conditions, medications, diet
+- Vaccinations with booster due dates (triggers reminders)
+- Vet visits with documents, costs, follow-up dates
+- Pet insurance with renewal dates and document attachments
+- Expandable sections for vaccinations, visits, and insurance details
+- Reminders for: vaccination boosters, insurance renewal, follow-up appointments
+- Grid and list views with search and summary cards
 
-**Vehicle Service Reminders** ✓
-- Next service due date now shows in Key Dates section
-- Service due dates included in reminder system (main panel badges)
-- Tax due date added to reminders (was missing)
+**Smart Panel Ordering** ✓
+- Panels with alerts (overdue/due soon) now appear first on dashboard
+- Usage tracking: frequently used panels rise in the list
+- Time-decay scoring (recent usage counts more)
+- Fallback to alphabetical order
+- Settings panel shows panels alphabetically within categories
 
-**Medical Appointments** ✓
-- Appointment dates trigger reminders when in future (within 30 days)
-- Follow-up dates supported
-- Orange badges for upcoming, red for overdue
-- Reminders ripple up to main panel
+**Reminder System Improvements** ✓
+- Real-time refresh: reminders update immediately when data changes
+- Added `notifyDataChange()` mechanism to StorageContext
+- All reminder-contributing panels now trigger refresh on save
+- Fixed double-counting bug (was caused by shallow copy in React StrictMode)
 
-**Edit Functionality Fixes** ✓
-- Fixed edit not working in list view for Employment, Pensions, Finance panels
-
-**UI Improvements** ✓
-- UK date format (DD-MM-YYYY) throughout
-- Kakeibo: "Savings Target" replaces "Projected Savings"
-- Vehicle print: Recovery Contact now included
+**Dental Panel** ✓
+- Surgery/practice details with autocomplete from history
+- Patient name with autocomplete (family members)
+- Appointment types and times
+- Cost tracking with payment methods
+- Next appointment dates with reminders
+- Document attachments
+- Future appointments sorted to top, past sorted by most recent
 
 ---
 
-## Next Up: Dental Panel
+## Architecture Notes (Long-term Planning)
 
-**User Requirements:**
-- Dentist Surgery (practice name)
-- Dentist's name
-- Patient name (who the appointment is for - can vary: self, child, spouse)
-- Appointment type: checkup, hygienist, treatment, emergency
-- Cost (usually covered by direct debit plan, but field for additional work)
-- Appointment date - **critical for reminders**
-- Documents (receipts, treatment plans)
-- Notes
+### Current State (14 panels)
 
-**Data Model (draft):**
+**Strengths:**
+- Central panel registry (`src/config/panels.ts`) - good decoupling
+- Clean storage abstraction layer (LocalStorage/Tauri implementations)
+- Security-first: master key wrapping, encrypted storage
+- Consistent naming (*ManagerSecure components)
+
+**Technical Debt to Address:**
+
+1. **Component Size** - Several panels are 2000-3100 lines
+   - PropertyManagerSecure: 3,124 LOC
+   - VehicleManagerSecure: 3,047 LOC
+   - PetsManagerSecure: 2,030 LOC
+
+2. **Code Duplication** (~90% pattern repetition across panels)
+   - Form state management (showAddForm, editingItem, newItem, etc.)
+   - CRUD operations (load, add, update, delete)
+   - Modal headers and structure
+   - Date/currency formatting
+   - Search/filter logic
+   - Grid/list view toggle
+
+3. **App.tsx Scaling** - Manual if-statements for each panel modal
+   - Currently 15 conditionals, grows with each new panel
+
+### Recommended Refactoring Priorities
+
+**Priority 1: Extract Common Hooks**
 ```typescript
-interface DentalRecord {
-  id: string;
-  // Practice details
-  surgeryName: string;
-  surgeryAddress?: string;
-  surgeryPhone?: string;
-
-  // Dentist
-  dentistName: string;
-
-  // Appointment
-  patientName: string;  // Who the appointment is for
-  date: string;
-  type: 'checkup' | 'hygienist' | 'treatment' | 'emergency' | 'other';
-  description?: string;
-
-  // Costs
-  cost: number;
-  paymentMethod?: 'plan' | 'direct' | 'insurance';
-
-  // Documents & Notes
-  documents?: DocumentReference[];
-  notes?: string;
-}
+// hooks/useCRUDForm.ts - encapsulate form state + CRUD
+// hooks/useListView.ts - manage grid/list/sort/filter
+// hooks/useAsyncData.ts - loading/error/data pattern
 ```
 
-**Reminder Logic:**
-- Future appointment dates within 30 days → dueSoon badge
-- Overdue appointments (past date, not marked complete?) → overdue badge
-
-**Panel Config:**
+**Priority 2: Extract UI Components**
 ```typescript
-{
-  id: 'dental',
-  title: 'Dental',
-  icon: ???,  // Need to find suitable icon - maybe Smile or custom
-  description: 'Dental appointments, hygienist visits, and treatment records',
-  group: 'core',  // or 'lifestyle'?
-  defaultVisible: false,  // Niche - opt-in
-  region: 'global',
-  tags: ['dentist', 'teeth', 'hygienist', 'checkup'],
-}
+// components/ManagerModal.tsx - standard modal wrapper
+// components/ListView.tsx - sortable/filterable list
+// components/FormField.tsx - standardized inputs
 ```
+
+**Priority 3: Consolidate Utilities**
+```typescript
+// utils/formatting.ts - date, currency (currently duplicated in 4+ files)
+// utils/storage-keys.ts - centralized storage key registry
+```
+
+**Priority 4: Dynamic Panel Loading**
+- Replace if-statements with panel component registry
+- Add React.lazy for code splitting as panel count grows
+
+### Scalability Path
+
+| Panel Count | Risk Level | Actions Needed |
+|-------------|-----------|----------------|
+| 14 (current) | Low | Continue development |
+| 20-25 | Medium | Extract hooks, consolidate utils |
+| 30+ | High | Need full abstraction layer |
 
 ---
 
 ## PDF Viewing - Reference
 
-Large PDFs need Blob URLs, not data URLs (Chromium limitation):
+Large PDFs need Blob URLs (Chromium limitation):
 
 ```typescript
 const dataUrlToBlobUrl = (dataUrl: string): string => {
@@ -124,9 +135,11 @@ All panels should use:
 From docs/PANEL_PLUGIN_ARCHITECTURE.md:
 - Subscriptions (recurring services, renewal dates)
 - Warranties (product warranties, expiry tracking)
-- Pets (vet visits, vaccinations, insurance)
 - Travel (bookings, itineraries)
 - Gardening (plants, care schedules)
+- Wine Cellar (collection, tasting notes)
+- Books/Library (reading list, loans)
+- Fitness (workouts, gym membership)
 
 ---
 
