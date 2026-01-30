@@ -24,6 +24,7 @@ import {
   Camera,
   Users,
   Store,
+  Smile,        // Dental
   LucideIcon,
   // Future panel icons
   Flower2,      // Gardening
@@ -80,6 +81,7 @@ export type PanelId =
   | 'education'
   | 'employment'
   | 'health'
+  | 'dental'
   | 'finance'
   | 'pensions'
   | 'budget'
@@ -89,6 +91,7 @@ export type PanelId =
   | 'photos'
   | 'contacts'
   | 'websites'
+  | 'pets'
   // Future panels (uncomment as implemented)
   // | 'gardening'
   // | 'wine'
@@ -159,6 +162,17 @@ export const panels: PanelDefinition[] = [
     sortOrder: 4,
   },
   {
+    id: 'dental',
+    title: 'Dental',
+    icon: Smile,
+    description: 'Dental appointments, hygienist visits, and treatment records',
+    group: 'core',
+    defaultVisible: false,
+    region: 'global',
+    tags: ['dentist', 'teeth', 'hygienist', 'checkup', 'dental'],
+    sortOrder: 5,
+  },
+  {
     id: 'vehicles',
     title: 'Vehicles',
     icon: Car,
@@ -167,7 +181,7 @@ export const panels: PanelDefinition[] = [
     defaultVisible: true,
     region: 'global',
     tags: ['car', 'motorbike', 'insurance', 'mot', 'service'],
-    sortOrder: 5,
+    sortOrder: 6,
   },
   {
     id: 'property',
@@ -178,7 +192,7 @@ export const panels: PanelDefinition[] = [
     defaultVisible: true,
     region: 'uk',  // UK-specific (council tax)
     tags: ['house', 'flat', 'mortgage', 'rent', 'utilities'],
-    sortOrder: 6,
+    sortOrder: 7,
   },
   {
     id: 'contacts',
@@ -189,7 +203,7 @@ export const panels: PanelDefinition[] = [
     defaultVisible: true,
     region: 'global',
     tags: ['people', 'family', 'friends', 'emergency'],
-    sortOrder: 7,
+    sortOrder: 8,
   },
 
   // ============================================
@@ -264,6 +278,17 @@ export const panels: PanelDefinition[] = [
     region: 'global',
     tags: ['bookmarks', 'logins', 'passwords', 'links'],
     sortOrder: 2,
+  },
+  {
+    id: 'pets',
+    title: 'Pets',
+    icon: PawPrint,
+    description: 'Pet records, vet visits, vaccinations, and insurance',
+    group: 'lifestyle',
+    defaultVisible: false,
+    region: 'global',
+    tags: ['pets', 'dog', 'cat', 'vet', 'vaccinations', 'animals'],
+    sortOrder: 3,
   },
 
   // ============================================

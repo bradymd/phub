@@ -30,6 +30,8 @@ import { VehicleManagerSecure } from './components/VehicleManagerSecure';
 import { PropertyManagerSecure } from './components/PropertyManagerSecure';
 import { KakeiboManagerSecure } from './components/KakeiboManagerSecure';
 import { MedicalHistoryManagerSecure } from './components/MedicalHistoryManagerSecure';
+import { DentalManagerSecure } from './components/DentalManagerSecure';
+import { PetsManagerSecure } from './components/PetsManagerSecure';
 import { PensionManagerSecure } from './components/PensionManagerSecure';
 import { BudgetManagerSecure } from './components/BudgetManagerSecure';
 import MasterPasswordSetup from './components/MasterPasswordSetup';
@@ -379,6 +381,9 @@ export default function App() {
       {activeModal === 'health' && (
         <MedicalHistoryManagerSecure onClose={handleModalClose} />
       )}
+      {activeModal === 'dental' && (
+        <DentalManagerSecure onClose={handleModalClose} />
+      )}
       {activeModal === 'finance' && (
         <FinanceManagerSecure onClose={handleModalClose} />
       )}
@@ -405,6 +410,9 @@ export default function App() {
       )}
       {activeModal === 'websites' && (
         <VirtualHighStreetSecure onClose={handleModalClose} />
+      )}
+      {activeModal === 'pets' && (
+        <PetsManagerSecure onClose={handleModalClose} />
       )}
       {activeModal === 'ai' && (
         <AIOverview onClose={handleModalClose} />
@@ -448,7 +456,7 @@ export default function App() {
               </p>
             </div>
 
-            {/* Category List - Grouped */}
+            {/* Category List - Grouped (sorted alphabetically within each group) */}
             <div className="space-y-6">
               {getPanelGroups().map(({ group, label, panels: groupPanels }) => (
                 <div key={group}>
@@ -456,7 +464,7 @@ export default function App() {
                     {label}
                   </h3>
                   <div className="space-y-2">
-                    {groupPanels.map((panel) => {
+                    {[...groupPanels].sort((a, b) => a.title.localeCompare(b.title)).map((panel) => {
                       const Icon = panel.icon;
                       const isVisible = isCategoryVisible(panel.id);
 

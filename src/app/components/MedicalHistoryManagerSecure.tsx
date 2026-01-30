@@ -1,6 +1,6 @@
 import { useState, useEffect } from 'react';
 import { X, Plus, Trash, Heart, Calendar, Edit2, Key, FileText, ExternalLink, Hospital, Stethoscope, Search, AlertCircle, Upload, Eye, EyeOff, Download, User, Building, Shield, Phone, MapPin, CreditCard, ChevronDown, ChevronUp } from 'lucide-react';
-import { useStorage, useDocumentService } from '../../contexts/StorageContext';
+import { useStorage, useDocumentService, useDataVersion } from '../../contexts/StorageContext';
 import { PdfJsViewer } from './PdfJsViewer';
 import { DocumentReference } from '../../services/document-service';
 
@@ -107,6 +107,7 @@ const formatDateUK = (dateStr: string): string => {
 export function MedicalHistoryManagerSecure({ onClose }: MedicalHistoryManagerSecureProps) {
   const storage = useStorage();
   const documentService = useDocumentService();
+  const { notifyDataChange } = useDataVersion();
   const [records, setRecords] = useState<MedicalRecord[]>([]);
   const [showAddForm, setShowAddForm] = useState(false);
   const [editingRecord, setEditingRecord] = useState<MedicalRecord | null>(null);
@@ -215,6 +216,7 @@ export function MedicalHistoryManagerSecure({ onClose }: MedicalHistoryManagerSe
       }
       setMedicalProfile(profile);
       setEditingProfile(false);
+      notifyDataChange();
     } catch (err) {
       setError('Failed to save medical profile');
       console.error(err);
@@ -233,6 +235,7 @@ export function MedicalHistoryManagerSecure({ onClose }: MedicalHistoryManagerSe
 
       await storage.add('medical_history', record);
       await loadRecords();
+      notifyDataChange();
       setNewRecord(emptyRecord);
       setShowAddForm(false);
     } catch (err) {
@@ -248,6 +251,7 @@ export function MedicalHistoryManagerSecure({ onClose }: MedicalHistoryManagerSe
       setError('');
       await storage.update('medical_history', editingRecord.id, editingRecord);
       await loadRecords();
+      notifyDataChange();
       setEditingRecord(null);
     } catch (err) {
       setError('Failed to update record');
@@ -270,6 +274,7 @@ export function MedicalHistoryManagerSecure({ onClose }: MedicalHistoryManagerSe
       // Delete the record
       await storage.delete('medical_history', id);
       await loadRecords();
+      notifyDataChange();
       if (expandedRecord === id) setExpandedRecord(null);
     } catch (err) {
       setError('Failed to delete record');

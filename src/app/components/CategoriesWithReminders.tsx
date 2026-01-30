@@ -1,6 +1,7 @@
 import { LucideIcon } from 'lucide-react';
 import { CategoryCard } from './CategoryCard';
 import { useReminders } from '../../hooks/useReminders';
+import { usePanelUsage } from '../../hooks/usePanelUsage';
 
 interface Panel {
   id: string;
@@ -23,6 +24,7 @@ export function CategoriesWithReminders({
   onCategoryClick,
 }: CategoriesWithRemindersProps) {
   const reminders = useReminders();
+  const { recordPanelAccess, getUsageScore } = usePanelUsage();
 
   const getRemindersForPanel = (panelId: string) => {
     switch (panelId) {
@@ -32,15 +34,53 @@ export function CategoriesWithReminders({
         return reminders.vehicles;
       case 'health':
         return reminders.health;
+      case 'dental':
+        return reminders.dental;
+      case 'pets':
+        return reminders.pets;
       default:
         return { overdue: 0, dueSoon: 0 };
     }
   };
 
+  // Handle click: record usage and call the parent handler
+  const handleCategoryClick = (id: string) => {
+    recordPanelAccess(id);
+    onCategoryClick(id);
+  };
+
+  // Sort categories: alerts first (overdue, then due soon), then by usage frequency
+  const sortedCategories = [...categories]
+    .filter(cat => isCategoryVisible(cat.id))
+    .sort((a, b) => {
+      const remindersA = getRemindersForPanel(a.id);
+      const remindersB = getRemindersForPanel(b.id);
+
+      // Priority 1: Overdue items (higher overdue count = higher priority)
+      if (remindersA.overdue !== remindersB.overdue) {
+        return remindersB.overdue - remindersA.overdue;
+      }
+
+      // Priority 2: Due soon items (higher due soon count = higher priority)
+      if (remindersA.dueSoon !== remindersB.dueSoon) {
+        return remindersB.dueSoon - remindersA.dueSoon;
+      }
+
+      // Priority 3: Usage frequency (higher score = higher priority)
+      const usageA = getUsageScore(a.id);
+      const usageB = getUsageScore(b.id);
+      if (usageA !== usageB) {
+        return usageB - usageA;
+      }
+
+      // Final fallback: alphabetical by title
+      return a.title.localeCompare(b.title);
+    });
+
   if (viewMode === 'grid') {
     return (
       <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
-        {categories.filter(cat => isCategoryVisible(cat.id)).map((category) => {
+        {sortedCategories.map((category) => {
           const panelReminders = getRemindersForPanel(category.id);
           return (
             <CategoryCard
@@ -48,7 +88,7 @@ export function CategoriesWithReminders({
               title={category.title}
               icon={category.icon}
               description={category.description}
-              onClick={() => onCategoryClick(category.id)}
+              onClick={() => handleCategoryClick(category.id)}
               overdue={panelReminders.overdue}
               dueSoon={panelReminders.dueSoon}
             />
@@ -60,7 +100,7 @@ export function CategoriesWithReminders({
 
   return (
     <div className="bg-white rounded-xl shadow-sm border border-gray-100 divide-y divide-gray-100">
-      {categories.filter(cat => isCategoryVisible(cat.id)).map((category) => {
+      {sortedCategories.map((category) => {
         const Icon = category.icon;
         const panelReminders = getRemindersForPanel(category.id);
         const hasReminders = panelReminders.overdue > 0 || panelReminders.dueSoon > 0;
@@ -68,7 +108,7 @@ export function CategoriesWithReminders({
         return (
           <button
             key={category.id}
-            onClick={() => onCategoryClick(category.id)}
+            onClick={() => handleCategoryClick(category.id)}
             className="w-full px-6 py-3 hover:bg-gray-50 transition-colors text-left flex items-center justify-between group"
           >
             <div className="flex items-center gap-3 flex-1">

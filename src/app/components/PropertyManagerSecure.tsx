@@ -1,6 +1,6 @@
 import { useState, useEffect } from 'react';
 import { X, Plus, Trash, Home, Calendar, Edit2, FileText, Search, Eye, EyeOff, Grid3x3, List, Download, AlertCircle, Phone, Shield, Wrench, Upload, Globe, Zap, Droplets, Wifi, Building2, CheckCircle, ChevronDown, ChevronUp, Printer } from 'lucide-react';
-import { useStorage, useDocumentService } from '../../contexts/StorageContext';
+import { useStorage, useDocumentService, useDataVersion } from '../../contexts/StorageContext';
 import { PdfJsViewer } from './PdfJsViewer';
 import { DocumentReference } from '../../services/document-service';
 import { printRecord, formatDate, formatCurrency } from '../../utils/print';
@@ -242,6 +242,7 @@ const isDueSoon = (dateStr: string): boolean => {
 export function PropertyManagerSecure({ onClose }: PropertyManagerSecureProps) {
   const storage = useStorage();
   const documentService = useDocumentService();
+  const { notifyDataChange } = useDataVersion();
   const [properties, setProperties] = useState<Property[]>([]);
   const [showAddForm, setShowAddForm] = useState(false);
   const [editingProperty, setEditingProperty] = useState<Property | null>(null);
@@ -312,6 +313,7 @@ export function PropertyManagerSecure({ onClose }: PropertyManagerSecureProps) {
       };
       await storage.add('properties', property);
       setProperties([...properties, property]);
+      notifyDataChange();
       setNewProperty(emptyProperty);
       setShowAddForm(false);
     } catch (err) {
@@ -327,6 +329,7 @@ export function PropertyManagerSecure({ onClose }: PropertyManagerSecureProps) {
       setError('');
       await storage.update('properties', editingProperty.id, editingProperty);
       setProperties(properties.map(p => p.id === editingProperty.id ? editingProperty : p));
+      notifyDataChange();
       setEditingProperty(null);
     } catch (err) {
       setError('Failed to update property');
@@ -356,6 +359,7 @@ export function PropertyManagerSecure({ onClose }: PropertyManagerSecureProps) {
       }
       await storage.remove('properties', id);
       setProperties(properties.filter(p => p.id !== id));
+      notifyDataChange();
       setEditingProperty(null);
       setViewingDetails(null);
     } catch (err) {

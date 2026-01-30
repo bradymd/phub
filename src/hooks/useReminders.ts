@@ -1,5 +1,5 @@
 import { useState, useEffect } from 'react';
-import { useStorage } from '../contexts/StorageContext';
+import { useStorage, useDataVersion } from '../contexts/StorageContext';
 
 // Check if date is in the past
 const isPastDate = (dateStr: string): boolean => {
@@ -30,22 +30,34 @@ export interface PanelReminders {
   property: ReminderCounts;
   vehicles: ReminderCounts;
   health: ReminderCounts;
+  dental: ReminderCounts;
+  pets: ReminderCounts;
 }
 
 const emptyReminders: PanelReminders = {
   property: { overdue: 0, dueSoon: 0 },
   vehicles: { overdue: 0, dueSoon: 0 },
   health: { overdue: 0, dueSoon: 0 },
+  dental: { overdue: 0, dueSoon: 0 },
+  pets: { overdue: 0, dueSoon: 0 },
 };
 
 export function useReminders(): PanelReminders {
   const storage = useStorage();
+  const { dataVersion } = useDataVersion();
   const [reminders, setReminders] = useState<PanelReminders>(emptyReminders);
 
   useEffect(() => {
     const loadReminders = async () => {
       try {
-        const newReminders: PanelReminders = { ...emptyReminders };
+        // Deep copy to avoid mutation issues with React StrictMode
+        const newReminders: PanelReminders = {
+          property: { overdue: 0, dueSoon: 0 },
+          vehicles: { overdue: 0, dueSoon: 0 },
+          health: { overdue: 0, dueSoon: 0 },
+          dental: { overdue: 0, dueSoon: 0 },
+          pets: { overdue: 0, dueSoon: 0 },
+        };
 
         // Load property data
         try {
@@ -144,6 +156,64 @@ export function useReminders(): PanelReminders {
           // Medical records store might not exist yet
         }
 
+        // Load dental records
+        try {
+          const dentalRecords = await storage.get('dental_records');
+          dentalRecords.forEach((record: any) => {
+            // Check for upcoming appointments (date is in the future within 30 days)
+            if (record.date && isDueSoon(record.date)) {
+              newReminders.dental.dueSoon++;
+            }
+            // Check for next appointment dates
+            if (record.nextAppointmentDate) {
+              if (isPastDate(record.nextAppointmentDate)) {
+                newReminders.dental.overdue++;
+              } else if (isDueSoon(record.nextAppointmentDate)) {
+                newReminders.dental.dueSoon++;
+              }
+            }
+          });
+        } catch (e) {
+          // Dental records store might not exist yet
+        }
+
+        // Load pet records
+        try {
+          const pets = await storage.get('pets');
+          pets.forEach((pet: any) => {
+            // Check vaccination booster due dates
+            (pet.vaccinations || []).forEach((vax: any) => {
+              if (vax.nextDueDate) {
+                if (isPastDate(vax.nextDueDate)) {
+                  newReminders.pets.overdue++;
+                } else if (isDueSoon(vax.nextDueDate)) {
+                  newReminders.pets.dueSoon++;
+                }
+              }
+            });
+            // Check insurance renewal
+            if (pet.insurance?.renewalDate) {
+              if (isPastDate(pet.insurance.renewalDate)) {
+                newReminders.pets.overdue++;
+              } else if (isDueSoon(pet.insurance.renewalDate)) {
+                newReminders.pets.dueSoon++;
+              }
+            }
+            // Check vet visit follow-ups
+            (pet.vetVisits || []).forEach((visit: any) => {
+              if (visit.followUpDate) {
+                if (isPastDate(visit.followUpDate)) {
+                  newReminders.pets.overdue++;
+                } else if (isDueSoon(visit.followUpDate)) {
+                  newReminders.pets.dueSoon++;
+                }
+              }
+            });
+          });
+        } catch (e) {
+          // Pets store might not exist yet
+        }
+
         setReminders(newReminders);
       } catch (err) {
         console.error('Error loading reminders:', err);
@@ -151,7 +221,7 @@ export function useReminders(): PanelReminders {
     };
 
     loadReminders();
-  }, [storage]);
+  }, [storage, dataVersion]);
 
   return reminders;
 }

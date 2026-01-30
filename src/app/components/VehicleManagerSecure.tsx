@@ -1,6 +1,6 @@
 import { useState, useEffect } from 'react';
 import { X, Plus, Trash, Car, Calendar, Edit2, FileText, Search, Eye, EyeOff, Grid3x3, List, Download, AlertCircle, Phone, Shield, Wrench, Upload, Printer } from 'lucide-react';
-import { useStorage, useDocumentService } from '../../contexts/StorageContext';
+import { useStorage, useDocumentService, useDataVersion } from '../../contexts/StorageContext';
 import { PdfJsViewer } from './PdfJsViewer';
 import { DocumentReference } from '../../services/document-service';
 import { printRecord, formatDate, formatCurrency } from '../../utils/print';
@@ -169,6 +169,7 @@ const getNextServiceDueDate = (vehicle: Vehicle): string | null => {
 export function VehicleManagerSecure({ onClose }: VehicleManagerSecureProps) {
   const storage = useStorage();
   const documentService = useDocumentService();
+  const { notifyDataChange } = useDataVersion();
   const [vehicles, setVehicles] = useState<Vehicle[]>([]);
   const [showAddForm, setShowAddForm] = useState(false);
   const [editingVehicle, setEditingVehicle] = useState<Vehicle | null>(null);
@@ -226,6 +227,7 @@ export function VehicleManagerSecure({ onClose }: VehicleManagerSecureProps) {
 
       await storage.add('vehicles', vehicle);
       await loadVehicles();
+      notifyDataChange();
       setNewVehicle(emptyVehicle);
       setShowAddForm(false);
     } catch (err) {
@@ -241,6 +243,7 @@ export function VehicleManagerSecure({ onClose }: VehicleManagerSecureProps) {
       setError('');
       await storage.update('vehicles', editingVehicle.id, editingVehicle);
       await loadVehicles();
+      notifyDataChange();
       setEditingVehicle(null);
     } catch (err) {
       setError('Failed to update vehicle');
@@ -268,6 +271,7 @@ export function VehicleManagerSecure({ onClose }: VehicleManagerSecureProps) {
       }
       await storage.delete('vehicles', id);
       await loadVehicles();
+      notifyDataChange();
     } catch (err) {
       setError('Failed to delete vehicle');
       console.error(err);
@@ -299,6 +303,7 @@ export function VehicleManagerSecure({ onClose }: VehicleManagerSecureProps) {
 
       await storage.update('vehicles', vehicleId, updatedVehicle);
       await loadVehicles();
+      notifyDataChange();
       setNewServiceEntry(emptyServiceEntry);
       setShowServiceForm(false);
 
@@ -334,6 +339,7 @@ export function VehicleManagerSecure({ onClose }: VehicleManagerSecureProps) {
 
       await storage.update('vehicles', vehicleId, updatedVehicle);
       await loadVehicles();
+      notifyDataChange();
       setEditingServiceEntry(null);
       setViewingServiceEntry(null);
 
@@ -362,6 +368,7 @@ export function VehicleManagerSecure({ onClose }: VehicleManagerSecureProps) {
 
       await storage.update('vehicles', vehicleId, updatedVehicle);
       await loadVehicles();
+      notifyDataChange();
 
       if (viewingDetails?.id === vehicleId) {
         setViewingDetails(updatedVehicle);

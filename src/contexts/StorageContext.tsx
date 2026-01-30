@@ -22,6 +22,8 @@ interface StorageContextType {
   masterPassword: string;
   masterKeyString: string;
   changePassword: (currentPassword: string, newPassword: string) => Promise<void>;
+  dataVersion: number;
+  notifyDataChange: () => void;
 }
 
 const StorageContext = createContext<StorageContextType | null>(null);
@@ -37,6 +39,12 @@ export function StorageProvider({ masterPassword, children }: StorageProviderPro
   const [documentService, setDocumentService] = useState<DocumentService | null>(null);
   const [currentPassword, setCurrentPassword] = useState(masterPassword);
   const [isInitialized, setIsInitialized] = useState(false);
+  const [dataVersion, setDataVersion] = useState(0);
+
+  // Call this after updating data to trigger reminder refresh
+  const notifyDataChange = () => {
+    setDataVersion(v => v + 1);
+  };
 
   // Initialize master key on mount
   useEffect(() => {
@@ -115,7 +123,7 @@ export function StorageProvider({ masterPassword, children }: StorageProviderPro
   }
 
   return (
-    <StorageContext.Provider value={{ storage, documentService, masterPassword: currentPassword, masterKeyString: masterKeyString!, changePassword }}>
+    <StorageContext.Provider value={{ storage, documentService, masterPassword: currentPassword, masterKeyString: masterKeyString!, changePassword, dataVersion, notifyDataChange }}>
       {children}
     </StorageContext.Provider>
   );
@@ -174,4 +182,15 @@ export function useChangePassword() {
   }
 
   return context.changePassword;
+}
+
+// Custom hook to get data version and notify function for triggering reminder refresh
+export function useDataVersion(): { dataVersion: number; notifyDataChange: () => void } {
+  const context = useContext(StorageContext);
+
+  if (!context) {
+    throw new Error('useDataVersion must be used within a StorageProvider');
+  }
+
+  return { dataVersion: context.dataVersion, notifyDataChange: context.notifyDataChange };
 }
