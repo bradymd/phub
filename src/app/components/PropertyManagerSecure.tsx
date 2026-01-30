@@ -18,6 +18,19 @@ interface MaintenanceItem {
   documents?: DocumentReference[];
 }
 
+// Maintenance history entry for completed work (similar to vehicle service history)
+interface MaintenanceHistoryEntry {
+  id: string;
+  date: string;
+  type: 'decorator' | 'plumber' | 'electrician' | 'builder' | 'gardener' | 'cleaner' | 'gutters' | 'roofing' | 'other';
+  description: string;
+  cost: number;
+  company: string;
+  contactDetails?: string;
+  notes?: string;
+  documents?: DocumentReference[];
+}
+
 // Utility provider
 interface Utility {
   id: string;
@@ -60,8 +73,11 @@ interface Property {
   councilTaxAccountNumber: string;
   councilTaxDocuments?: DocumentReference[];
 
-  // Maintenance items (flexible list)
+  // Maintenance items (flexible list for recurring checks)
   maintenanceItems: MaintenanceItem[];
+
+  // Maintenance history (completed work log)
+  maintenanceHistory?: MaintenanceHistoryEntry[];
 
   // Utilities
   utilities: Utility[];
@@ -118,6 +134,29 @@ const emptyUtility: Omit<Utility, 'id'> = {
   websiteUrl: '',
   accountNumber: '',
   notes: ''
+};
+
+const emptyMaintenanceHistoryEntry: Omit<MaintenanceHistoryEntry, 'id'> = {
+  date: '',
+  type: 'other',
+  description: '',
+  cost: 0,
+  company: '',
+  contactDetails: '',
+  notes: '',
+  documents: []
+};
+
+const maintenanceTypeLabels: Record<MaintenanceHistoryEntry['type'], string> = {
+  decorator: 'Decorator',
+  plumber: 'Plumber',
+  electrician: 'Electrician',
+  builder: 'Builder',
+  gardener: 'Gardener',
+  cleaner: 'Cleaner',
+  gutters: 'Gutters',
+  roofing: 'Roofing',
+  other: 'Other'
 };
 
 // Format date from YYYY-MM-DD to DD/MM/YYYY for UK display
@@ -226,6 +265,11 @@ export function PropertyManagerSecure({ onClose }: PropertyManagerSecureProps) {
   const [newUtility, setNewUtility] = useState(emptyUtility);
   const [showUtilityForm, setShowUtilityForm] = useState(false);
   const [editingUtility, setEditingUtility] = useState<Utility | null>(null);
+
+  // Maintenance history form state
+  const [newMaintenanceHistory, setNewMaintenanceHistory] = useState(emptyMaintenanceHistoryEntry);
+  const [showMaintenanceHistoryForm, setShowMaintenanceHistoryForm] = useState(false);
+  const [editingMaintenanceHistory, setEditingMaintenanceHistory] = useState<MaintenanceHistoryEntry | null>(null);
 
   useEffect(() => {
     loadProperties();
@@ -415,6 +459,59 @@ export function PropertyManagerSecure({ onClose }: PropertyManagerSecureProps) {
     }
   };
 
+  // Maintenance history functions
+  const addMaintenanceHistoryEntry = (propertyId: string) => {
+    if (!newMaintenanceHistory.description) {
+      setError('Description is required');
+      return;
+    }
+
+    const entry: MaintenanceHistoryEntry = {
+      ...newMaintenanceHistory,
+      id: `mhist_${Date.now()}_${Math.random().toString(36).substr(2, 9)}`
+    };
+
+    if (editingProperty && editingProperty.id === propertyId) {
+      const sortedHistory = [...(editingProperty.maintenanceHistory || []), entry]
+        .sort((a, b) => new Date(b.date).getTime() - new Date(a.date).getTime());
+      setEditingProperty({
+        ...editingProperty,
+        maintenanceHistory: sortedHistory
+      });
+    }
+
+    setNewMaintenanceHistory(emptyMaintenanceHistoryEntry);
+    setShowMaintenanceHistoryForm(false);
+  };
+
+  const updateMaintenanceHistoryEntry = (propertyId: string, updatedEntry: MaintenanceHistoryEntry) => {
+    if (editingProperty && editingProperty.id === propertyId) {
+      const sortedHistory = editingProperty.maintenanceHistory?.map(e =>
+        e.id === updatedEntry.id ? updatedEntry : e
+      ).sort((a, b) => new Date(b.date).getTime() - new Date(a.date).getTime()) || [];
+      setEditingProperty({
+        ...editingProperty,
+        maintenanceHistory: sortedHistory
+      });
+    }
+    setEditingMaintenanceHistory(null);
+  };
+
+  const deleteMaintenanceHistoryEntry = async (propertyId: string, entryId: string) => {
+    if (!confirm('Delete this maintenance record?')) return;
+
+    if (editingProperty && editingProperty.id === propertyId) {
+      const entry = editingProperty.maintenanceHistory?.find(e => e.id === entryId);
+      if (entry?.documents?.length) {
+        await documentService.deleteDocuments('certificates', entry.documents);
+      }
+      setEditingProperty({
+        ...editingProperty,
+        maintenanceHistory: editingProperty.maintenanceHistory?.filter(e => e.id !== entryId) || []
+      });
+    }
+  };
+
   // Document handling
   const dataUrlToBlobUrl = (dataUrl: string): string => {
     const match = dataUrl.match(/^data:([^;]+);base64,(.+)$/);
@@ -495,7 +592,7 @@ export function PropertyManagerSecure({ onClose }: PropertyManagerSecureProps) {
   // Generic document upload handler
   const handleDocumentUpload = async (
     file: File,
-    docType: 'finance' | 'insurance' | 'councilTax' | 'maintenance',
+    docType: 'finance' | 'insurance' | 'councilTax' | 'maintenance' | 'maintenanceHistory',
     maintenanceItemId?: string
   ) => {
     if (!file || !editingProperty) return;
@@ -532,6 +629,15 @@ export function PropertyManagerSecure({ onClose }: PropertyManagerSecureProps) {
                   : m
               )
             });
+          } else if (docType === 'maintenanceHistory' && maintenanceItemId) {
+            setEditingProperty({
+              ...editingProperty,
+              maintenanceHistory: (editingProperty.maintenanceHistory || []).map(e =>
+                e.id === maintenanceItemId
+                  ? { ...e, documents: [...(e.documents || []), docRef] }
+                  : e
+              )
+            });
           }
         } catch (err) {
           setError('Failed to upload document');
@@ -547,7 +653,7 @@ export function PropertyManagerSecure({ onClose }: PropertyManagerSecureProps) {
 
   const removeDocument = async (
     docRef: DocumentReference,
-    docType: 'finance' | 'insurance' | 'councilTax' | 'maintenance',
+    docType: 'finance' | 'insurance' | 'councilTax' | 'maintenance' | 'maintenanceHistory',
     maintenanceItemId?: string
   ) => {
     if (!editingProperty) return;
@@ -577,6 +683,15 @@ export function PropertyManagerSecure({ onClose }: PropertyManagerSecureProps) {
             m.id === maintenanceItemId
               ? { ...m, documents: (m.documents || []).filter(d => d.id !== docRef.id) }
               : m
+          )
+        });
+      } else if (docType === 'maintenanceHistory' && maintenanceItemId) {
+        setEditingProperty({
+          ...editingProperty,
+          maintenanceHistory: (editingProperty.maintenanceHistory || []).map(e =>
+            e.id === maintenanceItemId
+              ? { ...e, documents: (e.documents || []).filter(d => d.id !== docRef.id) }
+              : e
           )
         });
       }
@@ -641,7 +756,7 @@ export function PropertyManagerSecure({ onClose }: PropertyManagerSecureProps) {
     canEdit = true
   }: {
     documents: DocumentReference[];
-    docType: 'finance' | 'insurance' | 'councilTax' | 'maintenance';
+    docType: 'finance' | 'insurance' | 'councilTax' | 'maintenance' | 'maintenanceHistory';
     maintenanceItemId?: string;
     canEdit?: boolean;
   }) => {
@@ -649,7 +764,8 @@ export function PropertyManagerSecure({ onClose }: PropertyManagerSecureProps) {
       finance: 'bg-blue-100 text-blue-700 hover:bg-blue-200',
       insurance: 'bg-green-100 text-green-700 hover:bg-green-200',
       councilTax: 'bg-amber-100 text-amber-700 hover:bg-amber-200',
-      maintenance: 'bg-purple-100 text-purple-700 hover:bg-purple-200'
+      maintenance: 'bg-purple-100 text-purple-700 hover:bg-purple-200',
+      maintenanceHistory: 'bg-cyan-100 text-cyan-700 hover:bg-cyan-200'
     };
 
     return (
@@ -1947,6 +2063,178 @@ export function PropertyManagerSecure({ onClose }: PropertyManagerSecureProps) {
                 )}
               </div>
 
+              {/* Property Maintenance History Section */}
+              <div className="border border-gray-200 rounded-lg p-4">
+                <div className="flex items-center justify-between mb-3">
+                  <h4 className="text-sm font-medium text-gray-700 flex items-center gap-2">
+                    <Wrench className="w-4 h-4" /> Property Maintenance History
+                  </h4>
+                  <button
+                    onClick={() => setShowMaintenanceHistoryForm(!showMaintenanceHistoryForm)}
+                    className="flex items-center gap-1 px-3 py-1 bg-blue-100 text-blue-700 rounded-lg hover:bg-blue-200 text-sm"
+                  >
+                    <Plus className="w-4 h-4" />
+                    Add Work
+                  </button>
+                </div>
+
+                {showMaintenanceHistoryForm && (
+                  <div className="mb-4 p-4 bg-gray-50 rounded-lg border border-gray-200">
+                    <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                      <div>
+                        <label className="block text-sm text-gray-600 mb-1">Date *</label>
+                        <input
+                          type="date"
+                          value={newMaintenanceHistory.date}
+                          onChange={(e) => setNewMaintenanceHistory({ ...newMaintenanceHistory, date: e.target.value })}
+                          className="w-full px-3 py-2 border border-gray-300 rounded-lg text-sm"
+                        />
+                      </div>
+                      <div>
+                        <label className="block text-sm text-gray-600 mb-1">Type</label>
+                        <select
+                          value={newMaintenanceHistory.type}
+                          onChange={(e) => setNewMaintenanceHistory({ ...newMaintenanceHistory, type: e.target.value as MaintenanceHistoryEntry['type'] })}
+                          className="w-full px-3 py-2 border border-gray-300 rounded-lg bg-white text-sm"
+                        >
+                          <option value="decorator">Decorator</option>
+                          <option value="plumber">Plumber</option>
+                          <option value="electrician">Electrician</option>
+                          <option value="builder">Builder</option>
+                          <option value="gardener">Gardener</option>
+                          <option value="cleaner">Cleaner</option>
+                          <option value="gutters">Gutters</option>
+                          <option value="roofing">Roofing</option>
+                          <option value="other">Other</option>
+                        </select>
+                      </div>
+                      <div className="md:col-span-2">
+                        <label className="block text-sm text-gray-600 mb-1">Description *</label>
+                        <input
+                          type="text"
+                          value={newMaintenanceHistory.description}
+                          onChange={(e) => setNewMaintenanceHistory({ ...newMaintenanceHistory, description: e.target.value })}
+                          placeholder="e.g., Painted living room and hallway"
+                          className="w-full px-3 py-2 border border-gray-300 rounded-lg text-sm"
+                        />
+                      </div>
+                      <div>
+                        <label className="block text-sm text-gray-600 mb-1">Cost (£)</label>
+                        <input
+                          type="number"
+                          step="0.01"
+                          value={newMaintenanceHistory.cost || ''}
+                          onChange={(e) => setNewMaintenanceHistory({ ...newMaintenanceHistory, cost: parseFloat(e.target.value) || 0 })}
+                          className="w-full px-3 py-2 border border-gray-300 rounded-lg text-sm"
+                        />
+                      </div>
+                      <div>
+                        <label className="block text-sm text-gray-600 mb-1">Company/Person</label>
+                        <input
+                          type="text"
+                          value={newMaintenanceHistory.company}
+                          onChange={(e) => setNewMaintenanceHistory({ ...newMaintenanceHistory, company: e.target.value })}
+                          className="w-full px-3 py-2 border border-gray-300 rounded-lg text-sm"
+                        />
+                      </div>
+                      <div>
+                        <label className="block text-sm text-gray-600 mb-1">Contact Details</label>
+                        <input
+                          type="text"
+                          value={newMaintenanceHistory.contactDetails || ''}
+                          onChange={(e) => setNewMaintenanceHistory({ ...newMaintenanceHistory, contactDetails: e.target.value })}
+                          placeholder="Phone or email"
+                          className="w-full px-3 py-2 border border-gray-300 rounded-lg text-sm"
+                        />
+                      </div>
+                      <div>
+                        <label className="block text-sm text-gray-600 mb-1">Notes</label>
+                        <input
+                          type="text"
+                          value={newMaintenanceHistory.notes || ''}
+                          onChange={(e) => setNewMaintenanceHistory({ ...newMaintenanceHistory, notes: e.target.value })}
+                          className="w-full px-3 py-2 border border-gray-300 rounded-lg text-sm"
+                        />
+                      </div>
+                    </div>
+                    <div className="flex justify-end gap-2 mt-4">
+                      <button
+                        onClick={() => {
+                          setShowMaintenanceHistoryForm(false);
+                          setNewMaintenanceHistory(emptyMaintenanceHistoryEntry);
+                        }}
+                        className="px-4 py-2 text-gray-600 hover:bg-gray-100 rounded-lg text-sm"
+                      >
+                        Cancel
+                      </button>
+                      <button
+                        onClick={() => addMaintenanceHistoryEntry(editingProperty.id)}
+                        className="px-4 py-2 bg-blue-600 text-white rounded-lg hover:bg-blue-700 text-sm"
+                      >
+                        Add Work Record
+                      </button>
+                    </div>
+                  </div>
+                )}
+
+                {editingProperty.maintenanceHistory && editingProperty.maintenanceHistory.length > 0 ? (
+                  <div className="space-y-3">
+                    {editingProperty.maintenanceHistory.map((entry) => (
+                      <div key={entry.id} className="bg-blue-50 rounded-lg p-3 border border-blue-200">
+                        <div className="flex items-start justify-between">
+                          <div className="flex-1">
+                            <div className="flex items-center gap-2 mb-1">
+                              <span className="font-medium text-gray-900">{entry.description}</span>
+                              <span className="px-2 py-0.5 bg-blue-200 text-blue-800 text-xs rounded">
+                                {maintenanceTypeLabels[entry.type]}
+                              </span>
+                            </div>
+                            <div className="text-sm text-gray-600 space-y-0.5">
+                              <p>Date: {formatDateUK(entry.date)} | Cost: £{entry.cost.toFixed(2)}</p>
+                              {entry.company && <p>Company: {entry.company}</p>}
+                              {entry.contactDetails && <p>Contact: {entry.contactDetails}</p>}
+                              {entry.notes && <p className="text-gray-500 italic">{entry.notes}</p>}
+                            </div>
+                          </div>
+                          <div className="flex items-center gap-1">
+                            <button
+                              onClick={() => setEditingMaintenanceHistory(entry)}
+                              className="p-1.5 text-blue-600 hover:bg-blue-100 rounded"
+                              title="Edit"
+                            >
+                              <Edit2 className="w-4 h-4" />
+                            </button>
+                            <button
+                              onClick={() => deleteMaintenanceHistoryEntry(editingProperty.id, entry.id)}
+                              className="p-1.5 text-red-500 hover:bg-red-50 rounded"
+                              title="Delete"
+                            >
+                              <Trash className="w-4 h-4" />
+                            </button>
+                          </div>
+                        </div>
+                        {entry.documents && entry.documents.length > 0 && (
+                          <div className="mt-2 pt-2 border-t border-blue-200">
+                            <DocumentList documents={entry.documents} docType="maintenanceHistory" maintenanceItemId={entry.id} />
+                          </div>
+                        )}
+                        <div className="mt-2">
+                          <UploadButton
+                            onUpload={(file) => handleDocumentUpload(file, 'maintenanceHistory', entry.id)}
+                            label="Add receipt/invoice"
+                          />
+                        </div>
+                      </div>
+                    ))}
+                    <div className="text-right text-sm font-medium text-gray-700">
+                      Total spent: £{editingProperty.maintenanceHistory.reduce((sum, e) => sum + e.cost, 0).toFixed(2)}
+                    </div>
+                  </div>
+                ) : (
+                  <p className="text-sm text-gray-500 italic">No maintenance history recorded yet</p>
+                )}
+              </div>
+
               {/* Utilities Section */}
               <div className="border border-gray-200 rounded-lg p-4">
                 <div className="flex items-center justify-between mb-3">
@@ -2296,6 +2584,137 @@ export function PropertyManagerSecure({ onClose }: PropertyManagerSecureProps) {
                 </button>
                 <button
                   onClick={() => setEditingMaintenanceItem(null)}
+                  className="px-4 py-2 bg-gray-200 text-gray-700 rounded-lg hover:bg-gray-300"
+                >
+                  Cancel
+                </button>
+              </div>
+            </div>
+          </div>
+        </div>
+      )}
+
+      {/* Edit Maintenance History Entry Modal */}
+      {editingMaintenanceHistory && (
+        <div className="fixed inset-0 bg-black/60 flex items-center justify-center z-[80] p-4">
+          <div className="bg-white rounded-2xl max-w-lg w-full p-6 shadow-2xl">
+            <div className="flex items-center justify-between mb-4">
+              <h3 className="text-lg font-semibold">Edit Maintenance Record</h3>
+              <button onClick={() => setEditingMaintenanceHistory(null)} className="p-2 hover:bg-gray-100 rounded-lg">
+                <X className="w-5 h-5" />
+              </button>
+            </div>
+            <div className="space-y-4">
+              <div className="grid grid-cols-2 gap-4">
+                <div>
+                  <label className="block text-sm text-gray-600 mb-1">Date</label>
+                  <input
+                    type="date"
+                    value={editingMaintenanceHistory.date}
+                    onChange={(e) => setEditingMaintenanceHistory({ ...editingMaintenanceHistory, date: e.target.value })}
+                    className="w-full px-3 py-2 border border-gray-300 rounded-lg"
+                  />
+                </div>
+                <div>
+                  <label className="block text-sm text-gray-600 mb-1">Type</label>
+                  <select
+                    value={editingMaintenanceHistory.type}
+                    onChange={(e) => setEditingMaintenanceHistory({ ...editingMaintenanceHistory, type: e.target.value as MaintenanceHistoryEntry['type'] })}
+                    className="w-full px-3 py-2 border border-gray-300 rounded-lg bg-white"
+                  >
+                    <option value="decorator">Decorator</option>
+                    <option value="plumber">Plumber</option>
+                    <option value="electrician">Electrician</option>
+                    <option value="builder">Builder</option>
+                    <option value="gardener">Gardener</option>
+                    <option value="cleaner">Cleaner</option>
+                    <option value="gutters">Gutters</option>
+                    <option value="roofing">Roofing</option>
+                    <option value="other">Other</option>
+                  </select>
+                </div>
+              </div>
+              <div>
+                <label className="block text-sm text-gray-600 mb-1">Description</label>
+                <input
+                  type="text"
+                  value={editingMaintenanceHistory.description}
+                  onChange={(e) => setEditingMaintenanceHistory({ ...editingMaintenanceHistory, description: e.target.value })}
+                  className="w-full px-3 py-2 border border-gray-300 rounded-lg"
+                />
+              </div>
+              <div className="grid grid-cols-2 gap-4">
+                <div>
+                  <label className="block text-sm text-gray-600 mb-1">Cost (£)</label>
+                  <input
+                    type="number"
+                    step="0.01"
+                    value={editingMaintenanceHistory.cost || ''}
+                    onChange={(e) => setEditingMaintenanceHistory({ ...editingMaintenanceHistory, cost: parseFloat(e.target.value) || 0 })}
+                    className="w-full px-3 py-2 border border-gray-300 rounded-lg"
+                  />
+                </div>
+                <div>
+                  <label className="block text-sm text-gray-600 mb-1">Company/Person</label>
+                  <input
+                    type="text"
+                    value={editingMaintenanceHistory.company}
+                    onChange={(e) => setEditingMaintenanceHistory({ ...editingMaintenanceHistory, company: e.target.value })}
+                    className="w-full px-3 py-2 border border-gray-300 rounded-lg"
+                  />
+                </div>
+                <div>
+                  <label className="block text-sm text-gray-600 mb-1">Contact Details</label>
+                  <input
+                    type="text"
+                    value={editingMaintenanceHistory.contactDetails || ''}
+                    onChange={(e) => setEditingMaintenanceHistory({ ...editingMaintenanceHistory, contactDetails: e.target.value })}
+                    className="w-full px-3 py-2 border border-gray-300 rounded-lg"
+                  />
+                </div>
+                <div>
+                  <label className="block text-sm text-gray-600 mb-1">Notes</label>
+                  <input
+                    type="text"
+                    value={editingMaintenanceHistory.notes || ''}
+                    onChange={(e) => setEditingMaintenanceHistory({ ...editingMaintenanceHistory, notes: e.target.value })}
+                    className="w-full px-3 py-2 border border-gray-300 rounded-lg"
+                  />
+                </div>
+              </div>
+
+              {/* Documents */}
+              <div>
+                <label className="block text-sm text-gray-600 mb-2">Receipts/Invoices</label>
+                {editingMaintenanceHistory.documents && editingMaintenanceHistory.documents.length > 0 && (
+                  <div className="mb-2">
+                    <DocumentList
+                      documents={editingMaintenanceHistory.documents}
+                      docType="maintenanceHistory"
+                      maintenanceItemId={editingMaintenanceHistory.id}
+                      canEdit={true}
+                    />
+                  </div>
+                )}
+                <UploadButton
+                  onUpload={(file) => handleDocumentUpload(file, 'maintenanceHistory', editingMaintenanceHistory.id)}
+                  label="Add receipt/invoice"
+                />
+              </div>
+
+              <div className="flex gap-2">
+                <button
+                  onClick={() => {
+                    if (editingProperty) {
+                      updateMaintenanceHistoryEntry(editingProperty.id, editingMaintenanceHistory);
+                    }
+                  }}
+                  className="flex-1 px-4 py-2 bg-blue-600 text-white rounded-lg hover:bg-blue-700"
+                >
+                  Save
+                </button>
+                <button
+                  onClick={() => setEditingMaintenanceHistory(null)}
                   className="px-4 py-2 bg-gray-200 text-gray-700 rounded-lg hover:bg-gray-300"
                 >
                   Cancel
