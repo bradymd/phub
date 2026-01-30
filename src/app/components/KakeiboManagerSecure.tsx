@@ -663,11 +663,11 @@ export function KakeiboManagerSecure({ onClose }: KakeiboManagerSecureProps) {
                 </button>
               </div>
 
-              {/* Savings Goal Card */}
+              {/* Savings Target Card */}
               <div className="bg-gradient-to-br from-purple-50 to-violet-50 rounded-xl p-4 border border-purple-200">
                 <div className="flex items-center gap-2 mb-2">
                   <PiggyBank className="w-5 h-5 text-purple-600" />
-                  <span className="text-sm text-purple-700">Savings Goal</span>
+                  <span className="text-sm text-purple-700">Savings Target</span>
                 </div>
                 <p className="text-2xl font-bold text-purple-900">{formatCurrency(currentMonth.savingsGoal)}</p>
                 <button
@@ -797,29 +797,48 @@ export function KakeiboManagerSecure({ onClose }: KakeiboManagerSecureProps) {
                 </div>
 
                 <div className="bg-white rounded-lg p-4">
-                  <div className="flex items-center justify-between mb-1">
-                    <p className="text-sm text-gray-600">Savings Goal</p>
-                    <button
-                      onClick={() => {
-                        setSetupData({ income: currentMonth.income, savingsGoal: currentMonth.savingsGoal });
-                        setShowSetup(true);
-                      }}
-                      className="text-xs text-rose-600 hover:text-rose-700"
-                    >
-                      Edit
-                    </button>
-                  </div>
-                  <p className={`text-xl font-bold flex items-center gap-2 ${isOnTrack ? 'text-green-600' : 'text-orange-600'}`}>
-                    {formatCurrency(currentMonth.savingsGoal)}
-                    {isOnTrack ? (
-                      <Check className="w-5 h-5" />
-                    ) : (
-                      <AlertCircle className="w-5 h-5" />
-                    )}
-                  </p>
-                  <p className="text-xs text-gray-500">
-                    {isOnTrack ? 'On track' : `${formatCurrency(currentMonth.savingsGoal - projectedSavings)} over budget`}
-                  </p>
+                  {currentMonth.reflection.completed ? (
+                    <>
+                      <p className="text-sm text-gray-600 mb-1">Savings</p>
+                      <p className={`text-xl font-bold flex items-center gap-2 ${isOnTrack ? 'text-green-600' : 'text-orange-600'}`}>
+                        {formatCurrency(projectedSavings)}
+                        {isOnTrack ? (
+                          <Check className="w-5 h-5" />
+                        ) : (
+                          <AlertCircle className="w-5 h-5" />
+                        )}
+                      </p>
+                      <p className="text-xs text-gray-500">
+                        Target was {formatCurrency(currentMonth.savingsGoal)}
+                      </p>
+                    </>
+                  ) : (
+                    <>
+                      <div className="flex items-center justify-between mb-1">
+                        <p className="text-sm text-gray-600">Savings Target</p>
+                        <button
+                          onClick={() => {
+                            setSetupData({ income: currentMonth.income, savingsGoal: currentMonth.savingsGoal });
+                            setShowSetup(true);
+                          }}
+                          className="text-xs text-rose-600 hover:text-rose-700"
+                        >
+                          Edit
+                        </button>
+                      </div>
+                      <p className={`text-xl font-bold flex items-center gap-2 ${isOnTrack ? 'text-green-600' : 'text-orange-600'}`}>
+                        {formatCurrency(currentMonth.savingsGoal)}
+                        {isOnTrack ? (
+                          <Check className="w-5 h-5" />
+                        ) : (
+                          <AlertCircle className="w-5 h-5" />
+                        )}
+                      </p>
+                      <p className="text-xs text-gray-500">
+                        {isOnTrack ? 'On track' : `${formatCurrency(currentMonth.savingsGoal - projectedSavings)} over budget`}
+                      </p>
+                    </>
+                  )}
                 </div>
               </div>
             </div>
@@ -1022,7 +1041,7 @@ export function KakeiboManagerSecure({ onClose }: KakeiboManagerSecureProps) {
 
               <div>
                 <label className="block text-sm font-medium text-gray-700 mb-2">
-                  Savings Goal
+                  Savings Target
                 </label>
                 <div className="relative">
                   <span className="absolute left-3 top-1/2 -translate-y-1/2 text-gray-500">£</span>
