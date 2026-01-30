@@ -865,6 +865,141 @@ export function PensionManagerSecure({ onClose }: PensionManagerSecureProps) {
           </div>
         </div>
       )}
+
+      {/* Edit Modal - shows when editing from list view */}
+      {editingPension && viewMode === 'list' && (
+        <div className="fixed inset-0 bg-black/60 flex items-center justify-center z-[9999] p-4">
+          <div className="bg-white rounded-2xl max-w-2xl w-full p-6 shadow-2xl max-h-[90vh] overflow-y-auto">
+            <div className="flex items-center justify-between mb-6">
+              <h2 className="text-xl font-bold text-gray-900">Edit Pension</h2>
+              <button
+                onClick={() => setEditingPension(null)}
+                className="p-2 hover:bg-gray-100 rounded-lg transition-colors"
+              >
+                <X className="w-5 h-5" />
+              </button>
+            </div>
+
+            <div className="space-y-4">
+              <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                <div>
+                  <label className="block text-sm font-medium text-gray-700 mb-1">Pension Fund Name</label>
+                  <input
+                    type="text"
+                    value={editingPension.name}
+                    onChange={(e) => setEditingPension({ ...editingPension, name: e.target.value })}
+                    placeholder="Pension fund name..."
+                    className="w-full px-4 py-2 border border-gray-300 rounded-lg bg-white focus:ring-2 focus:ring-green-500 focus:border-transparent"
+                  />
+                </div>
+                <div>
+                  <label className="block text-sm font-medium text-gray-700 mb-1">Pension Type</label>
+                  <select
+                    value={editingPension.pensionType}
+                    onChange={(e) => setEditingPension({ ...editingPension, pensionType: e.target.value as 'DB' | 'DC' })}
+                    className="w-full px-4 py-2 border border-gray-300 rounded-lg bg-white focus:ring-2 focus:ring-green-500 focus:border-transparent"
+                  >
+                    <option value="DC">DC - Defined Contribution</option>
+                    <option value="DB">DB - Defined Benefit</option>
+                  </select>
+                </div>
+              </div>
+              <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                <div>
+                  <label className="block text-sm font-medium text-gray-700 mb-1">Current Pot Value (£)</label>
+                  <input
+                    type="text"
+                    value={editingPension.potValue}
+                    onChange={(e) => setEditingPension({ ...editingPension, potValue: e.target.value })}
+                    placeholder={editingPension.pensionType === 'DC' ? 'Current pot value (£)...' : 'N/A for DB pensions'}
+                    disabled={editingPension.pensionType === 'DB'}
+                    className="w-full px-4 py-2 border border-gray-300 rounded-lg bg-white disabled:bg-gray-100 focus:ring-2 focus:ring-green-500 focus:border-transparent"
+                  />
+                </div>
+                <div>
+                  <label className="block text-sm font-medium text-gray-700 mb-1">Annual Income Estimate (£)</label>
+                  <input
+                    type="text"
+                    value={editingPension.annuityEstimate}
+                    onChange={(e) => setEditingPension({ ...editingPension, annuityEstimate: e.target.value })}
+                    placeholder="Annual income estimate (£)..."
+                    className="w-full px-4 py-2 border border-gray-300 rounded-lg bg-white focus:ring-2 focus:ring-green-500 focus:border-transparent"
+                  />
+                </div>
+              </div>
+              <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                <div>
+                  <label className="block text-sm font-medium text-gray-700 mb-1">Spouse Pension (£/year)</label>
+                  <input
+                    type="text"
+                    value={editingPension.spousePension}
+                    onChange={(e) => setEditingPension({ ...editingPension, spousePension: e.target.value })}
+                    placeholder="Spouse pension (£/year) - optional..."
+                    className="w-full px-4 py-2 border border-gray-300 rounded-lg bg-white focus:ring-2 focus:ring-green-500 focus:border-transparent"
+                  />
+                </div>
+                <div></div>
+              </div>
+              <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                <div>
+                  <label className="block text-sm font-medium text-gray-700 mb-1">Employer/Provider</label>
+                  <input
+                    type="text"
+                    value={editingPension.source}
+                    onChange={(e) => setEditingPension({ ...editingPension, source: e.target.value })}
+                    placeholder="Employer/provider..."
+                    className="w-full px-4 py-2 border border-gray-300 rounded-lg bg-white focus:ring-2 focus:ring-green-500 focus:border-transparent"
+                  />
+                </div>
+                <div>
+                  <label className="block text-sm font-medium text-gray-700 mb-1">Account/Policy Number</label>
+                  <input
+                    type="text"
+                    value={editingPension.accountNumber}
+                    onChange={(e) => setEditingPension({ ...editingPension, accountNumber: e.target.value })}
+                    placeholder="Account/policy number (optional)..."
+                    className="w-full px-4 py-2 border border-gray-300 rounded-lg bg-white focus:ring-2 focus:ring-green-500 focus:border-transparent"
+                  />
+                </div>
+              </div>
+              <div>
+                <label className="block text-sm font-medium text-gray-700 mb-1">Website URL</label>
+                <input
+                  type="text"
+                  value={editingPension.website}
+                  onChange={(e) => setEditingPension({ ...editingPension, website: e.target.value })}
+                  placeholder="Website URL (e.g., https://example.com) - optional..."
+                  className="w-full px-4 py-2 border border-gray-300 rounded-lg bg-white focus:ring-2 focus:ring-green-500 focus:border-transparent"
+                />
+              </div>
+              <div>
+                <label className="block text-sm font-medium text-gray-700 mb-1">Notes</label>
+                <textarea
+                  value={editingPension.notes}
+                  onChange={(e) => setEditingPension({ ...editingPension, notes: e.target.value })}
+                  placeholder="Notes (optional)..."
+                  className="w-full px-4 py-2 border border-gray-300 rounded-lg bg-white resize-none focus:ring-2 focus:ring-green-500 focus:border-transparent"
+                  rows={3}
+                />
+              </div>
+              <div className="flex gap-2 pt-4 border-t">
+                <button
+                  onClick={updatePension}
+                  className="flex-1 px-4 py-2 bg-green-600 text-white rounded-lg hover:bg-green-700 transition-colors font-medium"
+                >
+                  Save Changes
+                </button>
+                <button
+                  onClick={() => setEditingPension(null)}
+                  className="px-4 py-2 bg-gray-200 text-gray-700 rounded-lg hover:bg-gray-300 transition-colors font-medium"
+                >
+                  Cancel
+                </button>
+              </div>
+            </div>
+          </div>
+        </div>
+      )}
     </div>
   );
 }
