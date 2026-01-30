@@ -890,6 +890,152 @@ export function EmploymentManagerSecure({ onClose }: EmploymentManagerSecureProp
           </div>
         </div>
       )}
+
+      {/* Edit Modal - shows when editing from list view */}
+      {editingRecord && viewMode === 'list' && (
+        <div className="fixed inset-0 bg-black/60 flex items-center justify-center z-[9999] p-4">
+          <div className="bg-white rounded-2xl max-w-2xl w-full p-6 shadow-2xl max-h-[90vh] overflow-y-auto">
+            <div className="flex items-center justify-between mb-6">
+              <h2 className="text-xl font-bold text-gray-900">Edit Employment Record</h2>
+              <button
+                onClick={() => setEditingRecord(null)}
+                className="p-2 hover:bg-gray-100 rounded-lg transition-colors"
+              >
+                <X className="w-5 h-5" />
+              </button>
+            </div>
+
+            <div className="space-y-4">
+              <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                <div>
+                  <label className="block text-sm font-medium text-gray-700 mb-1">Company Name</label>
+                  <input
+                    type="text"
+                    value={editingRecord.company}
+                    onChange={(e) => setEditingRecord({ ...editingRecord, company: e.target.value })}
+                    className="w-full px-4 py-2 border border-gray-300 rounded-lg bg-white focus:ring-2 focus:ring-indigo-500 focus:border-transparent"
+                  />
+                </div>
+                <div>
+                  <label className="block text-sm font-medium text-gray-700 mb-1">Job Title</label>
+                  <input
+                    type="text"
+                    value={editingRecord.jobTitle}
+                    onChange={(e) => setEditingRecord({ ...editingRecord, jobTitle: e.target.value })}
+                    className="w-full px-4 py-2 border border-gray-300 rounded-lg bg-white focus:ring-2 focus:ring-indigo-500 focus:border-transparent"
+                  />
+                </div>
+              </div>
+              <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                <div>
+                  <label className="block text-sm font-medium text-gray-700 mb-1">Location</label>
+                  <input
+                    type="text"
+                    value={editingRecord.location}
+                    onChange={(e) => setEditingRecord({ ...editingRecord, location: e.target.value })}
+                    className="w-full px-4 py-2 border border-gray-300 rounded-lg bg-white focus:ring-2 focus:ring-indigo-500 focus:border-transparent"
+                  />
+                </div>
+                <div>
+                  <label className="block text-sm font-medium text-gray-700 mb-1">Employment Type</label>
+                  <select
+                    value={editingRecord.employmentType}
+                    onChange={(e) => setEditingRecord({ ...editingRecord, employmentType: e.target.value as any })}
+                    className="w-full px-4 py-2 border border-gray-300 rounded-lg bg-white focus:ring-2 focus:ring-indigo-500 focus:border-transparent"
+                  >
+                    <option value="full-time">Full-time</option>
+                    <option value="part-time">Part-time</option>
+                    <option value="contract">Contract</option>
+                    <option value="freelance">Freelance</option>
+                  </select>
+                </div>
+              </div>
+              <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                <div>
+                  <label className="block text-sm font-medium text-gray-700 mb-1">Start Date</label>
+                  <input
+                    type="date"
+                    value={editingRecord.startDate}
+                    onChange={(e) => setEditingRecord({ ...editingRecord, startDate: e.target.value })}
+                    className="w-full px-4 py-2 border border-gray-300 rounded-lg bg-white focus:ring-2 focus:ring-indigo-500 focus:border-transparent"
+                  />
+                </div>
+                <div>
+                  <label className="block text-sm font-medium text-gray-700 mb-1">End Date</label>
+                  <input
+                    type="date"
+                    value={editingRecord.endDate}
+                    onChange={(e) => setEditingRecord({ ...editingRecord, endDate: e.target.value })}
+                    disabled={editingRecord.current}
+                    className="w-full px-4 py-2 border border-gray-300 rounded-lg bg-white disabled:bg-gray-100 focus:ring-2 focus:ring-indigo-500 focus:border-transparent"
+                  />
+                </div>
+              </div>
+              <label className="flex items-center gap-2 text-sm">
+                <input
+                  type="checkbox"
+                  checked={editingRecord.current}
+                  onChange={(e) => setEditingRecord({ ...editingRecord, current: e.target.checked })}
+                  className="rounded"
+                />
+                <span className="text-gray-700">I currently work here</span>
+              </label>
+              <div>
+                <label className="block text-sm font-medium text-gray-700 mb-1">Responsibilities</label>
+                <textarea
+                  value={editingRecord.responsibilities}
+                  onChange={(e) => setEditingRecord({ ...editingRecord, responsibilities: e.target.value })}
+                  className="w-full px-4 py-2 border border-gray-300 rounded-lg bg-white focus:ring-2 focus:ring-indigo-500 focus:border-transparent"
+                  rows={4}
+                />
+              </div>
+              <div>
+                <label className="block text-sm font-medium text-gray-700 mb-1">Key Achievements</label>
+                <textarea
+                  value={editingRecord.achievements}
+                  onChange={(e) => setEditingRecord({ ...editingRecord, achievements: e.target.value })}
+                  className="w-full px-4 py-2 border border-gray-300 rounded-lg bg-white focus:ring-2 focus:ring-indigo-500 focus:border-transparent"
+                  rows={3}
+                />
+              </div>
+              <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                <div>
+                  <label className="block text-sm font-medium text-gray-700 mb-1">Salary (optional)</label>
+                  <input
+                    type="text"
+                    value={editingRecord.salary}
+                    onChange={(e) => setEditingRecord({ ...editingRecord, salary: e.target.value })}
+                    className="w-full px-4 py-2 border border-gray-300 rounded-lg bg-white focus:ring-2 focus:ring-indigo-500 focus:border-transparent"
+                  />
+                </div>
+                <div>
+                  <label className="block text-sm font-medium text-gray-700 mb-1">Pension Scheme (optional)</label>
+                  <input
+                    type="text"
+                    value={editingRecord.pensionScheme}
+                    onChange={(e) => setEditingRecord({ ...editingRecord, pensionScheme: e.target.value })}
+                    className="w-full px-4 py-2 border border-gray-300 rounded-lg bg-white focus:ring-2 focus:ring-indigo-500 focus:border-transparent"
+                  />
+                </div>
+              </div>
+              <div className="flex gap-2 pt-4 border-t">
+                <button
+                  onClick={updateRecord}
+                  className="flex-1 px-4 py-2 bg-indigo-600 text-white rounded-lg hover:bg-indigo-700 transition-colors font-medium"
+                >
+                  Save Changes
+                </button>
+                <button
+                  onClick={() => setEditingRecord(null)}
+                  className="px-4 py-2 bg-gray-200 text-gray-700 rounded-lg hover:bg-gray-300 transition-colors font-medium"
+                >
+                  Cancel
+                </button>
+              </div>
+            </div>
+          </div>
+        </div>
+      )}
     </div>
   );
 }
