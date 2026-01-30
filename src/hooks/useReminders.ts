@@ -49,7 +49,7 @@ export function useReminders(): PanelReminders {
 
         // Load property data
         try {
-          const properties = await storage.getAll('properties');
+          const properties = await storage.get('properties');
           properties.forEach((property: any) => {
             // Check maintenance items
             (property.maintenanceItems || []).forEach((item: any) => {
@@ -76,7 +76,7 @@ export function useReminders(): PanelReminders {
 
         // Load vehicle data
         try {
-          const vehicles = await storage.getAll('vehicles');
+          const vehicles = await storage.get('vehicles');
           vehicles.forEach((vehicle: any) => {
             // Check MOT due date
             if (vehicle.motDueDate) {
@@ -101,7 +101,7 @@ export function useReminders(): PanelReminders {
 
         // Load medical records
         try {
-          const records = await storage.getAll('medical_history');
+          const records = await storage.get('medical_history');
           records.forEach((record: any) => {
             // Check for upcoming appointments (date is in the future within 30 days)
             if (record.date && isDueSoon(record.date)) {
