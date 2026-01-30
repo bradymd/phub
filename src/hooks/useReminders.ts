@@ -94,6 +94,30 @@ export function useReminders(): PanelReminders {
                 newReminders.vehicles.dueSoon++;
               }
             }
+            // Check tax due date
+            if (vehicle.taxDueDate) {
+              if (isPastDate(vehicle.taxDueDate)) {
+                newReminders.vehicles.overdue++;
+              } else if (isDueSoon(vehicle.taxDueDate)) {
+                newReminders.vehicles.dueSoon++;
+              }
+            }
+            // Check next service due from most recent service entry
+            const serviceHistory = vehicle.serviceHistory || [];
+            if (serviceHistory.length > 0) {
+              // Find the most recent service entry that has a nextServiceDate
+              const entriesWithNextDate = serviceHistory
+                .filter((entry: any) => entry.nextServiceDate)
+                .sort((a: any, b: any) => new Date(b.date).getTime() - new Date(a.date).getTime());
+              if (entriesWithNextDate.length > 0) {
+                const nextServiceDate = entriesWithNextDate[0].nextServiceDate;
+                if (isPastDate(nextServiceDate)) {
+                  newReminders.vehicles.overdue++;
+                } else if (isDueSoon(nextServiceDate)) {
+                  newReminders.vehicles.dueSoon++;
+                }
+              }
+            }
           });
         } catch (e) {
           // Vehicles store might not exist yet

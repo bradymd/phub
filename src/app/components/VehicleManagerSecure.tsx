@@ -153,6 +153,19 @@ const isDueSoon = (dateStr: string): boolean => {
   return date >= today && date <= thirtyDaysLater;
 };
 
+// Get the next service due date from the most recent service entry
+const getNextServiceDueDate = (vehicle: Vehicle): string | null => {
+  const serviceHistory = vehicle.serviceHistory || [];
+  if (serviceHistory.length === 0) return null;
+
+  // Find entries with nextServiceDate, sorted by date descending
+  const entriesWithNextDate = serviceHistory
+    .filter(entry => entry.nextServiceDate)
+    .sort((a, b) => new Date(b.date).getTime() - new Date(a.date).getTime());
+
+  return entriesWithNextDate.length > 0 ? entriesWithNextDate[0].nextServiceDate! : null;
+};
+
 export function VehicleManagerSecure({ onClose }: VehicleManagerSecureProps) {
   const storage = useStorage();
   const documentService = useDocumentService();
@@ -2446,6 +2459,12 @@ export function VehicleManagerSecure({ onClose }: VehicleManagerSecureProps) {
                       <p className={isPastDate(viewingDetails.insuranceRenewalDate) ? 'text-red-600 font-medium' : isDueSoon(viewingDetails.insuranceRenewalDate) ? 'text-orange-600' : ''}>
                         <span className="text-gray-500">Insurance:</span> {formatDateUK(viewingDetails.insuranceRenewalDate)}
                         {isPastDate(viewingDetails.insuranceRenewalDate) && ' (EXPIRED)'}
+                      </p>
+                    )}
+                    {getNextServiceDueDate(viewingDetails) && (
+                      <p className={isPastDate(getNextServiceDueDate(viewingDetails)!) ? 'text-red-600 font-medium' : isDueSoon(getNextServiceDueDate(viewingDetails)!) ? 'text-orange-600' : ''}>
+                        <span className="text-gray-500">Service Due:</span> {formatDateUK(getNextServiceDueDate(viewingDetails)!)}
+                        {isPastDate(getNextServiceDueDate(viewingDetails)!) && ' (OVERDUE)'}
                       </p>
                     )}
                   </div>
