@@ -42,6 +42,7 @@ interface MedicalRecord {
   notes: string;
   treatment: string;
   outcome: string;
+  followUpDate?: string; // Date for follow-up appointment or next check
   attachments: string[]; // Legacy: Filenames only (for backwards compatibility)
   documents?: DocumentReference[]; // Document references (stored separately, loaded on-demand)
 }
@@ -70,8 +71,28 @@ const emptyRecord = {
   notes: '',
   treatment: '',
   outcome: '',
+  followUpDate: '',
   attachments: [],
   documents: []
+};
+
+// Check if date is in the past
+const isPastDate = (dateStr: string): boolean => {
+  if (!dateStr) return false;
+  const date = new Date(dateStr);
+  const today = new Date();
+  today.setHours(0, 0, 0, 0);
+  return date < today;
+};
+
+// Check if date is within 30 days
+const isDueSoon = (dateStr: string): boolean => {
+  if (!dateStr) return false;
+  const date = new Date(dateStr);
+  const today = new Date();
+  const thirtyDays = new Date();
+  thirtyDays.setDate(today.getDate() + 30);
+  return date >= today && date <= thirtyDays;
 };
 
 export function MedicalHistoryManagerSecure({ onClose }: MedicalHistoryManagerSecureProps) {
@@ -612,6 +633,29 @@ export function MedicalHistoryManagerSecure({ onClose }: MedicalHistoryManagerSe
               <p className="text-gray-900">{filteredRecords.reduce((sum, r) => sum + ((r.documents?.length || 0) + (r.attachments?.length || 0)), 0)}</p>
             </div>
           </div>
+
+          {/* Follow-up Reminders */}
+          {(() => {
+            const overdueCount = records.filter(r => r.followUpDate && isPastDate(r.followUpDate)).length;
+            const dueSoonCount = records.filter(r => r.followUpDate && isDueSoon(r.followUpDate) && !isPastDate(r.followUpDate)).length;
+            if (overdueCount === 0 && dueSoonCount === 0) return null;
+            return (
+              <div className="mt-3 flex gap-4">
+                {overdueCount > 0 && (
+                  <div className="flex items-center gap-2 text-red-600">
+                    <AlertCircle className="w-4 h-4" />
+                    <span className="text-sm font-medium">{overdueCount} overdue follow-up{overdueCount > 1 ? 's' : ''}</span>
+                  </div>
+                )}
+                {dueSoonCount > 0 && (
+                  <div className="flex items-center gap-2 text-orange-600">
+                    <Calendar className="w-4 h-4" />
+                    <span className="text-sm font-medium">{dueSoonCount} follow-up{dueSoonCount > 1 ? 's' : ''} due within 30 days</span>
+                  </div>
+                )}
+              </div>
+            );
+          })()}
         </div>
         )}
 
@@ -1033,6 +1077,18 @@ export function MedicalHistoryManagerSecure({ onClose }: MedicalHistoryManagerSe
                   placeholder="Outcome..."
                   className="w-full px-4 py-2 border border-gray-300 rounded-lg bg-white"
                 />
+                <div>
+                  <label className="block text-sm font-medium text-gray-700 mb-1">
+                    <Calendar className="w-4 h-4 inline mr-1" />
+                    Follow-up Date (optional)
+                  </label>
+                  <input
+                    type="date"
+                    value={newRecord.followUpDate || ''}
+                    onChange={(e) => setNewRecord({ ...newRecord, followUpDate: e.target.value })}
+                    className="w-full px-4 py-2 border border-gray-300 rounded-lg bg-white"
+                  />
+                </div>
 
                 {/* Document upload section */}
                 <div className="space-y-2">
@@ -1117,6 +1173,18 @@ export function MedicalHistoryManagerSecure({ onClose }: MedicalHistoryManagerSe
                               <span className={`inline-block px-2 py-1 rounded text-xs ${getTypeColor(record.type)}`}>
                                 {getTypeLabel(record.type)}
                               </span>
+                              {record.followUpDate && isPastDate(record.followUpDate) && (
+                                <span className="inline-flex items-center gap-1 px-2 py-1 rounded text-xs bg-red-100 text-red-700">
+                                  <AlertCircle className="w-3 h-3" />
+                                  Overdue
+                                </span>
+                              )}
+                              {record.followUpDate && isDueSoon(record.followUpDate) && !isPastDate(record.followUpDate) && (
+                                <span className="inline-flex items-center gap-1 px-2 py-1 rounded text-xs bg-orange-100 text-orange-700">
+                                  <Calendar className="w-3 h-3" />
+                                  Due Soon
+                                </span>
+                              )}
                             </div>
                             <div className="flex flex-wrap items-center gap-3 text-sm text-gray-600">
                               <div className="flex items-center gap-1">
@@ -1157,6 +1225,42 @@ export function MedicalHistoryManagerSecure({ onClose }: MedicalHistoryManagerSe
                                   <div>
                                     <p className="text-gray-500 font-medium mb-1">Outcome:</p>
                                     <p className="text-gray-700">{record.outcome}</p>
+                                  </div>
+                                )}
+                                {record.followUpDate && (
+                                  <div className={`p-3 rounded-lg ${
+                                    isPastDate(record.followUpDate)
+                                      ? 'bg-red-50 border border-red-200'
+                                      : isDueSoon(record.followUpDate)
+                                      ? 'bg-orange-50 border border-orange-200'
+                                      : 'bg-blue-50 border border-blue-200'
+                                  }`}>
+                                    <p className={`font-medium mb-1 flex items-center gap-1 ${
+                                      isPastDate(record.followUpDate)
+                                        ? 'text-red-700'
+                                        : isDueSoon(record.followUpDate)
+                                        ? 'text-orange-700'
+                                        : 'text-blue-700'
+                                    }`}>
+                                      <Calendar className="w-4 h-4" />
+                                      Follow-up Date:
+                                    </p>
+                                    <p className={`${
+                                      isPastDate(record.followUpDate)
+                                        ? 'text-red-700'
+                                        : isDueSoon(record.followUpDate)
+                                        ? 'text-orange-700'
+                                        : 'text-gray-700'
+                                    }`}>
+                                      {new Date(record.followUpDate).toLocaleDateString('en-GB', {
+                                        weekday: 'long',
+                                        year: 'numeric',
+                                        month: 'long',
+                                        day: 'numeric'
+                                      })}
+                                      {isPastDate(record.followUpDate) && ' (Overdue)'}
+                                      {isDueSoon(record.followUpDate) && !isPastDate(record.followUpDate) && ' (Due Soon)'}
+                                    </p>
                                   </div>
                                 )}
                                 {/* New documents with embedded data */}
@@ -1352,6 +1456,19 @@ export function MedicalHistoryManagerSecure({ onClose }: MedicalHistoryManagerSe
                   type="text"
                   value={editingRecord.outcome}
                   onChange={(e) => setEditingRecord({ ...editingRecord, outcome: e.target.value })}
+                  className="w-full px-4 py-2 border border-gray-300 rounded-lg bg-white focus:ring-2 focus:ring-green-500 focus:border-transparent"
+                />
+              </div>
+
+              <div>
+                <label className="block text-sm font-medium text-gray-700 mb-1">
+                  <Calendar className="w-4 h-4 inline mr-1" />
+                  Follow-up Date (optional)
+                </label>
+                <input
+                  type="date"
+                  value={editingRecord.followUpDate || ''}
+                  onChange={(e) => setEditingRecord({ ...editingRecord, followUpDate: e.target.value })}
                   className="w-full px-4 py-2 border border-gray-300 rounded-lg bg-white focus:ring-2 focus:ring-green-500 focus:border-transparent"
                 />
               </div>

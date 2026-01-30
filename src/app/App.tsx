@@ -16,6 +16,7 @@ import {
 } from 'lucide-react';
 import { panels, getPanelGroups, getDefaultVisiblePanels, PanelId } from '../config/panels';
 import { CategoryCard } from './components/CategoryCard';
+import { CategoriesWithReminders } from './components/CategoriesWithReminders';
 import { DocumentManagerSecure } from './components/DocumentManagerSecure';
 import { FinanceManagerSecure } from './components/FinanceManagerSecure';
 import { PhotoGallerySecure } from './components/PhotoGallerySecure';
@@ -354,41 +355,12 @@ export default function App() {
         </div>
 
         {/* Categories Grid or List */}
-        {viewMode === 'grid' ? (
-          <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
-            {categories.filter(cat => isCategoryVisible(cat.id)).map((category) => (
-              <CategoryCard
-                key={category.id}
-                title={category.title}
-                icon={category.icon}
-                description={category.description}
-                onClick={() => setActiveModal(category.id)}
-              />
-            ))}
-          </div>
-        ) : (
-          <div className="bg-white rounded-xl shadow-sm border border-gray-100 divide-y divide-gray-100">
-            {categories.filter(cat => isCategoryVisible(cat.id)).map((category) => {
-              const Icon = category.icon;
-              return (
-                <button
-                  key={category.id}
-                  onClick={() => setActiveModal(category.id)}
-                  className="w-full px-6 py-3 hover:bg-gray-50 transition-colors text-left flex items-center justify-between group"
-                >
-                  <div className="flex items-center gap-3 flex-1">
-                    <div className="p-2 rounded-lg bg-blue-50 text-blue-600">
-                      <Icon className="w-5 h-5" />
-                    </div>
-                    <span className="text-gray-900 font-medium">{category.title}</span>
-                    <span className="text-gray-500 text-sm">{category.description}</span>
-                  </div>
-                  <div className="text-gray-400 group-hover:text-blue-600 transition-colors">→</div>
-                </button>
-              );
-            })}
-          </div>
-        )}
+        <CategoriesWithReminders
+          categories={categories}
+          viewMode={viewMode}
+          isCategoryVisible={isCategoryVisible}
+          onCategoryClick={(id) => setActiveModal(id as ModalType)}
+        />
 
         {/* Footer */}
         <div className="mt-8 text-center text-sm text-gray-500">
