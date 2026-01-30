@@ -96,6 +96,14 @@ const isDueSoon = (dateStr: string): boolean => {
   return date >= today && date <= thirtyDays;
 };
 
+// Format date from YYYY-MM-DD to DD-MM-YYYY
+const formatDateUK = (dateStr: string): string => {
+  if (!dateStr) return '';
+  const parts = dateStr.split('-');
+  if (parts.length !== 3) return dateStr;
+  return `${parts[2]}-${parts[1]}-${parts[0]}`;
+};
+
 export function MedicalHistoryManagerSecure({ onClose }: MedicalHistoryManagerSecureProps) {
   const storage = useStorage();
   const documentService = useDocumentService();
@@ -1207,7 +1215,7 @@ export function MedicalHistoryManagerSecure({ onClose }: MedicalHistoryManagerSe
                             <div className="flex flex-wrap items-center gap-3 text-sm text-gray-600">
                               <div className="flex items-center gap-1">
                                 <Calendar className="w-4 h-4" />
-                                <span>{record.date}</span>
+                                <span>{formatDateUK(record.date)}</span>
                               </div>
                               {record.specialty && (
                                 <span className="text-purple-600">• {record.specialty}</span>
