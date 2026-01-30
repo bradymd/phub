@@ -671,7 +671,10 @@ export function KakeiboManagerSecure({ onClose }: KakeiboManagerSecureProps) {
                 </div>
                 <p className="text-2xl font-bold text-purple-900">{formatCurrency(currentMonth.savingsGoal)}</p>
                 <button
-                  onClick={() => setShowSetup(true)}
+                  onClick={() => {
+                    setSetupData({ income: currentMonth.income, savingsGoal: currentMonth.savingsGoal });
+                    setShowSetup(true);
+                  }}
                   className="text-xs text-purple-600 hover:text-purple-700 mt-1"
                 >
                   Edit
@@ -794,9 +797,20 @@ export function KakeiboManagerSecure({ onClose }: KakeiboManagerSecureProps) {
                 </div>
 
                 <div className="bg-white rounded-lg p-4">
-                  <p className="text-sm text-gray-600 mb-1">Projected Savings</p>
+                  <div className="flex items-center justify-between mb-1">
+                    <p className="text-sm text-gray-600">Savings Goal</p>
+                    <button
+                      onClick={() => {
+                        setSetupData({ income: currentMonth.income, savingsGoal: currentMonth.savingsGoal });
+                        setShowSetup(true);
+                      }}
+                      className="text-xs text-rose-600 hover:text-rose-700"
+                    >
+                      Edit
+                    </button>
+                  </div>
                   <p className={`text-xl font-bold flex items-center gap-2 ${isOnTrack ? 'text-green-600' : 'text-orange-600'}`}>
-                    {formatCurrency(projectedSavings)}
+                    {formatCurrency(currentMonth.savingsGoal)}
                     {isOnTrack ? (
                       <Check className="w-5 h-5" />
                     ) : (
@@ -804,7 +818,7 @@ export function KakeiboManagerSecure({ onClose }: KakeiboManagerSecureProps) {
                     )}
                   </p>
                   <p className="text-xs text-gray-500">
-                    Target: {formatCurrency(currentMonth.savingsGoal)}
+                    {isOnTrack ? 'On track' : `${formatCurrency(currentMonth.savingsGoal - projectedSavings)} over budget`}
                   </p>
                 </div>
               </div>
@@ -992,8 +1006,9 @@ export function KakeiboManagerSecure({ onClose }: KakeiboManagerSecureProps) {
                   <span className="absolute left-3 top-1/2 -translate-y-1/2 text-gray-500">£</span>
                   <input
                     type="number"
-                    value={setupData.income || currentMonth.income || ''}
-                    onChange={(e) => setSetupData({ ...setupData, income: parseFloat(e.target.value) || 0 })}
+                    step="0.01"
+                    value={setupData.income || ''}
+                    onChange={(e) => setSetupData({ ...setupData, income: e.target.value === '' ? 0 : parseFloat(e.target.value) })}
                     className="w-full pl-8 pr-4 py-3 border border-gray-300 rounded-lg focus:ring-2 focus:ring-rose-500 focus:border-transparent"
                     placeholder="0.00"
                   />
@@ -1013,8 +1028,9 @@ export function KakeiboManagerSecure({ onClose }: KakeiboManagerSecureProps) {
                   <span className="absolute left-3 top-1/2 -translate-y-1/2 text-gray-500">£</span>
                   <input
                     type="number"
-                    value={setupData.savingsGoal || currentMonth.savingsGoal || ''}
-                    onChange={(e) => setSetupData({ ...setupData, savingsGoal: parseFloat(e.target.value) || 0 })}
+                    step="0.01"
+                    value={setupData.savingsGoal || ''}
+                    onChange={(e) => setSetupData({ ...setupData, savingsGoal: e.target.value === '' ? 0 : parseFloat(e.target.value) })}
                     className="w-full pl-8 pr-4 py-3 border border-gray-300 rounded-lg focus:ring-2 focus:ring-rose-500 focus:border-transparent"
                     placeholder="0.00"
                   />
