@@ -1,7 +1,9 @@
 import { useState, useEffect } from 'react';
-import { X, Plus, Trash, Car, Calendar, Edit2, FileText, Search, Eye, EyeOff, Grid3x3, List, Download, AlertCircle, Phone, Shield, Wrench, Upload } from 'lucide-react';
+import { X, Plus, Trash, Car, Calendar, Edit2, FileText, Search, Eye, EyeOff, Grid3x3, List, Download, AlertCircle, Phone, Shield, Wrench, Upload, Printer } from 'lucide-react';
 import { useStorage, useDocumentService } from '../../contexts/StorageContext';
+import { PdfJsViewer } from './PdfJsViewer';
 import { DocumentReference } from '../../services/document-service';
+import { printRecord, formatDate, formatCurrency } from '../../utils/print';
 
 interface ServiceEntry {
   id: string;
@@ -1740,16 +1742,18 @@ export function VehicleManagerSecure({ onClose }: VehicleManagerSecureProps) {
                           </h5>
                           <button
                             type="button"
-                            onClick={() => {
+                            onClick={async () => {
                               // Remove MOT record and its documents
                               if (mot.certificate) {
-                                documentService.removeDocument(mot.certificate);
+                                await documentService.deleteDocument('certificates', mot.certificate);
                               }
                               if (mot.receipt) {
-                                documentService.removeDocument(mot.receipt);
+                                await documentService.deleteDocument('certificates', mot.receipt);
                               }
                               if (mot.otherDocuments) {
-                                mot.otherDocuments.forEach(doc => documentService.removeDocument(doc));
+                                for (const doc of mot.otherDocuments) {
+                                  await documentService.deleteDocument('certificates', doc);
+                                }
                               }
                               setEditingVehicle({
                                 ...editingVehicle,
@@ -1876,7 +1880,7 @@ export function VehicleManagerSecure({ onClose }: VehicleManagerSecureProps) {
                                 <button
                                   type="button"
                                   onClick={async () => {
-                                    await documentService.removeDocument(mot.certificate!);
+                                    await documentService.deleteDocument('certificates', mot.certificate!);
                                     const updated = [...editingVehicle.motHistory!];
                                     updated[index] = { ...mot, certificate: undefined };
                                     setEditingVehicle({ ...editingVehicle, motHistory: updated });
@@ -1893,13 +1897,24 @@ export function VehicleManagerSecure({ onClose }: VehicleManagerSecureProps) {
                                 <input
                                   type="file"
                                   accept="image/*,.pdf"
-                                  onChange={async (e) => {
-                                    if (e.target.files?.[0]) {
-                                      const docRef = await documentService.uploadDocument(e.target.files[0]);
-                                      const updated = [...editingVehicle.motHistory!];
-                                      updated[index] = { ...mot, certificate: docRef };
-                                      setEditingVehicle({ ...editingVehicle, motHistory: updated });
+                                  onChange={(e) => {
+                                    const file = e.target.files?.[0];
+                                    if (file) {
+                                      const reader = new FileReader();
+                                      reader.onload = async (event) => {
+                                        const dataUrl = event.target?.result as string;
+                                        const docRef = await documentService.saveDocument(
+                                          'certificates',
+                                          file.name,
+                                          dataUrl
+                                        );
+                                        const updated = [...editingVehicle.motHistory!];
+                                        updated[index] = { ...mot, certificate: docRef };
+                                        setEditingVehicle({ ...editingVehicle, motHistory: updated });
+                                      };
+                                      reader.readAsDataURL(file);
                                     }
+                                    e.target.value = '';
                                   }}
                                   className="hidden"
                                 />
@@ -1923,7 +1938,7 @@ export function VehicleManagerSecure({ onClose }: VehicleManagerSecureProps) {
                                 <button
                                   type="button"
                                   onClick={async () => {
-                                    await documentService.removeDocument(mot.receipt!);
+                                    await documentService.deleteDocument('certificates', mot.receipt!);
                                     const updated = [...editingVehicle.motHistory!];
                                     updated[index] = { ...mot, receipt: undefined };
                                     setEditingVehicle({ ...editingVehicle, motHistory: updated });
@@ -1940,13 +1955,24 @@ export function VehicleManagerSecure({ onClose }: VehicleManagerSecureProps) {
                                 <input
                                   type="file"
                                   accept="image/*,.pdf"
-                                  onChange={async (e) => {
-                                    if (e.target.files?.[0]) {
-                                      const docRef = await documentService.uploadDocument(e.target.files[0]);
-                                      const updated = [...editingVehicle.motHistory!];
-                                      updated[index] = { ...mot, receipt: docRef };
-                                      setEditingVehicle({ ...editingVehicle, motHistory: updated });
+                                  onChange={(e) => {
+                                    const file = e.target.files?.[0];
+                                    if (file) {
+                                      const reader = new FileReader();
+                                      reader.onload = async (event) => {
+                                        const dataUrl = event.target?.result as string;
+                                        const docRef = await documentService.saveDocument(
+                                          'certificates',
+                                          file.name,
+                                          dataUrl
+                                        );
+                                        const updated = [...editingVehicle.motHistory!];
+                                        updated[index] = { ...mot, receipt: docRef };
+                                        setEditingVehicle({ ...editingVehicle, motHistory: updated });
+                                      };
+                                      reader.readAsDataURL(file);
                                     }
+                                    e.target.value = '';
                                   }}
                                   className="hidden"
                                 />
@@ -2246,12 +2272,114 @@ export function VehicleManagerSecure({ onClose }: VehicleManagerSecureProps) {
                   <p className="text-gray-600">{viewingDetails.make} {viewingDetails.model} {viewingDetails.year}</p>
                 </div>
               </div>
-              <button
-                onClick={() => setViewingDetails(null)}
-                className="p-2 hover:bg-gray-100 rounded-lg transition-colors"
-              >
-                <X className="w-5 h-5" />
-              </button>
+              <div className="flex items-center gap-2">
+                <button
+                  onClick={() => {
+                    const sections = [
+                      {
+                        title: 'Vehicle Details',
+                        fields: [
+                          { label: 'Registration', value: viewingDetails.registration },
+                          { label: 'Make', value: viewingDetails.make },
+                          { label: 'Model', value: viewingDetails.model },
+                          { label: 'Year', value: viewingDetails.year },
+                          { label: 'Color', value: viewingDetails.color },
+                          { label: 'Fuel Type', value: getFuelLabel(viewingDetails.fuelType) },
+                          { label: 'Ownership', value: getOwnershipLabel(viewingDetails.ownership) },
+                          { label: 'Current Mileage', value: viewingDetails.currentMileage > 0 ? `${viewingDetails.currentMileage.toLocaleString()} miles` : undefined },
+                        ]
+                      },
+                      {
+                        title: 'Important Dates',
+                        fields: [
+                          { label: 'MOT Due', value: viewingDetails.motDueDate ? formatDateUK(viewingDetails.motDueDate) : undefined },
+                          { label: 'Tax Due', value: viewingDetails.taxDueDate ? formatDateUK(viewingDetails.taxDueDate) : undefined },
+                          { label: 'Insurance Renewal', value: viewingDetails.insuranceRenewalDate ? formatDateUK(viewingDetails.insuranceRenewalDate) : undefined },
+                        ]
+                      },
+                      {
+                        title: 'Insurance',
+                        fields: [
+                          { label: 'Insurer', value: viewingDetails.insurer },
+                          { label: 'Policy Number', value: viewingDetails.insurancePolicyNumber },
+                          { label: 'Annual Premium', value: viewingDetails.insuranceAnnualCost > 0 ? formatCurrency(viewingDetails.insuranceAnnualCost) : undefined },
+                        ]
+                      },
+                      {
+                        title: 'Purchase Information',
+                        fields: [
+                          { label: 'Purchase Date', value: viewingDetails.purchaseDate ? formatDateUK(viewingDetails.purchaseDate) : undefined },
+                          { label: 'Purchase Price', value: viewingDetails.purchasePrice > 0 ? formatCurrency(viewingDetails.purchasePrice) : undefined },
+                          { label: 'Purchased From', value: viewingDetails.purchasedFrom },
+                          { label: 'Monthly Payment', value: viewingDetails.monthlyPayment > 0 ? formatCurrency(viewingDetails.monthlyPayment) : undefined },
+                          { label: 'Finance End Date', value: viewingDetails.financeEndDate ? formatDateUK(viewingDetails.financeEndDate) : undefined },
+                        ]
+                      },
+                      {
+                        title: 'Breakdown & Recovery',
+                        fields: [
+                          { label: 'Provider', value: viewingDetails.breakdownProvider },
+                          { label: 'Membership Number', value: viewingDetails.breakdownMembershipNumber },
+                          { label: 'Contact Number', value: viewingDetails.breakdownContact },
+                        ]
+                      },
+                    ];
+
+                    // Add MOT History
+                    if (viewingDetails.motHistory && viewingDetails.motHistory.length > 0) {
+                      viewingDetails.motHistory.forEach((mot, index) => {
+                        sections.push({
+                          title: index === 0 ? 'MOT History (Current)' : `MOT History #${viewingDetails.motHistory!.length - index}`,
+                          fields: [
+                            { label: 'Test Date', value: formatDateUK(mot.testDate) },
+                            { label: 'Expiry Date', value: formatDateUK(mot.expiryDate) },
+                            { label: 'Result', value: mot.result === 'pass' ? 'PASS' : 'FAIL' },
+                            { label: 'Test Centre', value: mot.testCentre },
+                            { label: 'Mileage', value: mot.mileage > 0 ? `${mot.mileage.toLocaleString()} miles` : undefined },
+                            { label: 'Advisories', value: mot.advisories },
+                          ]
+                        });
+                      });
+                    }
+
+                    // Add Service History
+                    if (viewingDetails.serviceHistory && viewingDetails.serviceHistory.length > 0) {
+                      viewingDetails.serviceHistory.forEach((entry, index) => {
+                        sections.push({
+                          title: `Service Record #${index + 1}`,
+                          fields: [
+                            { label: 'Date', value: formatDateUK(entry.date) },
+                            { label: 'Type', value: getServiceTypeLabel(entry.type) },
+                            { label: 'Description', value: entry.description },
+                            { label: 'Cost', value: formatCurrency(entry.cost) },
+                            { label: 'Mileage', value: entry.mileage > 0 ? `${entry.mileage.toLocaleString()} miles` : undefined },
+                            { label: 'Garage', value: entry.garage },
+                            { label: 'Next Service Date', value: entry.nextServiceDate ? formatDateUK(entry.nextServiceDate) : undefined },
+                            { label: 'Next Service Mileage', value: entry.nextServiceMileage && entry.nextServiceMileage > 0 ? `${entry.nextServiceMileage.toLocaleString()} miles` : undefined },
+                          ]
+                        });
+                      });
+                    }
+
+                    printRecord(
+                      `${viewingDetails.registration} - ${viewingDetails.make} ${viewingDetails.model}`,
+                      `${viewingDetails.year} ${viewingDetails.color || ''}`.trim(),
+                      sections,
+                      viewingDetails.notes
+                    );
+                  }}
+                  className="p-2 hover:bg-gray-100 rounded-lg transition-colors"
+                  title="Print"
+                >
+                  <Printer className="w-5 h-5 text-gray-600" />
+                </button>
+                <button
+                  onClick={() => setViewingDetails(null)}
+                  className="p-2 hover:bg-gray-100 rounded-lg transition-colors"
+                >
+                  <X className="w-5 h-5" />
+                </button>
+              </div>
             </div>
 
             <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
@@ -2591,9 +2719,8 @@ export function VehicleManagerSecure({ onClose }: VehicleManagerSecureProps) {
               </button>
             </div>
           </div>
-          <iframe
+          <PdfJsViewer
             src={viewingDocument.blobUrl}
-            style={{ flex: 1, border: 'none', width: '100%' }}
             title={viewingDocument.docRef.filename}
           />
         </div>

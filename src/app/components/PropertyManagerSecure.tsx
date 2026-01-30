@@ -1,7 +1,9 @@
 import { useState, useEffect } from 'react';
-import { X, Plus, Trash, Home, Calendar, Edit2, FileText, Search, Eye, EyeOff, Grid3x3, List, Download, AlertCircle, Phone, Shield, Wrench, Upload, Globe, Zap, Droplets, Wifi, Building2, CheckCircle } from 'lucide-react';
+import { X, Plus, Trash, Home, Calendar, Edit2, FileText, Search, Eye, EyeOff, Grid3x3, List, Download, AlertCircle, Phone, Shield, Wrench, Upload, Globe, Zap, Droplets, Wifi, Building2, CheckCircle, ChevronDown, ChevronUp, Printer } from 'lucide-react';
 import { useStorage, useDocumentService } from '../../contexts/StorageContext';
+import { PdfJsViewer } from './PdfJsViewer';
 import { DocumentReference } from '../../services/document-service';
+import { printRecord, formatDate, formatCurrency } from '../../utils/print';
 
 // Maintenance item for recurring annual checks
 interface MaintenanceItem {
@@ -218,6 +220,7 @@ export function PropertyManagerSecure({ onClose }: PropertyManagerSecureProps) {
   const [newMaintenanceItem, setNewMaintenanceItem] = useState(emptyMaintenanceItem);
   const [showMaintenanceForm, setShowMaintenanceForm] = useState(false);
   const [editingMaintenanceItem, setEditingMaintenanceItem] = useState<MaintenanceItem | null>(null);
+  const [viewingMaintenanceItem, setViewingMaintenanceItem] = useState<MaintenanceItem | null>(null);
 
   // Utility form state
   const [newUtility, setNewUtility] = useState(emptyUtility);
@@ -1181,12 +1184,97 @@ export function PropertyManagerSecure({ onClose }: PropertyManagerSecureProps) {
                   <p className="text-sm text-gray-500">{viewingDetails.postcode}</p>
                 </div>
               </div>
-              <button
-                onClick={() => setViewingDetails(null)}
-                className="p-2 hover:bg-gray-100 rounded-lg"
-              >
-                <X className="w-5 h-5" />
-              </button>
+              <div className="flex items-center gap-2">
+                <button
+                  onClick={() => {
+                    const sections = [
+                      {
+                        title: 'Property Details',
+                        fields: [
+                          { label: 'Address', value: viewingDetails.address },
+                          { label: 'Postcode', value: viewingDetails.postcode },
+                          { label: 'Property Type', value: viewingDetails.propertyType },
+                          { label: 'Finance Type', value: viewingDetails.financeType },
+                          { label: 'Moved In', value: formatDate(viewingDetails.movedInDate) },
+                          { label: 'Monthly Payment', value: viewingDetails.monthlyPayment > 0 ? formatCurrency(viewingDetails.monthlyPayment) : undefined },
+                          { label: 'Lender/Landlord', value: viewingDetails.lender },
+                          { label: 'Finance End Date', value: formatDate(viewingDetails.financeEndDate) },
+                        ]
+                      },
+                      {
+                        title: 'Insurance',
+                        fields: [
+                          { label: 'Company', value: viewingDetails.insuranceCompany },
+                          { label: 'Policy Number', value: viewingDetails.insurancePolicyNumber },
+                          { label: 'Annual Cost', value: viewingDetails.insuranceAnnualCost > 0 ? formatCurrency(viewingDetails.insuranceAnnualCost) : undefined },
+                          { label: 'Renewal Date', value: formatDate(viewingDetails.insuranceRenewalDate) },
+                        ]
+                      },
+                      {
+                        title: 'Council Tax',
+                        fields: [
+                          { label: 'Band', value: viewingDetails.councilTaxBand },
+                          { label: 'Annual Cost', value: viewingDetails.councilTaxAnnualCost > 0 ? formatCurrency(viewingDetails.councilTaxAnnualCost) : undefined },
+                          { label: 'Authority', value: viewingDetails.councilTaxAuthority },
+                          { label: 'Account Number', value: viewingDetails.councilTaxAccountNumber },
+                        ]
+                      },
+                    ];
+
+                    // Add Maintenance Items
+                    if (viewingDetails.maintenanceItems && viewingDetails.maintenanceItems.length > 0) {
+                      viewingDetails.maintenanceItems.forEach((item) => {
+                        sections.push({
+                          title: `Maintenance: ${item.name}`,
+                          fields: [
+                            { label: 'Company', value: item.company },
+                            { label: 'Contact Details', value: item.contactDetails },
+                            { label: 'Annual Cost', value: item.annualCost > 0 ? formatCurrency(item.annualCost) : undefined },
+                            { label: 'Last Service', value: formatDate(item.lastDate) },
+                            { label: 'Next Due', value: formatDate(item.nextDueDate) },
+                            { label: 'Notes', value: item.notes },
+                          ]
+                        });
+                      });
+                    }
+
+                    // Add Utilities
+                    if (viewingDetails.utilities && viewingDetails.utilities.length > 0) {
+                      viewingDetails.utilities.forEach((utility) => {
+                        sections.push({
+                          title: `Utility: ${utility.company} (${getUtilityTypeLabel(utility.type)})`,
+                          fields: [
+                            { label: 'Type', value: getUtilityTypeLabel(utility.type) },
+                            { label: 'Company', value: utility.company },
+                            { label: 'Account Number', value: utility.accountNumber },
+                            { label: 'Monthly Cost', value: utility.monthlyCost > 0 ? formatCurrency(utility.monthlyCost) : undefined },
+                            { label: 'Contact Details', value: utility.contactDetails },
+                            { label: 'Website', value: utility.websiteUrl },
+                            { label: 'Notes', value: utility.notes },
+                          ]
+                        });
+                      });
+                    }
+
+                    printRecord(
+                      viewingDetails.address,
+                      viewingDetails.postcode,
+                      sections,
+                      viewingDetails.notes
+                    );
+                  }}
+                  className="p-2 hover:bg-gray-100 rounded-lg transition-colors"
+                  title="Print"
+                >
+                  <Printer className="w-5 h-5 text-gray-600" />
+                </button>
+                <button
+                  onClick={() => setViewingDetails(null)}
+                  className="p-2 hover:bg-gray-100 rounded-lg"
+                >
+                  <X className="w-5 h-5" />
+                </button>
+              </div>
             </div>
 
             <div className="p-6 space-y-6">
@@ -1343,11 +1431,16 @@ export function PropertyManagerSecure({ onClose }: PropertyManagerSecureProps) {
                           <th className="px-4 py-2 text-left text-gray-600">Company</th>
                           <th className="px-4 py-2 text-right text-gray-600">Cost</th>
                           <th className="px-4 py-2 text-left text-gray-600">Next Due</th>
+                          <th className="px-4 py-2 text-center text-gray-600">Docs</th>
                         </tr>
                       </thead>
                       <tbody className="divide-y divide-gray-100">
                         {viewingDetails.maintenanceItems.map((item) => (
-                          <tr key={item.id} className="hover:bg-gray-50">
+                          <tr
+                            key={item.id}
+                            className="hover:bg-purple-50 cursor-pointer"
+                            onClick={() => setViewingMaintenanceItem(item)}
+                          >
                             <td className="px-4 py-2 font-medium">{item.name}</td>
                             <td className="px-4 py-2">{item.company || '-'}</td>
                             <td className="px-4 py-2 text-right">£{item.annualCost.toFixed(2)}</td>
@@ -1355,6 +1448,16 @@ export function PropertyManagerSecure({ onClose }: PropertyManagerSecureProps) {
                               <span className={`${isPastDate(item.nextDueDate) ? 'text-red-600 font-medium' : isDueSoon(item.nextDueDate) ? 'text-orange-600' : ''}`}>
                                 {item.nextDueDate ? formatDateUK(item.nextDueDate) : '-'}
                               </span>
+                            </td>
+                            <td className="px-4 py-2 text-center">
+                              {item.documents && item.documents.length > 0 ? (
+                                <span className="text-xs text-gray-600 flex items-center justify-center gap-1">
+                                  <FileText className="w-3 h-3" />
+                                  {item.documents.length}
+                                </span>
+                              ) : (
+                                <span className="text-gray-400 text-xs">-</span>
+                              )}
                             </td>
                           </tr>
                         ))}
@@ -2067,9 +2170,8 @@ export function PropertyManagerSecure({ onClose }: PropertyManagerSecureProps) {
               </button>
             </div>
           </div>
-          <iframe
+          <PdfJsViewer
             src={viewingDocument.blobUrl}
-            className="flex-1 border-0"
             title={viewingDocument.docRef.filename}
           />
         </div>
@@ -2197,6 +2299,158 @@ export function PropertyManagerSecure({ onClose }: PropertyManagerSecureProps) {
                   className="px-4 py-2 bg-gray-200 text-gray-700 rounded-lg hover:bg-gray-300"
                 >
                   Cancel
+                </button>
+              </div>
+            </div>
+          </div>
+        </div>
+      )}
+
+      {/* View Maintenance Item Modal */}
+      {viewingMaintenanceItem && (
+        <div className="fixed inset-0 bg-black/60 flex items-center justify-center z-[80] p-4">
+          <div className="bg-white rounded-2xl max-w-lg w-full p-6 shadow-2xl max-h-[90vh] overflow-y-auto">
+            <div className="flex items-center justify-between mb-4">
+              <h3 className="text-lg font-semibold flex items-center gap-2">
+                <Wrench className="w-5 h-5 text-purple-600" />
+                {viewingMaintenanceItem.name}
+              </h3>
+              <div className="flex items-center gap-2">
+                <button
+                  onClick={() => {
+                    printRecord(
+                      viewingMaintenanceItem.name,
+                      viewingMaintenanceItem.company || undefined,
+                      [
+                        {
+                          title: 'Details',
+                          fields: [
+                            { label: 'Company', value: viewingMaintenanceItem.company },
+                            { label: 'Contact Details', value: viewingMaintenanceItem.contactDetails },
+                            { label: 'Annual Cost', value: formatCurrency(viewingMaintenanceItem.annualCost) },
+                            { label: 'Last Service Date', value: formatDate(viewingMaintenanceItem.lastDate) },
+                            { label: 'Next Due Date', value: formatDate(viewingMaintenanceItem.nextDueDate) },
+                          ]
+                        }
+                      ],
+                      viewingMaintenanceItem.notes
+                    );
+                  }}
+                  className="p-2 hover:bg-gray-100 rounded-lg transition-colors"
+                  title="Print"
+                >
+                  <Printer className="w-5 h-5 text-gray-600" />
+                </button>
+                <button
+                  onClick={() => setViewingMaintenanceItem(null)}
+                  className="p-2 hover:bg-gray-100 rounded-lg transition-colors"
+                >
+                  <X className="w-5 h-5" />
+                </button>
+              </div>
+            </div>
+
+            <div className="space-y-4">
+              {/* Status badge */}
+              {viewingMaintenanceItem.nextDueDate && (
+                <div className={`inline-flex items-center gap-2 px-3 py-1.5 rounded-lg text-sm font-medium ${
+                  isPastDate(viewingMaintenanceItem.nextDueDate)
+                    ? 'bg-red-100 text-red-700'
+                    : isDueSoon(viewingMaintenanceItem.nextDueDate)
+                    ? 'bg-orange-100 text-orange-700'
+                    : 'bg-green-100 text-green-700'
+                }`}>
+                  <AlertCircle className="w-4 h-4" />
+                  {isPastDate(viewingMaintenanceItem.nextDueDate)
+                    ? 'Overdue'
+                    : isDueSoon(viewingMaintenanceItem.nextDueDate)
+                    ? 'Due Soon'
+                    : 'Up to Date'}
+                </div>
+              )}
+
+              {/* Details grid */}
+              <div className="grid grid-cols-2 gap-4 text-sm">
+                <div className="bg-gray-50 rounded-lg p-3">
+                  <p className="text-gray-500 text-xs mb-1">Company</p>
+                  <p className="font-medium">{viewingMaintenanceItem.company || '-'}</p>
+                </div>
+                <div className="bg-gray-50 rounded-lg p-3">
+                  <p className="text-gray-500 text-xs mb-1">Annual Cost</p>
+                  <p className="font-medium">£{viewingMaintenanceItem.annualCost.toFixed(2)}</p>
+                </div>
+                <div className="bg-gray-50 rounded-lg p-3">
+                  <p className="text-gray-500 text-xs mb-1">Last Service</p>
+                  <p className="font-medium">{viewingMaintenanceItem.lastDate ? formatDateUK(viewingMaintenanceItem.lastDate) : '-'}</p>
+                </div>
+                <div className="bg-gray-50 rounded-lg p-3">
+                  <p className="text-gray-500 text-xs mb-1">Next Due</p>
+                  <p className={`font-medium ${
+                    isPastDate(viewingMaintenanceItem.nextDueDate)
+                      ? 'text-red-600'
+                      : isDueSoon(viewingMaintenanceItem.nextDueDate)
+                      ? 'text-orange-600'
+                      : ''
+                  }`}>
+                    {viewingMaintenanceItem.nextDueDate ? formatDateUK(viewingMaintenanceItem.nextDueDate) : '-'}
+                  </p>
+                </div>
+              </div>
+
+              {/* Contact Details */}
+              {viewingMaintenanceItem.contactDetails && (
+                <div className="bg-blue-50 rounded-lg p-3">
+                  <p className="text-gray-500 text-xs mb-1 flex items-center gap-1">
+                    <Phone className="w-3 h-3" /> Contact Details
+                  </p>
+                  <p className="text-sm whitespace-pre-wrap">{viewingMaintenanceItem.contactDetails}</p>
+                </div>
+              )}
+
+              {/* Notes */}
+              {viewingMaintenanceItem.notes && (
+                <div className="bg-gray-50 rounded-lg p-3">
+                  <p className="text-gray-500 text-xs mb-1">Notes</p>
+                  <p className="text-sm whitespace-pre-wrap">{viewingMaintenanceItem.notes}</p>
+                </div>
+              )}
+
+              {/* Documents */}
+              {viewingMaintenanceItem.documents && viewingMaintenanceItem.documents.length > 0 && (
+                <div>
+                  <p className="text-gray-500 text-xs mb-2">Documents ({viewingMaintenanceItem.documents.length})</p>
+                  <div className="flex flex-wrap gap-2">
+                    {viewingMaintenanceItem.documents.map((doc) => (
+                      <button
+                        key={doc.id}
+                        onClick={() => viewFile(doc)}
+                        className="flex items-center gap-2 px-3 py-1.5 bg-purple-100 text-purple-700 rounded-lg hover:bg-purple-200 text-sm"
+                      >
+                        <FileText className="w-3 h-3" />
+                        {doc.filename}
+                      </button>
+                    ))}
+                  </div>
+                </div>
+              )}
+
+              {/* Actions */}
+              <div className="flex gap-2 pt-4 border-t">
+                <button
+                  onClick={() => {
+                    setEditingMaintenanceItem(viewingMaintenanceItem);
+                    setViewingMaintenanceItem(null);
+                  }}
+                  className="flex-1 px-4 py-2 bg-slate-600 text-white rounded-lg hover:bg-slate-700 flex items-center justify-center gap-2"
+                >
+                  <Edit2 className="w-4 h-4" />
+                  Edit
+                </button>
+                <button
+                  onClick={() => setViewingMaintenanceItem(null)}
+                  className="flex-1 px-4 py-2 bg-gray-200 text-gray-700 rounded-lg hover:bg-gray-300"
+                >
+                  Close
                 </button>
               </div>
             </div>

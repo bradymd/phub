@@ -1,6 +1,7 @@
 import { useState, useEffect } from 'react';
 import { X, Plus, Trash, Heart, Calendar, Edit2, Key, FileText, ExternalLink, Hospital, Stethoscope, Search, AlertCircle, Upload, Eye, EyeOff, Download, User, Building, Shield, Phone, MapPin, CreditCard, ChevronDown, ChevronUp } from 'lucide-react';
 import { useStorage, useDocumentService } from '../../contexts/StorageContext';
+import { PdfJsViewer } from './PdfJsViewer';
 import { DocumentReference } from '../../services/document-service';
 
 interface HealthcareProvider {
@@ -809,6 +810,25 @@ export function MedicalHistoryManagerSecure({ onClose }: MedicalHistoryManagerSe
                           </div>
                         </div>
                         <div className="flex items-center gap-2">
+                          {/* Show documents prominently - click to view directly */}
+                          {provider.documents && provider.documents.length > 0 && (
+                            <div className="flex items-center gap-1 mr-2">
+                              {provider.documents.map((doc, idx) => (
+                                <button
+                                  key={idx}
+                                  onClick={(e) => {
+                                    e.stopPropagation();
+                                    viewFile(doc);
+                                  }}
+                                  className="flex items-center gap-1 px-2 py-1 bg-blue-100 text-blue-700 rounded hover:bg-blue-200 text-xs"
+                                  title={`View ${doc.filename}`}
+                                >
+                                  <FileText className="w-3 h-3" />
+                                  {doc.filename.length > 15 ? doc.filename.substring(0, 12) + '...' : doc.filename}
+                                </button>
+                              ))}
+                            </div>
+                          )}
                           <button
                             onClick={(e) => {
                               e.stopPropagation();
@@ -1082,7 +1102,10 @@ export function MedicalHistoryManagerSecure({ onClose }: MedicalHistoryManagerSe
                   className="bg-gray-50 rounded-xl overflow-hidden hover:bg-gray-100 transition-colors"
                 >
                   <div className="p-5">
-                    <div className="flex items-start justify-between mb-3">
+                    <div
+                      className="flex items-start justify-between mb-3 cursor-pointer"
+                      onClick={() => setExpandedRecord(expandedRecord === record.id ? null : record.id)}
+                    >
                       <div className="flex-1">
                         <div className="flex items-start gap-3">
                           <div className="p-3 bg-red-100 text-red-600 rounded-lg">
@@ -1186,24 +1209,27 @@ export function MedicalHistoryManagerSecure({ onClose }: MedicalHistoryManagerSe
                       </div>
                       <div className="flex items-center gap-2">
                         <button
-                          onClick={() => setExpandedRecord(expandedRecord === record.id ? null : record.id)}
-                          className="p-2 hover:bg-white rounded-lg transition-colors text-gray-600"
-                          title="View details"
-                        >
-                          <FileText className="w-4 h-4" />
-                        </button>
-                        <button
-                          onClick={() => startEdit(record)}
+                          onClick={(e) => {
+                            e.stopPropagation();
+                            startEdit(record);
+                          }}
                           className="p-2 hover:bg-white rounded-lg transition-colors text-blue-600"
                         >
                           <Edit2 className="w-4 h-4" />
                         </button>
                         <button
-                          onClick={() => deleteRecord(record.id)}
+                          onClick={(e) => {
+                            e.stopPropagation();
+                            deleteRecord(record.id);
+                          }}
                           className="p-2 hover:bg-white rounded-lg transition-colors text-red-600"
                         >
                           <Trash className="w-4 h-4" />
                         </button>
+                        {expandedRecord === record.id ?
+                          <ChevronUp className="w-4 h-4 text-gray-400" /> :
+                          <ChevronDown className="w-4 h-4 text-gray-400" />
+                        }
                       </div>
                     </div>
                   </div>
@@ -1441,9 +1467,8 @@ export function MedicalHistoryManagerSecure({ onClose }: MedicalHistoryManagerSe
               </button>
             </div>
           </div>
-          <iframe
+          <PdfJsViewer
             src={viewingDocument.blobUrl}
-            style={{ flex: 1, border: 'none', width: '100%' }}
             title={viewingDocument.docRef.filename}
           />
         </div>

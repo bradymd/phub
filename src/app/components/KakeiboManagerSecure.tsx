@@ -46,8 +46,10 @@ interface KakeiboMonth {
   expenses: KakeiboExpense[];
   reflection: {
     actualSaved: number;
+    howSaved: string;
     improvements: string;
     notes: string;
+    accountBalance: number;
     completed: boolean;
   };
 }
@@ -173,8 +175,10 @@ const emptyMonth = (id: string): KakeiboMonth => {
     expenses: [],
     reflection: {
       actualSaved: 0,
+      howSaved: '',
       improvements: '',
       notes: '',
+      accountBalance: 0,
       completed: false
     }
   };
@@ -216,6 +220,15 @@ export function KakeiboManagerSecure({ onClose }: KakeiboManagerSecureProps) {
   const [setupData, setSetupData] = useState({ income: 0, savingsGoal: 0 });
   const [budgetData, setBudgetData] = useState<{ totalIncome: number; fixedExpenses: FixedExpense[] } | null>(null);
   const [isLoadingBudget, setIsLoadingBudget] = useState(false);
+
+  // Reflection form local state (to avoid saving on every keystroke)
+  const [reflectionForm, setReflectionForm] = useState({
+    actualSaved: 0,
+    howSaved: '',
+    improvements: '',
+    notes: '',
+    accountBalance: 0
+  });
 
   const currentMonth = useMemo(() => {
     return months.find(m => m.id === currentMonthId) || emptyMonth(currentMonthId);
@@ -796,7 +809,17 @@ export function KakeiboManagerSecure({ onClose }: KakeiboManagerSecureProps) {
               <div className="flex items-center justify-between mb-4">
                 <h3 className="text-lg font-semibold text-gray-900">Monthly Summary</h3>
                 <button
-                  onClick={() => setShowReflection(true)}
+                  onClick={() => {
+                    // Initialize form with existing values, defaulting actualSaved to projectedSavings if not set
+                    setReflectionForm({
+                      actualSaved: currentMonth.reflection.actualSaved || projectedSavings,
+                      howSaved: currentMonth.reflection.howSaved || '',
+                      improvements: currentMonth.reflection.improvements || '',
+                      notes: currentMonth.reflection.notes || '',
+                      accountBalance: currentMonth.reflection.accountBalance || 0
+                    });
+                    setShowReflection(true);
+                  }}
                   className="flex items-center gap-2 px-4 py-2 bg-white border border-gray-300 rounded-lg hover:bg-gray-50 transition-colors"
                 >
                   {currentMonth.reflection.completed ? (
@@ -1370,62 +1393,85 @@ export function KakeiboManagerSecure({ onClose }: KakeiboManagerSecureProps) {
                 </div>
               </div>
 
-              {/* Question 4 */}
-              <div>
-                <div className="p-3 bg-blue-50 rounded-lg border border-blue-200 mb-3">
-                  <p className="text-sm font-medium text-blue-800">4. How can you improve?</p>
+              {/* Actual Savings Section */}
+              <div className="p-4 bg-emerald-50 rounded-lg border border-emerald-200">
+                <div className="flex items-center justify-between mb-3">
+                  <p className="text-sm font-medium text-emerald-800">4. How much did you actually save?</p>
+                  <div className="text-right">
+                    <p className="text-xs text-emerald-600">Projected is</p>
+                    <p className="text-lg font-bold text-emerald-700">{formatCurrency(projectedSavings)}</p>
+                  </div>
                 </div>
-                <textarea
-                  value={currentMonth.reflection.improvements}
-                  onChange={(e) => {
-                    const month = { ...currentMonth };
-                    month.reflection.improvements = e.target.value;
-                    saveMonth(month);
-                  }}
-                  placeholder="Reflect on your spending habits..."
-                  className="w-full px-4 py-3 border border-gray-300 rounded-lg focus:ring-2 focus:ring-rose-500 focus:border-transparent"
-                  rows={4}
-                />
-              </div>
-
-              {/* Notes */}
-              <div>
-                <label className="block text-sm font-medium text-gray-700 mb-2">Additional Notes</label>
-                <textarea
-                  value={currentMonth.reflection.notes}
-                  onChange={(e) => {
-                    const month = { ...currentMonth };
-                    month.reflection.notes = e.target.value;
-                    saveMonth(month);
-                  }}
-                  placeholder="Any other thoughts about this month..."
-                  className="w-full px-4 py-3 border border-gray-300 rounded-lg focus:ring-2 focus:ring-rose-500 focus:border-transparent"
-                  rows={3}
-                />
-              </div>
-
-              {/* Actual Saved */}
-              <div>
-                <label className="block text-sm font-medium text-gray-700 mb-2">Actual Amount Saved</label>
                 <div className="relative">
                   <span className="absolute left-3 top-1/2 -translate-y-1/2 text-gray-500">£</span>
                   <input
                     type="number"
                     step="0.01"
-                    value={currentMonth.reflection.actualSaved || ''}
-                    onChange={(e) => {
-                      const month = { ...currentMonth };
-                      month.reflection.actualSaved = parseFloat(e.target.value) || 0;
-                      saveMonth(month);
-                    }}
+                    value={reflectionForm.actualSaved || ''}
+                    onChange={(e) => setReflectionForm({ ...reflectionForm, actualSaved: parseFloat(e.target.value) || 0 })}
                     placeholder="0.00"
-                    className="w-full pl-8 pr-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-rose-500 focus:border-transparent"
+                    className="w-full pl-8 pr-4 py-2 border border-emerald-300 rounded-lg focus:ring-2 focus:ring-emerald-500 focus:border-transparent bg-white"
                   />
                 </div>
               </div>
 
+              {/* How did you save */}
+              <div>
+                <label className="block text-sm font-medium text-gray-700 mb-2">How did you actually save this month?</label>
+                <textarea
+                  value={reflectionForm.howSaved}
+                  onChange={(e) => setReflectionForm({ ...reflectionForm, howSaved: e.target.value })}
+                  placeholder="e.g., Cut back on takeaways, found cheaper energy deal, cancelled unused subscription..."
+                  className="w-full px-4 py-3 border border-gray-300 rounded-lg focus:ring-2 focus:ring-rose-500 focus:border-transparent"
+                  rows={3}
+                />
+              </div>
+
+              {/* Question 5 - Improvements */}
+              <div>
+                <div className="p-3 bg-blue-50 rounded-lg border border-blue-200 mb-3">
+                  <p className="text-sm font-medium text-blue-800">5. How can you improve next month?</p>
+                </div>
+                <textarea
+                  value={reflectionForm.improvements}
+                  onChange={(e) => setReflectionForm({ ...reflectionForm, improvements: e.target.value })}
+                  placeholder="Reflect on your spending habits and what you could do differently..."
+                  className="w-full px-4 py-3 border border-gray-300 rounded-lg focus:ring-2 focus:ring-rose-500 focus:border-transparent"
+                  rows={3}
+                />
+              </div>
+
+              {/* Current Account Balance */}
+              <div>
+                <label className="block text-sm font-medium text-gray-700 mb-2">Current Account Balance (end of month)</label>
+                <div className="relative">
+                  <span className="absolute left-3 top-1/2 -translate-y-1/2 text-gray-500">£</span>
+                  <input
+                    type="number"
+                    step="0.01"
+                    value={reflectionForm.accountBalance || ''}
+                    onChange={(e) => setReflectionForm({ ...reflectionForm, accountBalance: parseFloat(e.target.value) || 0 })}
+                    placeholder="0.00"
+                    className="w-full pl-8 pr-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-rose-500 focus:border-transparent"
+                  />
+                </div>
+                <p className="text-xs text-gray-500 mt-1">Track your account balance to see money accumulating</p>
+              </div>
+
+              {/* Additional Notes */}
+              <div>
+                <label className="block text-sm font-medium text-gray-700 mb-2">Additional Notes</label>
+                <textarea
+                  value={reflectionForm.notes}
+                  onChange={(e) => setReflectionForm({ ...reflectionForm, notes: e.target.value })}
+                  placeholder="Any other thoughts about this month..."
+                  className="w-full px-4 py-3 border border-gray-300 rounded-lg focus:ring-2 focus:ring-rose-500 focus:border-transparent"
+                  rows={2}
+                />
+              </div>
+
               <button
-                onClick={() => handleSaveReflection({ ...currentMonth.reflection, completed: true })}
+                onClick={() => handleSaveReflection({ ...reflectionForm, completed: true })}
                 className="w-full px-4 py-3 bg-rose-600 text-white rounded-lg hover:bg-rose-700 transition-colors font-medium flex items-center justify-center gap-2"
               >
                 <Check className="w-5 h-5" />
