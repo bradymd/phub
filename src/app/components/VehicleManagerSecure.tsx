@@ -2320,7 +2320,8 @@ export function VehicleManagerSecure({ onClose }: VehicleManagerSecureProps) {
                         fields: [
                           { label: 'Provider', value: viewingDetails.breakdownProvider },
                           { label: 'Membership Number', value: viewingDetails.breakdownMembershipNumber },
-                          { label: 'Contact Number', value: viewingDetails.breakdownContact },
+                          { label: 'Breakdown Contact', value: viewingDetails.breakdownContact },
+                          { label: 'Recovery Contact', value: viewingDetails.recoveryContact },
                         ]
                       },
                     ];
