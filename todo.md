@@ -38,6 +38,51 @@
 
 ---
 
+## TODO: Data Versioning & Migration System (Before Public Release)
+
+**Priority: High** - Required before distributing to other users
+
+### Why This Matters
+When data structures change between versions (add fields, rename fields, restructure), users' existing data needs to migrate cleanly. Without this, upgrades could corrupt or lose user data.
+
+### Implementation Plan
+
+1. **Add schema versioning to storage**
+   ```typescript
+   interface StoredData<T> {
+     schemaVersion: number;
+     data: T[];
+   }
+   ```
+
+2. **Create migrations registry** (`src/services/migrations.ts`)
+   - Define migrations per storage key
+   - Each migration: `{ version: number, up: (oldData) => newData }`
+   - Run migrations automatically on app load if version mismatch
+
+3. **App versioning**
+   - Use semantic versioning in package.json (MAJOR.MINOR.PATCH)
+   - Store app version that created each backup
+   - Check compatibility on restore
+
+4. **Backup compatibility**
+   - Include version metadata in backups
+   - On restore: check version, run migrations if needed
+   - Warn if backup is from newer version than app
+
+5. **Platform distribution prep**
+   - Windows: Code signing (avoid security warnings)
+   - macOS: Code signing + notarization (Gatekeeper)
+   - Linux: AppImage/deb/rpm packaging
+
+### Storage Keys to Version
+- `contacts`, `finance_items`, `vehicles`, `properties`, `medical_history`
+- `dental_records`, `pets`, `budget_items`, `pension_items`
+- `certificates`, `education`, `employment`, `documents_*`
+- `panel_usage`, `kakeibo_*`
+
+---
+
 ## Architecture Notes (Long-term Planning)
 
 ### Current State (14 panels)
