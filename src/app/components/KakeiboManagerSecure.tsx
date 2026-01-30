@@ -260,10 +260,22 @@ export function KakeiboManagerSecure({ onClose }: KakeiboManagerSecureProps) {
       const data = await storage.get<KakeiboMonth>('kakeibo_months');
       setMonths(data);
 
-      // Check if current month needs setup
-      const current = data.find(m => m.id === getCurrentMonthId());
-      if (!current || current.income === 0) {
-        setShowSetup(true);
+      // If current month's reflection is completed, show next month
+      const calendarMonthId = getCurrentMonthId();
+      const calendarMonth = data.find(m => m.id === calendarMonthId);
+      if (calendarMonth && calendarMonth.reflection.completed) {
+        const nextId = getNextMonthId(calendarMonthId);
+        setCurrentMonthId(nextId);
+        // Check if next month needs setup
+        const nextMonth = data.find(m => m.id === nextId);
+        if (!nextMonth || nextMonth.income === 0) {
+          setShowSetup(true);
+        }
+      } else {
+        // Check if current month needs setup
+        if (!calendarMonth || calendarMonth.income === 0) {
+          setShowSetup(true);
+        }
       }
     } catch (err) {
       setError('Failed to load data');
