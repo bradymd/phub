@@ -733,7 +733,6 @@ export function PensionManagerSecure({ onClose }: PensionManagerSecureProps) {
                       >
                         <Trash className="w-4 h-4" />
                       </button>
-                      <div className="text-gray-400 group-hover:text-green-600 transition-colors ml-2">→</div>
                     </div>
                   </div>
                 ))}

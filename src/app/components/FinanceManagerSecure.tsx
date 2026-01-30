@@ -1093,6 +1093,160 @@ export function FinanceManagerSecure({ onClose }: FinanceManagerSecureProps) {
           </div>
         </div>
       )}
+
+      {/* Edit Modal - shows when editing from list view */}
+      {editingAccount && viewMode === 'list' && (
+        <div className="fixed inset-0 bg-black/60 flex items-center justify-center z-[9999] p-4">
+          <div className="bg-white rounded-2xl max-w-2xl w-full p-6 shadow-2xl max-h-[90vh] overflow-y-auto">
+            <div className="flex items-center justify-between mb-6">
+              <h2 className="text-xl font-bold text-gray-900">Edit Account</h2>
+              <button
+                onClick={() => setEditingAccount(null)}
+                className="p-2 hover:bg-gray-100 rounded-lg transition-colors"
+              >
+                <X className="w-5 h-5" />
+              </button>
+            </div>
+
+            <div className="space-y-4">
+              <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                <div>
+                  <label className="block text-sm font-medium text-gray-700 mb-1">Account Name</label>
+                  <input
+                    type="text"
+                    value={editingAccount.name}
+                    onChange={(e) => setEditingAccount({ ...editingAccount, name: e.target.value })}
+                    placeholder="Account name..."
+                    className="w-full px-4 py-2 border border-gray-300 rounded-lg bg-white focus:ring-2 focus:ring-blue-500 focus:border-transparent"
+                  />
+                </div>
+                <div>
+                  <label className="block text-sm font-medium text-gray-700 mb-1">Account Type</label>
+                  <select
+                    value={editingAccount.type}
+                    onChange={(e) => setEditingAccount({ ...editingAccount, type: e.target.value as any })}
+                    className="w-full px-4 py-2 border border-gray-300 rounded-lg bg-white focus:ring-2 focus:ring-blue-500 focus:border-transparent"
+                  >
+                    <option value="savings">Savings Account</option>
+                    <option value="investment-isa">Investment ISA</option>
+                    <option value="cash-isa">Cash ISA</option>
+                    <option value="salary-sacrifice">Salary Sacrifice / AVC</option>
+                    <option value="other">Other</option>
+                  </select>
+                </div>
+              </div>
+              <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                <div>
+                  <label className="block text-sm font-medium text-gray-700 mb-1">Current Value (£)</label>
+                  <input
+                    type="text"
+                    value={editingAccount.currentValue}
+                    onChange={(e) => setEditingAccount({ ...editingAccount, currentValue: e.target.value })}
+                    placeholder="Current value (£)..."
+                    className="w-full px-4 py-2 border border-gray-300 rounded-lg bg-white focus:ring-2 focus:ring-blue-500 focus:border-transparent"
+                  />
+                </div>
+                {(editingAccount.type === 'investment-isa' || editingAccount.type === 'cash-isa') && (
+                  <div>
+                    <label className="block text-sm font-medium text-gray-700 mb-1">Contributions (£)</label>
+                    <input
+                      type="text"
+                      value={editingAccount.contributions}
+                      onChange={(e) => setEditingAccount({ ...editingAccount, contributions: e.target.value })}
+                      placeholder="Contributions (what you put in)..."
+                      className="w-full px-4 py-2 border border-gray-300 rounded-lg bg-white focus:ring-2 focus:ring-blue-500 focus:border-transparent"
+                    />
+                  </div>
+                )}
+                {editingAccount.type === 'salary-sacrifice' && (
+                  <div>
+                    <label className="block text-sm font-medium text-gray-700 mb-1">Monthly Contribution (£)</label>
+                    <input
+                      type="text"
+                      value={editingAccount.monthlyContribution}
+                      onChange={(e) => setEditingAccount({ ...editingAccount, monthlyContribution: e.target.value })}
+                      placeholder="Monthly contribution (£)..."
+                      className="w-full px-4 py-2 border border-gray-300 rounded-lg bg-white focus:ring-2 focus:ring-blue-500 focus:border-transparent"
+                    />
+                  </div>
+                )}
+              </div>
+              {(editingAccount.type === 'investment-isa' || editingAccount.type === 'cash-isa') && (
+                <div>
+                  <label className="block text-sm font-medium text-gray-700 mb-1">Tax Year</label>
+                  <select
+                    value={editingAccount.taxYear}
+                    onChange={(e) => setEditingAccount({ ...editingAccount, taxYear: e.target.value })}
+                    className="w-full px-4 py-2 border border-gray-300 rounded-lg bg-white focus:ring-2 focus:ring-blue-500 focus:border-transparent"
+                  >
+                    <option value="2025-2026">2025-2026 Tax Year (Current)</option>
+                    <option value="2024-2025">2024-2025 Tax Year</option>
+                    <option value="2023-2024">2023-2024 Tax Year</option>
+                    <option value="2022-2023">2022-2023 Tax Year</option>
+                    <option value="2021-2022">2021-2022 Tax Year</option>
+                  </select>
+                </div>
+              )}
+              <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                <div>
+                  <label className="block text-sm font-medium text-gray-700 mb-1">Provider</label>
+                  <input
+                    type="text"
+                    value={editingAccount.provider}
+                    onChange={(e) => setEditingAccount({ ...editingAccount, provider: e.target.value })}
+                    placeholder="Provider..."
+                    className="w-full px-4 py-2 border border-gray-300 rounded-lg bg-white focus:ring-2 focus:ring-blue-500 focus:border-transparent"
+                  />
+                </div>
+                <div>
+                  <label className="block text-sm font-medium text-gray-700 mb-1">Account Number</label>
+                  <input
+                    type="text"
+                    value={editingAccount.accountNumber}
+                    onChange={(e) => setEditingAccount({ ...editingAccount, accountNumber: e.target.value })}
+                    placeholder="Account number..."
+                    className="w-full px-4 py-2 border border-gray-300 rounded-lg bg-white focus:ring-2 focus:ring-blue-500 focus:border-transparent"
+                  />
+                </div>
+              </div>
+              <div>
+                <label className="block text-sm font-medium text-gray-700 mb-1">Website URL</label>
+                <input
+                  type="text"
+                  value={editingAccount.website}
+                  onChange={(e) => setEditingAccount({ ...editingAccount, website: e.target.value })}
+                  placeholder="Website URL..."
+                  className="w-full px-4 py-2 border border-gray-300 rounded-lg bg-white focus:ring-2 focus:ring-blue-500 focus:border-transparent"
+                />
+              </div>
+              <div>
+                <label className="block text-sm font-medium text-gray-700 mb-1">Notes</label>
+                <textarea
+                  value={editingAccount.notes}
+                  onChange={(e) => setEditingAccount({ ...editingAccount, notes: e.target.value })}
+                  placeholder="Notes..."
+                  className="w-full px-4 py-2 border border-gray-300 rounded-lg bg-white resize-none focus:ring-2 focus:ring-blue-500 focus:border-transparent"
+                  rows={3}
+                />
+              </div>
+              <div className="flex gap-2 pt-4 border-t">
+                <button
+                  onClick={updateAccount}
+                  className="flex-1 px-4 py-2 bg-blue-600 text-white rounded-lg hover:bg-blue-700 transition-colors font-medium"
+                >
+                  Save Changes
+                </button>
+                <button
+                  onClick={() => setEditingAccount(null)}
+                  className="px-4 py-2 bg-gray-200 text-gray-700 rounded-lg hover:bg-gray-300 transition-colors font-medium"
+                >
+                  Cancel
+                </button>
+              </div>
+            </div>
+          </div>
+        </div>
+      )}
     </div>
   );
 }
