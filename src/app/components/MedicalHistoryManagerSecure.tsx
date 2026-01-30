@@ -656,7 +656,7 @@ export function MedicalHistoryManagerSecure({ onClose }: MedicalHistoryManagerSe
             return (
               <div className="mt-3 flex flex-wrap gap-4">
                 {upcomingAppointments > 0 && (
-                  <div className="flex items-center gap-2 text-blue-600">
+                  <div className="flex items-center gap-2 text-orange-600">
                     <Calendar className="w-4 h-4" />
                     <span className="text-sm font-medium">{upcomingAppointments} upcoming appointment{upcomingAppointments > 1 ? 's' : ''}</span>
                   </div>
@@ -1194,7 +1194,7 @@ export function MedicalHistoryManagerSecure({ onClose }: MedicalHistoryManagerSe
                                 {getTypeLabel(record.type)}
                               </span>
                               {record.date && isDueSoon(record.date) && (
-                                <span className="inline-flex items-center gap-1 px-2 py-1 rounded text-xs bg-blue-100 text-blue-700">
+                                <span className="inline-flex items-center gap-1 px-2 py-1 rounded text-xs bg-orange-100 text-orange-700">
                                   <Calendar className="w-3 h-3" />
                                   Upcoming
                                 </span>
