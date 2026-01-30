@@ -101,7 +101,7 @@ export function useReminders(): PanelReminders {
 
         // Load medical records
         try {
-          const records = await storage.getAll('medical_records');
+          const records = await storage.getAll('medical_history');
           records.forEach((record: any) => {
             // Check for upcoming appointments (date is in the future within 30 days)
             if (record.date && isDueSoon(record.date)) {
