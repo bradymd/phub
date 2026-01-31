@@ -54,6 +54,7 @@ export default function App() {
   const [viewMode, setViewMode] = useState<'grid' | 'list'>('grid');
   const [showPasswordChange, setShowPasswordChange] = useState(false);
   const [showCategorySettings, setShowCategorySettings] = useState(false);
+  const [appVersion, setAppVersion] = useState<string>('');
   const [hiddenCategories, setHiddenCategories] = useState<Set<string>>(() => {
     // Load hidden categories from localStorage
     const saved = localStorage.getItem('hidden_categories');
@@ -95,6 +96,18 @@ export default function App() {
     };
 
     checkMasterPassword();
+  }, []);
+
+  // Get app version from Electron
+  useEffect(() => {
+    if (typeof window !== 'undefined' && 'electronAPI' in window) {
+      const api = (window as any).electronAPI;
+      if (api?.updater?.getVersion) {
+        api.updater.getVersion().then((result: { version: string }) => {
+          setAppVersion(result.version);
+        });
+      }
+    }
   }, []);
 
   const handleSetupComplete = (password: string) => {
@@ -282,7 +295,10 @@ export default function App() {
               </div>
               <div>
                 <h1 className="text-gray-900">My Personal Hub</h1>
-                <p className="text-gray-600">Your secure space for life's important information</p>
+                <p className="text-gray-600">
+                  Your secure space for life's important information
+                  {appVersion && <span className="ml-2 text-gray-400 text-sm">v{appVersion}</span>}
+                </p>
               </div>
             </div>
             <div className="flex items-center gap-2">
