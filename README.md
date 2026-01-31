@@ -1,288 +1,223 @@
 # Personal Hub - Secure Life Organization
 
-A **private, local-first desktop application** for organizing your entire life. Track your documents, finances, career history, contacts, medical records, photos, and passwords - all encrypted and stored securely on your own device.
+A **private, local-first desktop application** for organizing your entire life. Track your documents, finances, vehicles, property, medical records, contacts, and passwords - all encrypted and stored securely on your own device.
 
-**Built with [Tauri](https://tauri.app/)** - A secure, native desktop application using Rust + React.
-
-**Original Design:** [Figma](https://www.figma.com/design/oJamv4hjwZZinA3sDmV05W/Personal-Document-Management-Website)
+**Built with [Electron](https://www.electronjs.org/)** - A cross-platform desktop application using React + TypeScript.
 
 ---
 
-## 🔒 Security First
+## Security First
 
 - **AES-256-GCM Encryption** for all sensitive data
 - **Master Password Protection** with PBKDF2 key derivation (10,000 iterations)
-- **Filesystem Storage** - Data stored in `~/Documents/PersonalHub/` (not browser)
+- **Filesystem Storage** - Data stored in `~/Documents/PersonalHub/` (not in the app)
 - **No Cloud Storage** - everything stays on your device
 - **No Telemetry** - completely private
-- **Native Desktop App** - Built with Tauri (Rust + React) for security and performance
-- **Open Source** - Inspect the code yourself
+- **Auto-Updates** - checks GitHub releases for new versions
+- **Open Source** - inspect the code yourself
 
 ---
 
-## ✨ Features
+## Features
 
-### 📋 Documents Manager
-Organize certificates, education records, and health documents (metadata tracking).
+### Core Panels
+- **Contacts** - Keep important contacts organized
+- **Documents** - Store and organize important documents (PDFs, images)
+- **Certificates** - Track certificates with expiry dates and documents
+- **Education** - Education history with qualifications and transcripts
+- **Employment** - Career history with CV export functionality
 
-### 💰 Finance Manager
-Track savings accounts, pensions, and other financial assets with total calculations.
+### Finance Panels
+- **Finance** - Track savings accounts and financial assets
+- **Pensions** - Pension tracking with projections
+- **Budget** - Monthly budget tracking
+- **Kakeibo** - Japanese budgeting method
 
-### 💼 Employment Manager
-Comprehensive career history with:
-- Job roles and responsibilities
-- Duration calculations
-- CV export functionality
-- Pension tracking
+### Lifestyle Panels
+- **Vehicles** - Vehicle details, MOT, tax, insurance, service history with reminders
+- **Property** - Property details, maintenance schedules, council tax
+- **Medical** - Medical history and appointment tracking
+- **Dental** - Dental records and appointments
+- **Pets** - Pet information, vaccinations, vet visits
 
-### 📸 Photo Gallery
-Store and organize personal photos and memories.
+### Security Panels
+- **Virtual High Street** - Password manager disguised as a shopping street
+  - All passwords encrypted with AES-256-GCM
+  - Password generator
+  - Copy to clipboard
+  - Organized by category
 
-### 👥 Contacts Manager
-Keep important contacts organized with full details.
-
-### 🏪 Virtual High Street (Encrypted!)
-Your personal password manager disguised as a "high street":
-- **All passwords encrypted** with AES-256-GCM
-- Password generator (16-character strong passwords)
-- Password strength indicator
-- Copy to clipboard
-- Organized by category (Banking, Shopping, Social, etc.)
-- Favicon support
-- Export/import backups
-
-### 🤖 AI Overview
-Dashboard showing aggregated life metrics and planning insights.
+### System Features
+- **Backup & Restore** - Export encrypted backups, restore on any machine
+- **Smart Panel Ordering** - Panels with alerts appear first, then by usage frequency
+- **Key Dates Dashboard** - See upcoming renewals, appointments, and deadlines
+- **Settings** - Show/hide panels, customize your experience
 
 ---
 
-## 🚀 Quick Start
+## Installation
+
+### Download
+
+Download the latest release from [GitHub Releases](https://github.com/bradymd/phub/releases):
+
+- **Linux**: `PersonalHub-X.X.X.AppImage` (run directly) or `personal-hub_X.X.X_amd64.deb` (install)
+- **Windows**: `PersonalHub Setup X.X.X.exe` (coming soon)
+- **macOS**: `PersonalHub-X.X.X.dmg` (coming soon)
+
+### Linux AppImage
+
+```bash
+chmod +x PersonalHub-1.0.0.AppImage
+./PersonalHub-1.0.0.AppImage
+```
+
+### Linux .deb
+
+```bash
+sudo dpkg -i personal-hub_1.0.0_amd64.deb
+```
+
+---
+
+## Development
 
 ### Prerequisites
 
-1. **Rust** (for Tauri)
-   ```bash
-   curl --proto '=https' --tlsv1.2 -sSf https://sh.rustup.rs | sh
-   source ~/.cargo/env
-   ```
+- **Node.js 18+** and npm
 
-2. **Node.js 18+** and npm
-
-### Installation
+### Setup
 
 ```bash
+git clone https://github.com/bradymd/phub.git
+cd phub
 npm install
 ```
 
-### Development
+### Run Development Mode
 
-**Desktop App (Recommended):**
 ```bash
-source ~/.cargo/env  # Ensure Rust is in PATH
-npm run tauri dev
+npm run electron:dev
 ```
-
-First compile takes ~40s. Subsequent frontend changes reload in 1-2 seconds.
-
-**Browser Fallback (Testing Only):**
-```bash
-npm run dev
-```
-Visit http://localhost:5173/ - Uses localStorage instead of filesystem
-
-### First Launch
-
-1. **Import Wizard** - Automatically appears if no data exists
-   - Import encrypted backup file, or
-   - Start fresh with empty data
-
-2. Create a **master password** (strong, memorable, unrecoverable if forgotten)
-
-3. Start organizing your life - everything is automatically encrypted
 
 ### Build for Production
 
 ```bash
-npm run tauri build
+# Linux
+npm run build:linux
+
+# Windows (on Windows machine)
+npm run build:win
+
+# macOS (on macOS machine)
+npm run build:mac
 ```
 
-Creates native installers in `src-tauri/target/release/bundle/`
+Output files are in `dist-electron/`.
 
 ---
 
-## 📂 Data Storage
+## Data Storage
 
 All data is stored locally in encrypted JSON files:
 
 ```
 ~/Documents/PersonalHub/
+├── .master.key                              (Encrypted master key)
 └── data/
-    ├── virtual_street.encrypted.json          (Passwords)
-    ├── finance_items.encrypted.json           (Accounts)
-    ├── pensions.encrypted.json                (Pension records)
-    ├── budget_items.encrypted.json            (Budget tracking)
-    ├── certificates.encrypted.json            (Certificates metadata)
-    ├── documents_certificates.encrypted.json  (Certificate files)
-    ├── education_records.encrypted.json       (Education history)
-    ├── medical_history.encrypted.json         (Medical records)
-    ├── employment_records.encrypted.json      (Career history)
-    ├── contacts.encrypted.json                (Contacts)
-    └── photos.encrypted.json                  (Photos)
+    ├── contacts.encrypted.json
+    ├── vehicles.encrypted.json
+    ├── properties.encrypted.json
+    ├── medical_history.encrypted.json
+    ├── certificates.encrypted.json
+    ├── education.encrypted.json
+    ├── employment.encrypted.json
+    ├── finance_items.encrypted.json
+    ├── pension_items.encrypted.json
+    ├── budget_items.encrypted.json
+    ├── virtual_street.encrypted.json        (Passwords)
+    └── ...
 ```
 
-Each file is encrypted with **AES-256-GCM** using your master password. The encryption format:
-- **Key Derivation:** PBKDF2 with 10,000 iterations, SHA-256
-- **Format:** `[salt(16 bytes)][iv(12 bytes)][ciphertext][authTag(16 bytes)]` → base64
+Each file is encrypted with **AES-256-GCM** using your master password.
 
 ---
 
-## 📖 Documentation
+## Auto-Updates
 
-- **[MIGRATION.md](MIGRATION.md)** - Browser to Tauri migration guide
-- **[DEVELOPMENT_PLAN.md](DEVELOPMENT_PLAN.md)** - Full development roadmap and architecture
-- **[TESTING_GUIDE.md](TESTING_GUIDE.md)** - Comprehensive testing instructions
-- **[SPRINT1_SUMMARY.md](SPRINT1_SUMMARY.md)** - Password encryption implementation details
-- **[scripts/dev/README.md](scripts/dev/README.md)** - Development scripts documentation
+The app automatically checks for updates on GitHub. When a new version is available:
+
+1. You'll see an "Update Available" notification
+2. Click "Download Now" to download in the background
+3. Click "Restart Now" to install and restart
+
+See [docs/RELEASING_UPDATES.md](docs/RELEASING_UPDATES.md) for release instructions.
 
 ---
 
-## 🏗️ Tech Stack
+## Documentation
 
-- **Tauri v2** - Native desktop framework (Rust + WebView)
+- **[docs/RELEASING_UPDATES.md](docs/RELEASING_UPDATES.md)** - How to release new versions
+- **[docs/DATA_MIGRATIONS.md](docs/DATA_MIGRATIONS.md)** - Handling data structure changes
+- **[docs/STYLE_CONVENTIONS.md](docs/STYLE_CONVENTIONS.md)** - UI design patterns
+- **[CLAUDE.md](CLAUDE.md)** - AI assistant instructions for this codebase
+
+---
+
+## Tech Stack
+
+- **Electron** - Cross-platform desktop framework
 - **React 18** + **TypeScript**
-- **Vite** - Lightning-fast build tool
+- **Vite** - Fast build tool
 - **TailwindCSS** - Utility-first styling
-- **Lucide React** - Beautiful icon library
-- **Web Crypto API** - Browser-native AES-256-GCM encryption
-- **Filesystem Storage** - Encrypted data in `~/Documents/PersonalHub/`
+- **Lucide React** - Icon library
+- **electron-updater** - Auto-update system
+- **Web Crypto API** - AES-256-GCM encryption
 
 ---
 
-## 🔐 Security Details
+## Security Details
 
 ### Encryption
 - **Algorithm:** AES-256-GCM (authenticated encryption)
-- **Key Derivation:** PBKDF2 with 100,000 iterations
+- **Key Derivation:** PBKDF2 with 10,000 iterations
 - **Hash Function:** SHA-256
-- **Salt:** 16 bytes random (unique per password)
+- **Salt:** 16 bytes random (unique per encryption)
 - **IV:** 12 bytes random (unique per encryption)
-
-### What's Encrypted
-- ✅ Virtual High Street passwords (Sprint 1)
-- 🔜 Finance data (planned)
-- 🔜 Document metadata (planned)
-- 🔜 Contact information (optional)
-
-### What's NOT Encrypted
-- Photo URLs (external links)
-- Employment history (not sensitive)
-- Category names and UI state
-
----
-
-## 🎯 Roadmap
-
-### ✅ Completed
-- Master password system
-- Password encryption (Virtual High Street)
-- Password generator
-- Export/import functionality
-
-### 🚧 In Progress
-- User testing and feedback
-
-### 📋 Planned
-- **Phase 2:** Real file uploads with encryption
-- **Phase 3:** Global search and filtering
-- **Phase 4:** Enhanced security (auto-lock, password change)
-- **Phase 5:** Desktop app packaging (Tauri/Electron)
-
-See [DEVELOPMENT_PLAN.md](DEVELOPMENT_PLAN.md) for details.
-
----
-
-## 🧪 Testing
-
-See [TESTING_GUIDE.md](TESTING_GUIDE.md) for comprehensive testing instructions.
-
-**Quick Test:**
-1. Launch the app
-2. Create a master password
-3. Add a few websites with passwords in Virtual High Street
-4. Close browser completely
-5. Reopen - should require password to unlock
-6. Verify passwords decrypt correctly
-
----
-
-## 🤝 Contributing
-
-This is a personal project, but suggestions are welcome!
-
-### Found a Bug?
-1. Check browser console for errors
-2. Note steps to reproduce
-3. Create an issue with details
-
-### Want a Feature?
-1. Check [DEVELOPMENT_PLAN.md](DEVELOPMENT_PLAN.md) to see if it's planned
-2. Open an issue to discuss
-
----
-
-## ⚠️ Important Notes
 
 ### Master Password
 - **Cannot be recovered** if forgotten (this is intentional for security)
 - Choose something strong but memorable
-- Write it down and store it safely (physical paper, not digital)
-
-### Data Storage
-- All data stored in browser localStorage
-- **Not synced** across devices (intentional)
-- **Cleared if you clear browser data**
-- Use Export feature regularly for backups
-
-### Browser Support
-- Chrome/Edge: ✅ Full support
-- Firefox: ✅ Full support
-- Safari: ✅ Should work (untested)
-- Mobile browsers: ⚠️ Works but not optimized
+- The master key is encrypted with your password and stored locally
 
 ---
 
-## 📜 License
-
-See [ATTRIBUTIONS.md](ATTRIBUTIONS.md) for third-party licenses.
-
-shadcn/ui components: MIT License
-Unsplash images: Used per Unsplash License
-
----
-
-## 🙏 Acknowledgments
-
-- Original design from Figma community
-- Built with Claude Code (AI pair programming)
-- shadcn/ui for beautiful components
-- Web Crypto API for encryption
-
----
-
-## 📧 Privacy Statement
+## Privacy Statement
 
 This application:
-- ✅ Runs entirely in your browser
-- ✅ Stores all data locally on your device
-- ✅ Makes no network requests (except favicon fetching)
-- ✅ Collects no telemetry or analytics
-- ✅ Sends no data to any server
-- ✅ Is completely offline-capable (after first load)
+- Runs entirely on your device
+- Stores all data locally in `~/Documents/PersonalHub/`
+- Makes no network requests except for update checks (GitHub only)
+- Collects no telemetry or analytics
+- Sends no personal data anywhere
 
 **Your data belongs to you. It never leaves your device.**
 
 ---
 
-**Status:** Sprint 1 Complete - Password encryption implemented and tested
-**Version:** 0.1.0
-**Last Updated:** 2026-01-06
+## License
+
+MIT License - See [ATTRIBUTIONS.md](ATTRIBUTIONS.md) for third-party licenses.
+
+---
+
+## Acknowledgments
+
+- Built with Claude Code (AI pair programming)
+- shadcn/ui for UI components
+- Lucide for icons
+
+---
+
+**Version:** 1.0.0
+**Last Updated:** January 2026
