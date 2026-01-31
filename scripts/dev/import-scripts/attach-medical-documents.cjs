@@ -67,7 +67,7 @@ async function main() {
 
   // Paths
   const dataFile = path.join(process.env.HOME, 'Documents/PersonalHub/data/medical_history.encrypted.json');
-  const medicalDir = '/home/mb12aeh/src/phub/public/medical';
+  const medicalDir = path.join(process.cwd(), 'public/medical');
 
   // Read and decrypt medical records
   console.log('Reading encrypted medical records...');

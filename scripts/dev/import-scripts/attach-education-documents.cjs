@@ -67,7 +67,7 @@ async function main() {
 
   // Paths
   const dataFile = path.join(process.env.HOME, 'Documents/PersonalHub/data/education_records.encrypted.json');
-  const educationDir = '/home/mb12aeh/src/phub/public/documents/education';
+  const educationDir = path.join(process.cwd(), 'public/documents/education');
 
   // Read and decrypt education records
   console.log('Reading encrypted education records...');

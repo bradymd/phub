@@ -1,6 +1,7 @@
 import { useState, useEffect } from 'react';
 import { X, Plus, Trash, Award, Calendar, Edit2, Key, FileText, AlertCircle, ExternalLink, Search, Upload, Download, Eye, Grid3x3, List } from 'lucide-react';
 import { useStorage } from '../../contexts/StorageContext';
+import { PdfJsViewer } from './PdfJsViewer';
 
 interface Certificate {
   id: string;
@@ -693,7 +694,10 @@ export function CertificateManagerSecure({ onClose }: CertificateManagerSecurePr
                                 src={cert.thumbnailData}
                                 alt={cert.name}
                                 className="w-24 h-auto rounded-lg shadow-md border border-gray-200 object-cover cursor-pointer hover:shadow-lg transition-shadow"
-                                onClick={() => setViewingCertificate(cert)}
+                                onClick={(e) => {
+                                  e.stopPropagation();
+                                  viewFile(cert);
+                                }}
                                 title="Click to view certificate"
                               />
                             );
@@ -704,7 +708,10 @@ export function CertificateManagerSecure({ onClose }: CertificateManagerSecurePr
                             return (
                               <div
                                 className="w-24 h-32 bg-red-50 border-2 border-red-200 rounded-lg flex flex-col items-center justify-center cursor-pointer hover:shadow-lg transition-shadow"
-                                onClick={() => setViewingCertificate(cert)}
+                                onClick={(e) => {
+                                  e.stopPropagation();
+                                  viewFile(cert);
+                                }}
                                 title="Click to view PDF"
                               >
                                 <FileText className="w-12 h-12 text-red-600 mb-1" />
@@ -723,7 +730,10 @@ export function CertificateManagerSecure({ onClose }: CertificateManagerSecurePr
                                 src={`/${thumbnailPath}`}
                                 alt={cert.name}
                                 className="w-24 h-auto rounded-lg shadow-md border border-gray-200 object-cover cursor-pointer hover:shadow-lg transition-shadow"
-                                onClick={() => setViewingCertificate(cert)}
+                                onClick={(e) => {
+                                  e.stopPropagation();
+                                  viewFile(cert);
+                                }}
                                 onError={(e) => {
                                   e.currentTarget.style.display = 'none';
                                   const iconDiv = e.currentTarget.nextElementSibling;
@@ -1132,10 +1142,11 @@ export function CertificateManagerSecure({ onClose }: CertificateManagerSecurePr
                 </div>
               );
             } else if (isPdf) {
+              // Use pdf.js viewer instead of Chromium's built-in PDF viewer
+              // This avoids the 20+ second font enumeration delay on systems with many fonts
               return (
-                <iframe
+                <PdfJsViewer
                   src={src}
-                  className="flex-1 border-0"
                   title={viewingCertificate.name}
                 />
               );

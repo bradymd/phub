@@ -1,6 +1,7 @@
 import { useState, useEffect } from 'react';
 import { X, Plus, Trash, Download, Upload, FileText, Key, Edit, Search } from 'lucide-react';
 import { useStorage } from '../../contexts/StorageContext';
+import { PdfJsViewer } from './PdfJsViewer';
 import { formatDate } from '../../utils/locale';
 
 interface Document {
@@ -493,9 +494,8 @@ export function DocumentManagerSecure({ category, onClose }: DocumentManagerSecu
                   className="max-w-full max-h-full object-contain rounded-lg shadow-lg"
                 />
               ) : viewingDoc.fileType === 'application/pdf' ? (
-                <iframe
-                  src={viewingDoc.fileData}
-                  className="w-full h-full rounded-lg shadow-lg"
+                <PdfJsViewer
+                  src={viewingDoc.fileData || ''}
                   title={viewingDoc.name}
                 />
               ) : (

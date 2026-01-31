@@ -74,3 +74,10 @@ birth.pdf
 driving.pdf
 marriage.pdf
 dist-electron/
+
+# Development debug files
+PDF_DEBUG_NOTES.md
+electron/fonts.conf
+
+# Public folder (personal data)
+public/

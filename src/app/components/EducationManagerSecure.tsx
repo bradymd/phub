@@ -1,6 +1,7 @@
 import { useState, useEffect } from 'react';
 import { X, Plus, Trash, GraduationCap, Calendar, Edit2, Award, Key, FileText, ExternalLink, Upload, Search, Eye, EyeOff, Grid3x3, List, ImagePlus, Download } from 'lucide-react';
 import { useStorage, useDocumentService } from '../../contexts/StorageContext';
+import { PdfJsViewer } from './PdfJsViewer';
 import { DocumentReference } from '../../services/document-service';
 
 interface EducationRecord {
@@ -1069,9 +1070,8 @@ export function EducationManagerSecure({ onClose }: EducationManagerSecureProps)
               </button>
             </div>
           </div>
-          <iframe
+          <PdfJsViewer
             src={viewingDocument.blobUrl}
-            style={{ flex: 1, border: 'none', width: '100%' }}
             title={viewingDocument.docRef.filename}
           />
         </div>

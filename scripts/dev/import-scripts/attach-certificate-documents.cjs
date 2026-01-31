@@ -67,7 +67,7 @@ async function main() {
 
   // Paths
   const dataFile = path.join(process.env.HOME, 'Documents/PersonalHub/data/certificates.encrypted.json');
-  const certificatesDir = '/home/mb12aeh/src/phub/public/documents/certificates';
+  const certificatesDir = path.join(process.cwd(), 'public/documents/certificates');
 
   // Read and decrypt certificate records
   console.log('Reading encrypted certificate records...');
