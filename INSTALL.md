@@ -8,11 +8,20 @@ Personal Hub is a secure, private desktop app for organizing your life. All data
 
 ### Linux
 
+**Requirements:** FUSE2 (for AppImage)
+```bash
+sudo apt install libfuse2    # Ubuntu/Debian
+sudo dnf install fuse-libs   # Fedora
+```
+
+**Install:**
 1. Download `PersonalHub-1.0.0.AppImage` from [Releases](https://github.com/bradymd/phub/releases)
-2. Run:
+2. Move to your bin folder and run:
    ```bash
-   chmod +x PersonalHub-1.0.0.AppImage
-   ./PersonalHub-1.0.0.AppImage
+   mkdir -p ~/bin
+   mv ~/Downloads/PersonalHub-1.0.0.AppImage ~/bin/phub
+   chmod +x ~/bin/phub
+   phub
    ```
 
 Or install the `.deb` package:

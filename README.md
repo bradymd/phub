@@ -67,9 +67,13 @@ Download the latest release from [GitHub Releases](https://github.com/bradymd/ph
 
 ### Linux AppImage
 
+Requires FUSE2: `sudo apt install libfuse2`
+
 ```bash
-chmod +x PersonalHub-1.0.0.AppImage
-./PersonalHub-1.0.0.AppImage
+mkdir -p ~/bin
+mv ~/Downloads/PersonalHub-1.0.0.AppImage ~/bin/phub
+chmod +x ~/bin/phub
+phub
 ```
 
 ### Linux .deb
