@@ -40,6 +40,7 @@ import { StorageProvider, useChangePassword } from '../contexts/StorageContext';
 import { ImportWizard } from './components/ImportWizard';
 import { BackupManager } from './components/BackupManager';
 import { PasswordChangeModal } from './components/PasswordChangeModal';
+import { UpdateNotification } from './components/UpdateNotification';
 
 type ModalType = PanelId | 'ai' | 'backup' | null;
 
@@ -534,6 +535,9 @@ export default function App() {
           </div>
         </div>
       )}
+
+      {/* Auto-update notification */}
+      <UpdateNotification />
     </div>
     </StorageProvider>
   );

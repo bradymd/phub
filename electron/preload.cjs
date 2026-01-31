@@ -46,5 +46,27 @@ contextBridge.exposeInMainWorld('electronAPI', {
   },
   shell: {
     openPath: (filePath) => ipcRenderer.invoke('shell:openPath', filePath)
+  },
+  updater: {
+    check: () => ipcRenderer.invoke('updater:check'),
+    download: () => ipcRenderer.invoke('updater:download'),
+    install: () => ipcRenderer.invoke('updater:install'),
+    getVersion: () => ipcRenderer.invoke('updater:getVersion'),
+    // Event listeners for update notifications
+    onChecking: (callback) => ipcRenderer.on('updater:checking', callback),
+    onAvailable: (callback) => ipcRenderer.on('updater:available', (event, info) => callback(info)),
+    onNotAvailable: (callback) => ipcRenderer.on('updater:not-available', (event, info) => callback(info)),
+    onProgress: (callback) => ipcRenderer.on('updater:progress', (event, progress) => callback(progress)),
+    onDownloaded: (callback) => ipcRenderer.on('updater:downloaded', (event, info) => callback(info)),
+    onError: (callback) => ipcRenderer.on('updater:error', (event, err) => callback(err)),
+    // Remove listeners
+    removeAllListeners: () => {
+      ipcRenderer.removeAllListeners('updater:checking');
+      ipcRenderer.removeAllListeners('updater:available');
+      ipcRenderer.removeAllListeners('updater:not-available');
+      ipcRenderer.removeAllListeners('updater:progress');
+      ipcRenderer.removeAllListeners('updater:downloaded');
+      ipcRenderer.removeAllListeners('updater:error');
+    }
   }
 });

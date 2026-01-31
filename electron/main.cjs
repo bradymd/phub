@@ -1,15 +1,23 @@
 /**
  * Electron Main Process
- * Handles window management and file system IPC
+ * Handles window management, file system IPC, and auto-updates
  */
 
 const { app, BrowserWindow, ipcMain, dialog, shell } = require('electron');
+const { autoUpdater } = require('electron-updater');
 const path = require('path');
 const fs = require('fs').promises;
 const fsSync = require('fs');
 const os = require('os');
 const archiver = require('archiver');
 const yauzl = require('yauzl');
+
+// Auto-updater configuration
+autoUpdater.autoDownload = false; // Don't auto-download, let user decide
+autoUpdater.autoInstallOnAppQuit = true;
+
+// Store reference to main window for sending update notifications
+let mainWindow = null;
 
 // Use system's locale for proper date formatting (must be before app.ready)
 // Get the system locale from environment or OS settings
@@ -32,7 +40,7 @@ const masterKeyFile = path.join(hubDir, '.master.key');
 
 // Create main window
 function createWindow() {
-  const mainWindow = new BrowserWindow({
+  mainWindow = new BrowserWindow({
     width: 1400,
     height: 900,
     webPreferences: {
@@ -48,6 +56,15 @@ function createWindow() {
     mainWindow.webContents.openDevTools();
   } else {
     mainWindow.loadFile(path.join(__dirname, '../dist/index.html'));
+  }
+
+  // Check for updates after window is ready (production only)
+  if (process.env.NODE_ENV !== 'development') {
+    mainWindow.webContents.once('did-finish-load', () => {
+      autoUpdater.checkForUpdates().catch(err => {
+        console.log('Auto-update check failed:', err.message);
+      });
+    });
   }
 }
 
@@ -88,6 +105,92 @@ app.on('activate', () => {
   if (BrowserWindow.getAllWindows().length === 0) {
     createWindow();
   }
+});
+
+// Auto-updater event handlers
+autoUpdater.on('checking-for-update', () => {
+  console.log('Checking for updates...');
+  if (mainWindow) {
+    mainWindow.webContents.send('updater:checking');
+  }
+});
+
+autoUpdater.on('update-available', (info) => {
+  console.log('Update available:', info.version);
+  if (mainWindow) {
+    mainWindow.webContents.send('updater:available', {
+      version: info.version,
+      releaseDate: info.releaseDate,
+      releaseNotes: info.releaseNotes
+    });
+  }
+});
+
+autoUpdater.on('update-not-available', (info) => {
+  console.log('No update available. Current version:', info.version);
+  if (mainWindow) {
+    mainWindow.webContents.send('updater:not-available', {
+      version: info.version
+    });
+  }
+});
+
+autoUpdater.on('download-progress', (progress) => {
+  console.log(`Download progress: ${progress.percent.toFixed(1)}%`);
+  if (mainWindow) {
+    mainWindow.webContents.send('updater:progress', {
+      percent: progress.percent,
+      bytesPerSecond: progress.bytesPerSecond,
+      transferred: progress.transferred,
+      total: progress.total
+    });
+  }
+});
+
+autoUpdater.on('update-downloaded', (info) => {
+  console.log('Update downloaded:', info.version);
+  if (mainWindow) {
+    mainWindow.webContents.send('updater:downloaded', {
+      version: info.version,
+      releaseNotes: info.releaseNotes
+    });
+  }
+});
+
+autoUpdater.on('error', (err) => {
+  console.error('Auto-updater error:', err.message);
+  if (mainWindow) {
+    mainWindow.webContents.send('updater:error', {
+      message: err.message
+    });
+  }
+});
+
+// Auto-updater IPC handlers
+ipcMain.handle('updater:check', async () => {
+  try {
+    const result = await autoUpdater.checkForUpdates();
+    return { success: true, updateInfo: result?.updateInfo };
+  } catch (err) {
+    return { success: false, error: err.message };
+  }
+});
+
+ipcMain.handle('updater:download', async () => {
+  try {
+    await autoUpdater.downloadUpdate();
+    return { success: true };
+  } catch (err) {
+    return { success: false, error: err.message };
+  }
+});
+
+ipcMain.handle('updater:install', () => {
+  autoUpdater.quitAndInstall(false, true);
+});
+
+ipcMain.handle('updater:getVersion', () => {
+  return { version: app.getVersion() };
 });
 
 // File system IPC handlers
