@@ -85,9 +85,17 @@ export function UpdateNotification() {
       });
     }, 1000);
 
+    // Periodic check every hour for long-running sessions
+    const hourlyCheck = setInterval(() => {
+      api.updater.check().catch(() => {
+        // Ignore errors
+      });
+    }, 60 * 60 * 1000); // 1 hour
+
     // Cleanup
     return () => {
       api.updater.removeAllListeners();
+      clearInterval(hourlyCheck);
     };
   }, []);
 
