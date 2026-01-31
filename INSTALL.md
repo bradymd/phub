@@ -5,14 +5,13 @@ Welcome to Personal Hub! This guide will help you install and set up your secure
 ## What is Personal Hub?
 
 Personal Hub is a **desktop application** that helps you organize your entire life in one secure place:
-- 📋 Documents & Certificates
-- 💰 Finances & Pensions
-- 💼 Employment History
-- 🎓 Education Records
-- 🏥 Medical Records
-- 👥 Contacts
-- 🔐 Password Manager (Virtual High Street)
-- 📸 Photos
+- Documents & Certificates
+- Vehicles & Property
+- Finances & Pensions
+- Employment & Education
+- Medical & Dental Records
+- Contacts
+- Password Manager (Virtual High Street)
 
 **Everything is encrypted** with AES-256-GCM encryption using your master password. Your data never leaves your computer.
 
@@ -21,56 +20,82 @@ Personal Hub is a **desktop application** that helps you organize your entire li
 ## System Requirements
 
 - **Operating System:** Windows 10/11, macOS 10.15+, or Linux
-- **Disk Space:** ~100 MB for app + storage for your data
+- **Disk Space:** ~400 MB for app + storage for your data
 - **RAM:** 4 GB minimum (8 GB recommended)
 
 ---
 
 ## Installation
 
-### Option 1: Download Pre-built Installer (Coming Soon)
+### Linux - AppImage (Recommended)
 
-1. Download the installer for your operating system from the releases page
+1. Download `PersonalHub-X.X.X.AppImage` from [GitHub Releases](https://github.com/bradymd/phub/releases)
+2. Make it executable and run:
+   ```bash
+   chmod +x PersonalHub-1.0.0.AppImage
+   ./PersonalHub-1.0.0.AppImage
+   ```
+
+### Linux - Debian/Ubuntu (.deb)
+
+1. Download `personal-hub_X.X.X_amd64.deb` from [GitHub Releases](https://github.com/bradymd/phub/releases)
+2. Install:
+   ```bash
+   sudo dpkg -i personal-hub_1.0.0_amd64.deb
+   ```
+3. Launch from applications menu or run `personal-hub`
+
+### Windows
+
+1. Download `PersonalHub Setup X.X.X.exe` from [GitHub Releases](https://github.com/bradymd/phub/releases)
 2. Run the installer
-3. Follow the installation wizard
-4. Launch Personal Hub from your applications menu
+3. You may see "Unknown Publisher" warning - click "More info" → "Run anyway"
+4. Launch from Start Menu
 
-### Option 2: Build from Source
+### macOS
+
+1. Download `PersonalHub-X.X.X.dmg` from [GitHub Releases](https://github.com/bradymd/phub/releases)
+2. Open the DMG and drag to Applications
+3. First launch: Right-click → Open (to bypass Gatekeeper)
+
+---
+
+## Build from Source
 
 **Prerequisites:**
 - [Node.js 18+](https://nodejs.org/)
-- [Rust](https://rustup.rs/)
 
 **Steps:**
 
-1. **Install Rust** (if not already installed):
+1. **Clone the repository:**
    ```bash
-   curl --proto '=https' --tlsv1.2 -sSf https://sh.rustup.rs | sh
-   source ~/.cargo/env
-   ```
-
-2. **Clone the repository:**
-   ```bash
-   git clone https://github.com/your-username/phub.git
+   git clone https://github.com/bradymd/phub.git
    cd phub
    ```
 
-3. **Install dependencies:**
+2. **Install dependencies:**
    ```bash
    npm install
    ```
 
-4. **Build the application:**
+3. **Run in development mode:**
    ```bash
-   npm run tauri build
+   npm run electron:dev
    ```
 
-5. **Find the installer:**
-   - **Windows:** `src-tauri/target/release/bundle/msi/`
-   - **macOS:** `src-tauri/target/release/bundle/dmg/`
-   - **Linux:** `src-tauri/target/release/bundle/appimage/` or `bundle/deb/`
+4. **Build for production:**
+   ```bash
+   # Linux
+   npm run build:linux
 
-6. **Install and run** the application from the bundle directory
+   # Windows
+   npm run build:win
+
+   # macOS
+   npm run build:mac
+   ```
+
+5. **Find the installer in `dist-electron/`**
 
 ---
 
@@ -80,7 +105,7 @@ Personal Hub is a **desktop application** that helps you organize your entire li
 
 On first launch, you'll be asked to create a **master password**:
 
-⚠️ **CRITICAL:** This password:
+**CRITICAL:** This password:
 - Encrypts ALL your data
 - Cannot be recovered if forgotten
 - Should be strong but memorable
@@ -90,44 +115,23 @@ On first launch, you'll be asked to create a **master password**:
 - Use at least 12 characters
 - Mix uppercase, lowercase, numbers, and symbols
 - Use a passphrase: `Correct-Horse-Battery-Staple-99!`
-- Consider using a password manager to store it securely
+- Write it down and store it safely (physical paper)
 
-### Step 2: Import Wizard (Optional)
+### Step 2: Start Organizing!
 
-If you have existing data, the Import Wizard will appear:
-
-1. **Click "Import from Backup"** if you have a previous backup file
-2. **Select your backup JSON file** using the file picker
-3. **Enter your master password** (the one that encrypted the backup)
-4. **Click "Start Fresh"** if you're setting up for the first time
-
-### Step 3: Start Organizing!
-
-You're ready to use Personal Hub! Click on any category to start adding your data.
+You're ready to use Personal Hub! Click on any panel to start adding your data.
 
 ---
 
-## Using Personal Hub
+## Auto-Updates
 
-### Adding Data
+Personal Hub automatically checks for updates when it starts:
 
-1. **Click on a category card** (e.g., "Certificates", "Finance", "Contacts")
-2. **Click "Add Record"** or the plus (+) button
-3. **Fill in the details** and attach any documents if needed
-4. **Click "Save"** - your data is automatically encrypted!
+1. When an update is available, you'll see a notification
+2. Click "Download Now" to download in the background
+3. Click "Restart Now" to install and restart the app
 
-### Viewing Documents
-
-- Click the **eye icon** or document name to view attached PDFs and images
-- Documents open in a secure modal viewer
-- Your documents are stored encrypted with your data
-
-### Password Manager (Virtual High Street)
-
-- Store website logins in the "Virtual High Street"
-- Generate strong passwords with the built-in generator
-- Copy passwords to clipboard with one click
-- All passwords are encrypted!
+Updates are downloaded from GitHub Releases.
 
 ---
 
@@ -135,58 +139,49 @@ You're ready to use Personal Hub! Click on any category to start adding your dat
 
 ### Creating Backups
 
-⚠️ **IMPORTANT:** Regular backups protect you from data loss!
+**IMPORTANT:** Regular backups protect you from data loss!
 
-1. **Click "Backup & Restore"** in the top-right corner
-2. **Click "Create Backup Now"**
-3. **Choose a save location:**
-   - Default: `~/Downloads/`
-   - Recommended: External drive or cloud storage folder
-4. **Done!** Your backup is saved with a timestamp
-
-**Security:** Backups are **encrypted with AES-256-GCM** using your master password. Without your master password, backups cannot be decrypted - even by you!
+1. Click the **Settings** panel
+2. Click **"Create Backup"**
+3. Choose a save location (recommended: external drive or cloud folder)
+4. Your backup is saved as a `.phub` file
 
 **Backup Best Practices:**
 - Create backups **weekly**
-- Store backups in **multiple locations** (external drive + cloud)
-- Keep **multiple versions** (don't overwrite old backups)
-- **Test your backups** periodically by restoring to a test device
+- Store backups in **multiple locations**
+- Keep **multiple versions**
+- **Test your backups** periodically
 
 ### Restoring from Backup
 
-1. **Click "Backup & Restore"**
-2. **Click "Restore from Backup"**
-3. **Select your backup file**
-4. **Confirm** (⚠️ this will replace ALL current data)
-5. **Restart the app** to see restored data
+1. Click **"Restore from Backup"** in Settings
+2. Select your `.phub` backup file
+3. Confirm the restore
+4. Restart the app
 
 ---
 
 ## Data Storage
 
-All your data is stored in:
+All your data is stored locally in:
 
 ```
 ~/Documents/PersonalHub/
+├── .master.key                    (Encrypted master key)
 └── data/
-    ├── virtual_street.encrypted.json          (Passwords)
-    ├── finance_items.encrypted.json           (Financial accounts)
-    ├── pensions.encrypted.json                (Pension records)
-    ├── budget_items.encrypted.json            (Budget tracking)
-    ├── certificates.encrypted.json            (Certificates)
-    ├── documents_certificates.encrypted.json  (Certificate files)
-    ├── education_records.encrypted.json       (Education history)
-    ├── medical_history.encrypted.json         (Medical records)
-    ├── employment_records.encrypted.json      (Career history)
-    ├── contacts.encrypted.json                (Contacts)
-    └── photos.encrypted.json                  (Photos)
+    ├── contacts.encrypted.json
+    ├── vehicles.encrypted.json
+    ├── properties.encrypted.json
+    ├── certificates.encrypted.json
+    ├── virtual_street.encrypted.json   (Passwords)
+    └── ...
 ```
 
-**Important Notes:**
+**Important:**
 - All files are encrypted with AES-256-GCM
 - Files cannot be read without your master password
 - Backup this folder regularly
-- Don't edit these files manually (use the app)
+- Don't edit these files manually
 
 ---
 
@@ -194,32 +189,22 @@ All your data is stored in:
 
 ### Encryption
 
-- **Algorithm:** AES-256-GCM (industry standard, military-grade)
+- **Algorithm:** AES-256-GCM (industry standard)
 - **Key Derivation:** PBKDF2 with 10,000 iterations + SHA-256
 - **Password:** Your master password + random salt per file
-- **Authentication:** Galois/Counter Mode ensures data integrity
 
 ### Privacy
 
-✅ **What Personal Hub Does:**
+**What Personal Hub Does:**
 - Stores all data locally on your computer
 - Encrypts everything with your master password
-- Works 100% offline
+- Checks GitHub for updates (no personal data sent)
 
-❌ **What Personal Hub Does NOT Do:**
-- Upload data to the cloud (unless you manually put backups there)
+**What Personal Hub Does NOT Do:**
+- Upload your data anywhere
 - Send telemetry or analytics
-- Connect to the internet
 - Track your usage
 - Share data with third parties
-
-### Your Responsibilities
-
-1. **Choose a strong master password**
-2. **Never forget your master password** (write it down safely!)
-3. **Create regular backups**
-4. **Store backups securely** (encrypted external drives, password-protected cloud storage)
-5. **Keep your computer secure** (OS updates, antivirus, disk encryption)
 
 ---
 
@@ -227,104 +212,67 @@ All your data is stored in:
 
 ### I Forgot My Master Password
 
-❌ **Cannot be recovered.** Your data is permanently encrypted.
+**Cannot be recovered.** Your data is permanently encrypted.
 
 **Solutions:**
-- If you have a backup, restore it on a new installation
-- If no backup exists, your data cannot be recovered
-- This is by design - it protects your data even if your computer is stolen
+- If you have a backup with a known password, restore it
+- If no backup exists, data cannot be recovered
+- This is by design for security
 
-### The App Won't Start
+### The App Won't Start (Linux)
 
-**Linux users:**
 ```bash
-# Ensure Rust is in your PATH
-source ~/.cargo/env
+# For AppImage, ensure it's executable
+chmod +x PersonalHub-*.AppImage
 
 # Run from terminal to see errors
-npm run tauri dev
+./PersonalHub-1.0.0.AppImage
 ```
 
-**All users:**
-1. Check that you meet system requirements
-2. Ensure no antivirus is blocking the app
-3. Try restarting your computer
-4. Check GitHub Issues for known problems
+### Update Check Failed
 
-### Import Wizard Keeps Appearing
-
-This means Personal Hub detects no data:
-
-1. **If you've imported before:** Check that files exist in `~/Documents/PersonalHub/data/`
-2. **If files exist:** Ensure they're not corrupted or empty
-3. **If you want to start fresh:** Click "Start Fresh" to dismiss
-
-### Data Not Showing After Restore
-
-1. **Restart the app** completely (don't just close the window)
-2. **Check the restore succeeded** (no errors in Backup Manager)
-3. **Verify backup file** is not corrupted
-
----
-
-## Getting Help
-
-### Documentation
-
-- **[README.md](README.md)** - Project overview and quick start
-- **[MIGRATION.md](MIGRATION.md)** - Technical migration guide (browser → desktop)
-- **[Development Plan](DEVELOPMENT_PLAN.md)** - Architecture and roadmap
-
-### Support
-
-- **GitHub Issues:** [Report bugs or request features](https://github.com/your-username/phub/issues)
-- **Discussions:** [Ask questions and share tips](https://github.com/your-username/phub/discussions)
-
-### Contributing
-
-Personal Hub is open source! Contributions welcome:
-
-1. Fork the repository
-2. Create a feature branch
-3. Submit a pull request
+- Check your internet connection
+- The app will work offline, just without update notifications
 
 ---
 
 ## Uninstalling
 
-1. **Backup your data first!** (Backup & Restore → Create Backup)
+1. **Backup your data first!**
 2. **Uninstall the application:**
+   - **Linux AppImage:** Delete the AppImage file
+   - **Linux .deb:** `sudo apt remove personal-hub`
    - **Windows:** Settings → Apps → Personal Hub → Uninstall
    - **macOS:** Drag app to Trash
-   - **Linux:** `sudo apt remove personalhub` or delete AppImage
 3. **Optional:** Delete data folder:
    ```bash
    rm -rf ~/Documents/PersonalHub/
    ```
 
-⚠️ **Warning:** Deleting the data folder is permanent and cannot be undone without backups!
+**Warning:** Deleting the data folder is permanent!
 
 ---
 
-## License
+## Getting Help
 
-Personal Hub is released under the MIT License. See [LICENSE](LICENSE) for details.
+- **GitHub Issues:** [Report bugs](https://github.com/bradymd/phub/issues)
+- **Documentation:** See [README.md](README.md) and [docs/](docs/)
 
 ---
 
 ## Acknowledgments
 
 Built with:
-- [Tauri](https://tauri.app/) - Desktop app framework
+- [Electron](https://www.electronjs.org/) - Desktop app framework
 - [React](https://react.dev/) - UI framework
 - [Vite](https://vitejs.dev/) - Build tool
 - [TailwindCSS](https://tailwindcss.com/) - Styling
 - [Lucide](https://lucide.dev/) - Icons
 
-Developed with assistance from Claude (Anthropic).
+Developed with assistance from Claude Code (Anthropic).
 
 ---
 
-**Thank you for using Personal Hub!** 🎉
+**Thank you for using Personal Hub!**
 
 Stay organized, stay secure, stay private.
