@@ -46,7 +46,14 @@ chmod +x PersonalHub-1.0.0.AppImage
 
 ### Updates
 
-The app checks for updates automatically. When available, click "Download Now" then "Restart Now".
+The app checks for updates automatically and shows a notification when available.
+
+**For .deb installs:** Download the new `.deb` from [Releases](https://github.com/bradymd/phub/releases) and install:
+```bash
+sudo dpkg -i personal-hub_X.X.X_amd64.deb
+```
+
+**For AppImage:** Updates can install automatically.
 
 ### Backups
 

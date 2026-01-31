@@ -149,11 +149,14 @@ Each file is encrypted with **AES-256-GCM** using your master password.
 
 ## Auto-Updates
 
-The app automatically checks for updates on GitHub. When a new version is available:
+The app checks for updates on GitHub and shows a notification when available.
 
-1. You'll see an "Update Available" notification
-2. Click "Download Now" to download in the background
-3. Click "Restart Now" to install and restart
+**Linux .deb users:** Download the new `.deb` from [Releases](https://github.com/bradymd/phub/releases) and run:
+```bash
+sudo dpkg -i personal-hub_X.X.X_amd64.deb
+```
+
+**AppImage users:** Updates can install automatically via the in-app notification.
 
 See [docs/RELEASING_UPDATES.md](docs/RELEASING_UPDATES.md) for release instructions.
 
