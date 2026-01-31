@@ -77,6 +77,14 @@ export function UpdateNotification() {
       setError(err.message);
     });
 
+    // Check for updates after listeners are set up
+    // This handles the case where main process check happened before React mounted
+    setTimeout(() => {
+      api.updater.check().catch(() => {
+        // Ignore errors, main process will also check
+      });
+    }, 1000);
+
     // Cleanup
     return () => {
       api.updater.removeAllListeners();

@@ -59,11 +59,14 @@ function createWindow() {
   }
 
   // Check for updates after window is ready (production only)
+  // Delay to ensure React components have mounted and set up listeners
   if (process.env.NODE_ENV !== 'development') {
     mainWindow.webContents.once('did-finish-load', () => {
-      autoUpdater.checkForUpdates().catch(err => {
-        console.log('Auto-update check failed:', err.message);
-      });
+      setTimeout(() => {
+        autoUpdater.checkForUpdates().catch(err => {
+          console.log('Auto-update check failed:', err.message);
+        });
+      }, 3000); // 3 second delay for React to mount
     });
   }
 }
