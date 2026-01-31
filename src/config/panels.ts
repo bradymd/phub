@@ -21,7 +21,7 @@ import {
   BookOpen,
   Car,
   Home,
-  Camera,
+  FolderOpen,
   Users,
   Store,
   Smile,        // Dental
@@ -88,7 +88,7 @@ export type PanelId =
   | 'kakeibo'
   | 'vehicles'
   | 'property'
-  | 'photos'
+  | 'files'
   | 'contacts'
   | 'websites'
   | 'pets'
@@ -258,14 +258,14 @@ export const panels: PanelDefinition[] = [
   // LIFESTYLE - Hobbies and interests
   // ============================================
   {
-    id: 'photos',
-    title: 'Photos',
-    icon: Camera,
-    description: 'Personal photos and cherished memories',
+    id: 'files',
+    title: 'My Files',
+    icon: FolderOpen,
+    description: 'Organize files in custom categories',
     group: 'lifestyle',
     defaultVisible: true,
     region: 'global',
-    tags: ['pictures', 'memories', 'gallery'],
+    tags: ['files', 'documents', 'photos', 'receipts', 'storage'],
     sortOrder: 1,
   },
   {

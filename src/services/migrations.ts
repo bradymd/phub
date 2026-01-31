@@ -24,6 +24,8 @@ export const SCHEMA_VERSIONS: Record<string, number> = {
   kakeibo_entries: 1,
   kakeibo_goals: 1,
   virtual_street: 1,
+  user_files: 1,
+  file_categories: 1,
 };
 
 // Type for migration function
@@ -77,6 +79,8 @@ const migrations: Record<string, Migration[]> = {
   kakeibo_entries: [],
   kakeibo_goals: [],
   virtual_street: [],
+  user_files: [],
+  file_categories: [],
 };
 
 /**

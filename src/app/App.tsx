@@ -19,7 +19,7 @@ import { CategoryCard } from './components/CategoryCard';
 import { CategoriesWithReminders } from './components/CategoriesWithReminders';
 import { DocumentManagerSecure } from './components/DocumentManagerSecure';
 import { FinanceManagerSecure } from './components/FinanceManagerSecure';
-import { PhotoGallerySecure } from './components/PhotoGallerySecure';
+import { FilesManagerSecure } from './components/FilesManagerSecure';
 import { ContactsManagerSecure } from './components/ContactsManagerSecure';
 import { VirtualHighStreetSecure } from './components/VirtualHighStreetSecure';
 import { AIOverview } from './components/AIOverview';
@@ -419,8 +419,8 @@ export default function App() {
       {activeModal === 'property' && (
         <PropertyManagerSecure onClose={handleModalClose} />
       )}
-      {activeModal === 'photos' && (
-        <PhotoGallerySecure onClose={handleModalClose} />
+      {activeModal === 'files' && (
+        <FilesManagerSecure onClose={handleModalClose} />
       )}
       {activeModal === 'contacts' && (
         <ContactsManagerSecure onClose={handleModalClose} />
