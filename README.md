@@ -61,25 +61,25 @@ A **private, local-first desktop application** for organizing your entire life. 
 
 Download the latest release from [GitHub Releases](https://github.com/bradymd/phub/releases):
 
-- **Linux**: `PersonalHub-X.X.X.AppImage` (run directly) or `personal-hub_X.X.X_amd64.deb` (install)
+- **Linux**: `personal-hub_X.X.X_amd64.deb` (recommended)
 - **Windows**: `PersonalHub Setup X.X.X.exe` (coming soon)
 - **macOS**: `PersonalHub-X.X.X.dmg` (coming soon)
 
-### Linux AppImage
-
-Requires FUSE2: `sudo apt install libfuse2`
-
-```bash
-mkdir -p ~/bin
-mv ~/Downloads/PersonalHub-1.0.0.AppImage ~/bin/phub
-chmod +x ~/bin/phub
-phub
-```
-
-### Linux .deb
+### Linux (Recommended)
 
 ```bash
 sudo dpkg -i personal-hub_1.0.0_amd64.deb
+personal-hub
+```
+
+### Linux AppImage (Alternative)
+
+Requires FUSE2 and must run with `--no-sandbox`:
+
+```bash
+sudo apt install libfuse2
+chmod +x PersonalHub-1.0.0.AppImage
+./PersonalHub-1.0.0.AppImage --no-sandbox
 ```
 
 ---
