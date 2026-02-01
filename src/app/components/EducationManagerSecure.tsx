@@ -440,7 +440,7 @@ export function EducationManagerSecure({ onClose }: EducationManagerSecureProps)
                   placeholder="Search..."
                   value={searchQuery}
                   onChange={(e) => setSearchQuery(e.target.value)}
-                  className="pl-9 pr-3 py-2 border border-gray-300 rounded-lg bg-white focus:outline-none focus:ring-2 focus:ring-purple-500 focus:border-transparent w-48"
+                  className="pl-9 pr-3 py-2 border border-gray-300 rounded-lg bg-white text-gray-900 focus:outline-none focus:ring-2 focus:ring-purple-500 focus:border-transparent w-48"
                 />
                 {searchQuery && (
                   <button
