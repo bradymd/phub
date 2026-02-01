@@ -1400,6 +1400,36 @@ export function PetsManagerSecure({ onClose }: PetsManagerSecureProps) {
   const dueCount = reminders.filter(r => r.type === 'due').length;
   const totalVetCosts = pets.reduce((sum, pet) => sum + pet.vetVisits.reduce((s, v) => s + (v.cost || 0), 0), 0);
 
+  // Helper to get section alert counts for a specific pet
+  const getSectionAlerts = (pet: Pet) => {
+    const vaccinations = { overdue: 0, dueSoon: 0 };
+    const vetVisits = { overdue: 0, dueSoon: 0 };
+    const insurance = { overdue: false, dueSoon: false };
+
+    pet.vaccinations.forEach(v => {
+      if (v.nextDueDate) {
+        if (isPastDate(v.nextDueDate)) vaccinations.overdue++;
+        else if (isDueSoon(v.nextDueDate)) vaccinations.dueSoon++;
+      }
+    });
+
+    pet.vetVisits.forEach(v => {
+      if (v.followUpDate) {
+        if (isPastDate(v.followUpDate)) vetVisits.overdue++;
+        else if (isDueSoon(v.followUpDate)) vetVisits.dueSoon++;
+      }
+    });
+
+    if (pet.insurance?.renewalDate) {
+      if (isPastDate(pet.insurance.renewalDate)) insurance.overdue = true;
+      else if (isDueSoon(pet.insurance.renewalDate)) insurance.dueSoon = true;
+    }
+
+    return { vaccinations, vetVisits, insurance };
+  };
+
+  const sectionAlerts = selectedPet ? getSectionAlerts(selectedPet) : null;
+
   return (
     <div className="fixed inset-0 bg-black/60 z-50 overflow-hidden">
       <div className="absolute inset-2 bg-white rounded-2xl shadow-2xl flex flex-col">
@@ -1632,6 +1662,16 @@ export function PetsManagerSecure({ onClose }: PetsManagerSecureProps) {
                     <Syringe className="w-5 h-5 text-green-600" />
                     <span className="font-medium text-green-800">Vaccinations</span>
                     <span className="text-sm text-green-600">({selectedPet.vaccinations.length})</span>
+                    {sectionAlerts && sectionAlerts.vaccinations.overdue > 0 && (
+                      <span className="px-2 py-0.5 bg-red-100 text-red-700 text-xs font-medium rounded-full">
+                        {sectionAlerts.vaccinations.overdue} overdue
+                      </span>
+                    )}
+                    {sectionAlerts && sectionAlerts.vaccinations.dueSoon > 0 && (
+                      <span className="px-2 py-0.5 bg-orange-100 text-orange-700 text-xs font-medium rounded-full">
+                        {sectionAlerts.vaccinations.dueSoon} due soon
+                      </span>
+                    )}
                   </div>
                   {expandedSection === 'vaccinations' ? <ChevronUp className="w-5 h-5 text-green-600" /> : <ChevronDown className="w-5 h-5 text-green-600" />}
                 </button>
@@ -1692,6 +1732,16 @@ export function PetsManagerSecure({ onClose }: PetsManagerSecureProps) {
                     <Stethoscope className="w-5 h-5 text-blue-600" />
                     <span className="font-medium text-blue-800">Vet Visits</span>
                     <span className="text-sm text-blue-600">({selectedPet.vetVisits.length})</span>
+                    {sectionAlerts && sectionAlerts.vetVisits.overdue > 0 && (
+                      <span className="px-2 py-0.5 bg-red-100 text-red-700 text-xs font-medium rounded-full">
+                        {sectionAlerts.vetVisits.overdue} overdue
+                      </span>
+                    )}
+                    {sectionAlerts && sectionAlerts.vetVisits.dueSoon > 0 && (
+                      <span className="px-2 py-0.5 bg-orange-100 text-orange-700 text-xs font-medium rounded-full">
+                        {sectionAlerts.vetVisits.dueSoon} due soon
+                      </span>
+                    )}
                   </div>
                   {expandedSection === 'visits' ? <ChevronUp className="w-5 h-5 text-blue-600" /> : <ChevronDown className="w-5 h-5 text-blue-600" />}
                 </button>
@@ -1775,6 +1825,16 @@ export function PetsManagerSecure({ onClose }: PetsManagerSecureProps) {
                     <div className="flex items-center gap-2">
                       <Shield className="w-5 h-5 text-purple-600" />
                       <span className="font-medium text-purple-800">Insurance</span>
+                      {sectionAlerts && sectionAlerts.insurance.overdue && (
+                        <span className="px-2 py-0.5 bg-red-100 text-red-700 text-xs font-medium rounded-full">
+                          overdue
+                        </span>
+                      )}
+                      {sectionAlerts && sectionAlerts.insurance.dueSoon && (
+                        <span className="px-2 py-0.5 bg-orange-100 text-orange-700 text-xs font-medium rounded-full">
+                          due soon
+                        </span>
+                      )}
                       {selectedPet.insurance.renewalDate && (
                         <span className={`text-sm ${isPastDate(selectedPet.insurance.renewalDate) ? 'text-red-500 font-medium' : isDueSoon(selectedPet.insurance.renewalDate) ? 'text-orange-500' : 'text-purple-500'}`}>
                           (Renews: {formatDateUK(selectedPet.insurance.renewalDate)})
