@@ -8,10 +8,10 @@ Personal Hub is a secure, private desktop app for organizing your life. All data
 
 ### Linux (Recommended)
 
-Download `personal-hub_1.0.0_amd64.deb` from [Releases](https://github.com/bradymd/phub/releases)
+Download the latest `.deb` from [Releases](https://github.com/bradymd/phub/releases)
 
 ```bash
-sudo dpkg -i personal-hub_1.0.0_amd64.deb
+sudo dpkg -i personal-hub_X.X.X_amd64.deb
 personal-hub
 ```
 
@@ -19,23 +19,25 @@ Installs to `/usr/bin/personal-hub`.
 
 ### Linux AppImage (Alternative)
 
-The AppImage requires FUSE2 and must run with `--no-sandbox`:
+The AppImage requires FUSE2 and additional flags:
 
 ```bash
 sudo apt install libfuse2
-chmod +x PersonalHub-1.0.0.AppImage
-./PersonalHub-1.0.0.AppImage --no-sandbox
+chmod +x PersonalHub-1.0.4.AppImage
+./PersonalHub-1.0.4.AppImage --no-sandbox --disable-gpu
 ```
+
+Note: Some harmless DBus warnings may still appear but don't affect functionality.
 
 ### Windows
 
-1. Download `PersonalHub Setup 1.0.0.exe` from [Releases](https://github.com/bradymd/phub/releases)
+1. Download `PersonalHub Setup X.X.X.exe` from [Releases](https://github.com/bradymd/phub/releases)
 2. Run the installer
 3. Launch from Start Menu
 
 ### macOS
 
-1. Download `PersonalHub-1.0.0.dmg` from [Releases](https://github.com/bradymd/phub/releases)
+1. Download `PersonalHub-X.X.X.dmg` from [Releases](https://github.com/bradymd/phub/releases)
 2. Drag to Applications
 3. First launch: Right-click → Open
 
