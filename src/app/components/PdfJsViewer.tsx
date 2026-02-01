@@ -206,7 +206,7 @@ export function PdfJsViewer({ src, title }: PdfJsViewerProps) {
   }
 
   return (
-    <div className="flex-1 flex flex-col bg-gray-800">
+    <div className="flex-1 min-h-0 flex flex-col bg-gray-800">
       {/* Toolbar */}
       <div className="flex items-center justify-center gap-4 p-2 bg-gray-700 border-b border-gray-600">
         {/* Page navigation */}
@@ -270,7 +270,7 @@ export function PdfJsViewer({ src, title }: PdfJsViewerProps) {
       {/* PDF Canvas - scrollable container */}
       <div
         ref={containerRef}
-        className="flex-1 overflow-auto p-4"
+        className="flex-1 min-h-0 overflow-auto p-4"
       >
         <div className="flex justify-center min-w-fit">
           <canvas
