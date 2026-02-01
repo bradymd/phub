@@ -87,8 +87,9 @@ const dataUrlToBlobUrl = (dataUrl: string): string => {
 - Main app: `src/app/App.tsx`
 - Storage context: `src/contexts/StorageContext.tsx`
 - Document service: `src/services/document-service.ts`
-- Style guide: `docs/STYLE_CONVENTIONS.md`
-- Panel architecture notes: `docs/PANEL_PLUGIN_ARCHITECTURE.md`
+- Design system: `docs/DESIGN_SYSTEM.md`
+- Style conventions: `docs/STYLE_CONVENTIONS.md`
+- Panel architecture: `docs/PANEL_PLUGIN_ARCHITECTURE.md`
 
 ## Common Tasks
 
