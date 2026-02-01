@@ -3,7 +3,7 @@
  * Handles window management, file system IPC, and auto-updates
  */
 
-const { app, BrowserWindow, ipcMain, dialog, shell } = require('electron');
+const { app, BrowserWindow, ipcMain, dialog, shell, Menu } = require('electron');
 const { autoUpdater } = require('electron-updater');
 const path = require('path');
 const fs = require('fs').promises;
@@ -96,7 +96,92 @@ ipcMain.handle('app:getLocale', async () => {
 });
 
 // App lifecycle
-app.whenReady().then(createWindow);
+app.whenReady().then(() => {
+  createWindow();
+
+  // Create custom menu with Help items
+  const template = [
+    {
+      label: 'File',
+      submenu: [
+        { role: 'quit' }
+      ]
+    },
+    {
+      label: 'Edit',
+      submenu: [
+        { role: 'undo' },
+        { role: 'redo' },
+        { type: 'separator' },
+        { role: 'cut' },
+        { role: 'copy' },
+        { role: 'paste' },
+        { role: 'selectAll' }
+      ]
+    },
+    {
+      label: 'View',
+      submenu: [
+        { role: 'reload' },
+        { role: 'forceReload' },
+        { role: 'toggleDevTools' },
+        { type: 'separator' },
+        { role: 'resetZoom' },
+        { role: 'zoomIn' },
+        { role: 'zoomOut' },
+        { type: 'separator' },
+        { role: 'togglefullscreen' }
+      ]
+    },
+    {
+      label: 'Window',
+      submenu: [
+        { role: 'minimize' },
+        { role: 'close' }
+      ]
+    },
+    {
+      label: 'Help',
+      submenu: [
+        {
+          label: 'About Personal Hub',
+          click: async () => {
+            const { dialog } = require('electron');
+            dialog.showMessageBox(mainWindow, {
+              type: 'info',
+              title: 'About Personal Hub',
+              message: 'Personal Hub',
+              detail: `Version: ${app.getVersion()}\n\nA secure, private desktop app for organizing your life.\n\nAll data is encrypted with AES-256-GCM and stored locally.`
+            });
+          }
+        },
+        {
+          label: 'Release Notes',
+          click: async () => {
+            shell.openExternal('https://github.com/bradymd/phub/blob/main/CHANGELOG.md');
+          }
+        },
+        { type: 'separator' },
+        {
+          label: 'Check for Updates',
+          click: async () => {
+            autoUpdater.checkForUpdates();
+          }
+        },
+        { type: 'separator' },
+        {
+          label: 'Report an Issue',
+          click: async () => {
+            shell.openExternal('https://github.com/bradymd/phub/issues');
+          }
+        }
+      ]
+    }
+  ];
+
+  const menu = Menu.buildFromTemplate(template);
+  Menu.setApplicationMenu(menu);
+});
 
 app.on('window-all-closed', () => {
   if (process.platform !== 'darwin') {
