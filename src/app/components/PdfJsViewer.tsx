@@ -267,16 +267,17 @@ export function PdfJsViewer({ src, title }: PdfJsViewerProps) {
         </button>
       </div>
 
-      {/* PDF Canvas */}
+      {/* PDF Canvas - scrollable container */}
       <div
         ref={containerRef}
-        className="flex-1 overflow-auto flex justify-center p-4"
+        className="flex-1 overflow-auto p-4"
       >
-        <canvas
-          ref={canvasRef}
-          className="shadow-lg"
-          style={{ maxWidth: '100%', height: 'auto' }}
-        />
+        <div className="flex justify-center min-w-fit">
+          <canvas
+            ref={canvasRef}
+            className="shadow-lg"
+          />
+        </div>
       </div>
     </div>
   );
