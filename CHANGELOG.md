@@ -7,6 +7,13 @@ All notable changes to Personal Hub are documented here.
 ### Added
 - Help menu with About, Release Notes, Check for Updates, Report an Issue
 - Alert badges on Pet section headers (Vaccinations, Vet Visits, Insurance) to show which section has overdue/due soon items
+- "Mark as complete" button for follow-up dates (Health, Dental, Pets panels)
+- Colored accent bars on dashboard panel cards for visual distinction
+- Panels with reminders now auto-show on dashboard even if hidden in settings
+- Property panel: Maintenance History now visible in View mode (not just Edit)
+- Holiday Plans: Edit/Delete functionality for Notes & Documents section
+- Demo data generator script for screenshots (scripts/generate-demo-data.cjs)
+- Screenshots in README showcasing app features
 
 ## [1.0.5] - 2026-02-01
 

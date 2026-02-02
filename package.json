@@ -116,6 +116,7 @@
   "build": {
     "appId": "com.personalhub.app",
     "productName": "PersonalHub",
+    "afterAllArtifactBuild": "./build/afterBuild.cjs",
     "directories": {
       "output": "dist-electron"
     },

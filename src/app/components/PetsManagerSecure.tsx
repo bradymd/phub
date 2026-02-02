@@ -1,5 +1,5 @@
 import { useState, useEffect } from 'react';
-import { X, Plus, Trash, PawPrint, Calendar, Edit2, FileText, Search, AlertCircle, Upload, Eye, EyeOff, Download, Syringe, Stethoscope, Shield, Heart, ChevronDown, ChevronUp, Printer, Grid3x3, List } from 'lucide-react';
+import { X, Plus, Trash, PawPrint, Calendar, Edit2, FileText, Search, AlertCircle, Upload, Eye, EyeOff, Download, Syringe, Stethoscope, Shield, Heart, ChevronDown, ChevronUp, Printer, Grid3x3, List, CheckCircle } from 'lucide-react';
 import { useStorage, useDocumentService, useDataVersion } from '../../contexts/StorageContext';
 import { PdfJsViewer } from './PdfJsViewer';
 import { DocumentReference } from '../../services/document-service';
@@ -1185,6 +1185,22 @@ export function PetsManagerSecure({ onClose }: PetsManagerSecureProps) {
     }
   };
 
+  const markFollowUpComplete = async (petId: string, visitId: string) => {
+    try {
+      setError('');
+      const pet = pets.find(p => p.id === petId);
+      if (!pet) return;
+      const updatedVisits = pet.vetVisits.map(v =>
+        v.id === visitId ? { ...v, followUpDate: '' } : v
+      );
+      await storage.update('pets', pet.id, { ...pet, vetVisits: updatedVisits });
+      await loadPets();
+      notifyDataChange();
+    } catch (err) {
+      setError('Failed to mark follow-up complete');
+    }
+  };
+
   // Document handling
   const dataUrlToBlobUrl = (dataUrl: string): string => {
     const match = dataUrl.match(/^data:([^;]+);base64,(.+)$/);
@@ -1768,9 +1784,20 @@ export function PetsManagerSecure({ onClose }: PetsManagerSecureProps) {
                                 {visit.diagnosis && <p className="text-sm text-gray-600 mt-1">Diagnosis: {visit.diagnosis}</p>}
                                 {visit.treatment && <p className="text-sm text-gray-600">Treatment: {visit.treatment}</p>}
                                 {visit.followUpDate && (
-                                  <p className={`text-sm mt-1 ${isPastDate(visit.followUpDate) ? 'text-red-500' : isDueSoon(visit.followUpDate) ? 'text-orange-500' : 'text-gray-400'}`}>
-                                    Follow-up: {formatDateUK(visit.followUpDate)}
-                                  </p>
+                                  <div className={`flex items-center gap-2 text-sm mt-1 ${isPastDate(visit.followUpDate) ? 'text-red-500' : isDueSoon(visit.followUpDate) ? 'text-orange-500' : 'text-gray-400'}`}>
+                                    <span>Follow-up: {formatDateUK(visit.followUpDate)}</span>
+                                    <button
+                                      onClick={(e) => {
+                                        e.stopPropagation();
+                                        markFollowUpComplete(selectedPet.id, visit.id);
+                                      }}
+                                      className="inline-flex items-center gap-1 px-2 py-0.5 bg-green-100 text-green-700 rounded text-xs hover:bg-green-200 transition-colors"
+                                      title="Mark follow-up as complete"
+                                    >
+                                      <CheckCircle className="w-3 h-3" />
+                                      Mark as complete
+                                    </button>
+                                  </div>
                                 )}
                                 {visit.documents && visit.documents.length > 0 && (
                                   <div className="flex flex-wrap gap-1 mt-2">

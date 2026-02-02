@@ -68,5 +68,11 @@ contextBridge.exposeInMainWorld('electronAPI', {
       ipcRenderer.removeAllListeners('updater:downloaded');
       ipcRenderer.removeAllListeners('updater:error');
     }
+  },
+  menu: {
+    onLifePlanningGuide: (callback) => ipcRenderer.on('menu:lifePlanningGuide', callback),
+    removeAllListeners: () => {
+      ipcRenderer.removeAllListeners('menu:lifePlanningGuide');
+    }
   }
 });

@@ -54,6 +54,9 @@ export type PanelGroup =
 // Region tags for regional variants
 export type Region = 'global' | 'uk' | 'us' | 'eu';
 
+// Tailwind color classes for panel accents
+export type PanelColor = 'amber' | 'indigo' | 'blue' | 'rose' | 'teal' | 'sky' | 'slate' | 'emerald' | 'orange' | 'cyan' | 'purple' | 'green' | 'pink';
+
 export interface PanelDefinition {
   id: string;
   title: string;
@@ -68,6 +71,9 @@ export interface PanelDefinition {
 
   // Regional
   region: Region;           // 'global' = available everywhere
+
+  // Appearance
+  color: PanelColor;        // Accent color for the panel
 
   // Future expansion
   tags?: string[];          // Searchable tags
@@ -92,6 +98,7 @@ export type PanelId =
   | 'contacts'
   | 'websites'
   | 'pets'
+  | 'holidayplans'
   // Future panels (uncomment as implemented)
   // | 'gardening'
   // | 'wine'
@@ -100,10 +107,8 @@ export type PanelId =
   // | 'recipes'
   // | 'subscriptions'
   // | 'warranties'
-  // | 'travel'
   // | 'fitness'
   // | 'collectibles'
-  // | 'pets'
   // | 'property-us'
   ;
 
@@ -125,6 +130,7 @@ export const panels: PanelDefinition[] = [
     group: 'core',
     defaultVisible: true,
     region: 'global',
+    color: 'amber',
     tags: ['documents', 'official', 'birth', 'marriage', 'passport'],
     sortOrder: 1,
   },
@@ -136,6 +142,7 @@ export const panels: PanelDefinition[] = [
     group: 'core',
     defaultVisible: true,
     region: 'global',
+    color: 'indigo',
     tags: ['school', 'university', 'qualifications', 'degrees'],
     sortOrder: 2,
   },
@@ -147,6 +154,7 @@ export const panels: PanelDefinition[] = [
     group: 'core',
     defaultVisible: true,
     region: 'global',
+    color: 'blue',
     tags: ['work', 'jobs', 'career', 'cv', 'resume'],
     sortOrder: 3,
   },
@@ -158,6 +166,7 @@ export const panels: PanelDefinition[] = [
     group: 'core',
     defaultVisible: true,
     region: 'global',
+    color: 'rose',
     tags: ['medical', 'doctor', 'hospital', 'prescriptions'],
     sortOrder: 4,
   },
@@ -169,6 +178,7 @@ export const panels: PanelDefinition[] = [
     group: 'core',
     defaultVisible: false,
     region: 'global',
+    color: 'teal',
     tags: ['dentist', 'teeth', 'hygienist', 'checkup', 'dental'],
     sortOrder: 5,
   },
@@ -180,6 +190,7 @@ export const panels: PanelDefinition[] = [
     group: 'core',
     defaultVisible: true,
     region: 'global',
+    color: 'sky',
     tags: ['car', 'motorbike', 'insurance', 'mot', 'service'],
     sortOrder: 6,
   },
@@ -191,6 +202,7 @@ export const panels: PanelDefinition[] = [
     group: 'core',
     defaultVisible: true,
     region: 'uk',  // UK-specific (council tax)
+    color: 'slate',
     tags: ['house', 'flat', 'mortgage', 'rent', 'utilities'],
     sortOrder: 7,
   },
@@ -202,6 +214,7 @@ export const panels: PanelDefinition[] = [
     group: 'core',
     defaultVisible: true,
     region: 'global',
+    color: 'purple',
     tags: ['people', 'family', 'friends', 'emergency'],
     sortOrder: 8,
   },
@@ -217,6 +230,7 @@ export const panels: PanelDefinition[] = [
     group: 'finance',
     defaultVisible: true,
     region: 'global',
+    color: 'emerald',
     tags: ['bank', 'savings', 'isa', 'accounts', 'money'],
     sortOrder: 1,
   },
@@ -228,6 +242,7 @@ export const panels: PanelDefinition[] = [
     group: 'finance',
     defaultVisible: true,
     region: 'global',
+    color: 'pink',
     tags: ['retirement', 'pension', 'sipp', '401k'],
     sortOrder: 2,
   },
@@ -239,6 +254,7 @@ export const panels: PanelDefinition[] = [
     group: 'finance',
     defaultVisible: true,
     region: 'global',
+    color: 'green',
     tags: ['expenses', 'bills', 'spending', 'direct debit'],
     sortOrder: 3,
   },
@@ -250,6 +266,7 @@ export const panels: PanelDefinition[] = [
     group: 'finance',
     defaultVisible: false,  // Niche - hidden by default
     region: 'global',
+    color: 'rose',
     tags: ['japanese', 'mindful', 'budgeting', 'savings'],
     sortOrder: 4,
   },
@@ -265,6 +282,7 @@ export const panels: PanelDefinition[] = [
     group: 'lifestyle',
     defaultVisible: true,
     region: 'global',
+    color: 'blue',
     tags: ['files', 'documents', 'photos', 'receipts', 'storage'],
     sortOrder: 1,
   },
@@ -276,6 +294,7 @@ export const panels: PanelDefinition[] = [
     group: 'lifestyle',
     defaultVisible: true,
     region: 'global',
+    color: 'indigo',
     tags: ['bookmarks', 'logins', 'passwords', 'links'],
     sortOrder: 2,
   },
@@ -287,8 +306,21 @@ export const panels: PanelDefinition[] = [
     group: 'lifestyle',
     defaultVisible: false,
     region: 'global',
+    color: 'orange',
     tags: ['pets', 'dog', 'cat', 'vet', 'vaccinations', 'animals'],
     sortOrder: 3,
+  },
+  {
+    id: 'holidayplans',
+    title: 'Holiday Plans',
+    icon: Plane,
+    description: 'Plan holidays with accommodation, travel, activities, and documents',
+    group: 'lifestyle',
+    defaultVisible: false,
+    region: 'global',
+    color: 'cyan',
+    tags: ['holiday', 'vacation', 'travel', 'trip', 'flights', 'hotels', 'booking'],
+    sortOrder: 4,
   },
 
   // ============================================

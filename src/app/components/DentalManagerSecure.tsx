@@ -1,5 +1,5 @@
 import { useState, useEffect } from 'react';
-import { X, Plus, Trash, Smile, Calendar, Edit2, FileText, Search, AlertCircle, Upload, Eye, EyeOff, Download, User, Building, Phone, MapPin, Printer, Grid3x3, List } from 'lucide-react';
+import { X, Plus, Trash, Smile, Calendar, Edit2, FileText, Search, AlertCircle, Upload, Eye, EyeOff, Download, User, Building, Phone, MapPin, Printer, Grid3x3, List, CheckCircle } from 'lucide-react';
 import { useStorage, useDocumentService, useDataVersion } from '../../contexts/StorageContext';
 import { PdfJsViewer } from './PdfJsViewer';
 import { DocumentReference } from '../../services/document-service';
@@ -439,9 +439,10 @@ interface ViewModalProps {
   onEdit: () => void;
   onPrint: () => void;
   onViewDocument: (doc: DocumentReference) => void;
+  onMarkComplete: () => void;
 }
 
-function ViewModal({ record, onClose, onEdit, onPrint, onViewDocument }: ViewModalProps) {
+function ViewModal({ record, onClose, onEdit, onPrint, onViewDocument, onMarkComplete }: ViewModalProps) {
   return (
     <div className="fixed inset-0 bg-black/60 z-[60] flex items-center justify-center p-4">
       <div className="bg-white rounded-2xl max-w-2xl w-full max-h-[90vh] overflow-y-auto shadow-2xl">
@@ -559,9 +560,19 @@ function ViewModal({ record, onClose, onEdit, onPrint, onViewDocument }: ViewMod
           {/* Next Appointment */}
           {record.nextAppointmentDate && (
             <div>
-              <h3 className="text-sm font-semibold text-gray-500 uppercase tracking-wider mb-3">
-                Next Appointment
-              </h3>
+              <div className="flex items-center justify-between mb-3">
+                <h3 className="text-sm font-semibold text-gray-500 uppercase tracking-wider">
+                  Next Appointment
+                </h3>
+                <button
+                  onClick={onMarkComplete}
+                  className="inline-flex items-center gap-1 px-2 py-1 bg-green-100 text-green-700 rounded text-xs hover:bg-green-200 transition-colors"
+                  title="Mark appointment as complete"
+                >
+                  <CheckCircle className="w-3 h-3" />
+                  Mark as complete
+                </button>
+              </div>
               <div className="flex items-center gap-2">
                 <Calendar className="w-4 h-4 text-gray-400" />
                 <span className="font-medium">
@@ -739,6 +750,19 @@ export function DentalManagerSecure({ onClose }: DentalManagerSecureProps) {
       if (expandedRecord === id) setExpandedRecord(null);
     } catch (err) {
       setError('Failed to delete record');
+    }
+  };
+
+  const markNextAppointmentComplete = async (id: string) => {
+    try {
+      setError('');
+      const record = records.find(r => r.id === id);
+      if (!record) return;
+      await storage.update('dental_records', id, { ...record, nextAppointmentDate: '', nextAppointmentTime: '' });
+      await loadRecords();
+      notifyDataChange();
+    } catch (err) {
+      setError('Failed to mark appointment complete');
     }
   };
 
@@ -1283,6 +1307,10 @@ export function DentalManagerSecure({ onClose }: DentalManagerSecureProps) {
             }}
             onPrint={() => handlePrint(expandedRecordData)}
             onViewDocument={viewFile}
+            onMarkComplete={() => {
+              markNextAppointmentComplete(expandedRecordData.id);
+              setExpandedRecord(null);
+            }}
           />
         )}
 

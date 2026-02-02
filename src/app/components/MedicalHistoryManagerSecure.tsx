@@ -1,5 +1,5 @@
 import { useState, useEffect } from 'react';
-import { X, Plus, Trash, Heart, Calendar, Edit2, Key, FileText, ExternalLink, Hospital, Stethoscope, Search, AlertCircle, Upload, Eye, EyeOff, Download, User, Building, Shield, Phone, MapPin, CreditCard, ChevronDown, ChevronUp } from 'lucide-react';
+import { X, Plus, Trash, Heart, Calendar, Edit2, Key, FileText, ExternalLink, Hospital, Stethoscope, Search, AlertCircle, Upload, Eye, EyeOff, Download, User, Building, Shield, Phone, MapPin, CreditCard, ChevronDown, ChevronUp, CheckCircle } from 'lucide-react';
 import { useStorage, useDocumentService, useDataVersion } from '../../contexts/StorageContext';
 import { PdfJsViewer } from './PdfJsViewer';
 import { DocumentReference } from '../../services/document-service';
@@ -278,6 +278,20 @@ export function MedicalHistoryManagerSecure({ onClose }: MedicalHistoryManagerSe
       if (expandedRecord === id) setExpandedRecord(null);
     } catch (err) {
       setError('Failed to delete record');
+      console.error(err);
+    }
+  };
+
+  const markFollowUpComplete = async (id: string) => {
+    try {
+      setError('');
+      const record = records.find(r => r.id === id);
+      if (!record) return;
+      await storage.update('medical_history', id, { ...record, followUpDate: '' });
+      await loadRecords();
+      notifyDataChange();
+    } catch (err) {
+      setError('Failed to mark follow-up complete');
       console.error(err);
     }
   };
@@ -1266,17 +1280,30 @@ export function MedicalHistoryManagerSecure({ onClose }: MedicalHistoryManagerSe
                                       ? 'bg-orange-50 border border-orange-200'
                                       : 'bg-blue-50 border border-blue-200'
                                   }`}>
-                                    <p className={`font-medium mb-1 flex items-center gap-1 ${
-                                      isPastDate(record.followUpDate)
-                                        ? 'text-red-700'
-                                        : isDueSoon(record.followUpDate)
-                                        ? 'text-orange-700'
-                                        : 'text-blue-700'
-                                    }`}>
-                                      <Calendar className="w-4 h-4" />
-                                      Follow-up Date:
-                                    </p>
-                                    <p className={`${
+                                    <div className="flex items-center justify-between">
+                                      <p className={`font-medium flex items-center gap-1 ${
+                                        isPastDate(record.followUpDate)
+                                          ? 'text-red-700'
+                                          : isDueSoon(record.followUpDate)
+                                          ? 'text-orange-700'
+                                          : 'text-blue-700'
+                                      }`}>
+                                        <Calendar className="w-4 h-4" />
+                                        Follow-up Date:
+                                      </p>
+                                      <button
+                                        onClick={(e) => {
+                                          e.stopPropagation();
+                                          markFollowUpComplete(record.id);
+                                        }}
+                                        className="inline-flex items-center gap-1 px-2 py-1 bg-green-100 text-green-700 rounded text-xs hover:bg-green-200 transition-colors"
+                                        title="Mark follow-up as complete"
+                                      >
+                                        <CheckCircle className="w-3 h-3" />
+                                        Mark as complete
+                                      </button>
+                                    </div>
+                                    <p className={`mt-1 ${
                                       isPastDate(record.followUpDate)
                                         ? 'text-red-700'
                                         : isDueSoon(record.followUpDate)

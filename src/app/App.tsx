@@ -13,6 +13,7 @@ import {
   Settings,
   Eye,
   EyeOff,
+  Search,
 } from 'lucide-react';
 import { panels, getPanelGroups, getDefaultVisiblePanels, PanelId } from '../config/panels';
 import { CategoryCard } from './components/CategoryCard';
@@ -32,6 +33,7 @@ import { KakeiboManagerSecure } from './components/KakeiboManagerSecure';
 import { MedicalHistoryManagerSecure } from './components/MedicalHistoryManagerSecure';
 import { DentalManagerSecure } from './components/DentalManagerSecure';
 import { PetsManagerSecure } from './components/PetsManagerSecure';
+import { HolidayPlansManagerSecure } from './components/HolidayPlansManagerSecure';
 import { PensionManagerSecure } from './components/PensionManagerSecure';
 import { BudgetManagerSecure } from './components/BudgetManagerSecure';
 import MasterPasswordSetup from './components/MasterPasswordSetup';
@@ -55,6 +57,7 @@ export default function App() {
   const [showPasswordChange, setShowPasswordChange] = useState(false);
   const [showCategorySettings, setShowCategorySettings] = useState(false);
   const [appVersion, setAppVersion] = useState<string>('');
+  const [panelSearch, setPanelSearch] = useState('');
   const [hiddenCategories, setHiddenCategories] = useState<Set<string>>(() => {
     // Load hidden categories from localStorage
     const saved = localStorage.getItem('hidden_categories');
@@ -107,6 +110,21 @@ export default function App() {
           setAppVersion(result.version);
         });
       }
+    }
+  }, []);
+
+  // Listen for Help menu "Life Planning Guide" click
+  useEffect(() => {
+    if (typeof window !== 'undefined' && 'electronAPI' in window) {
+      const api = (window as any).electronAPI;
+      if (api?.menu?.onLifePlanningGuide) {
+        api.menu.onLifePlanningGuide(() => {
+          setActiveModal('ai');
+        });
+      }
+      return () => {
+        api?.menu?.removeAllListeners?.();
+      };
     }
   }, []);
 
@@ -279,8 +297,16 @@ export default function App() {
     return <ImportWizard masterPassword={masterPassword} onImportComplete={handleImportComplete} />;
   }
 
-  // Use panels from central registry
-  const categories = panels;
+  // Use panels from central registry, filtered by search
+  const categories = panels.filter(panel => {
+    if (!panelSearch.trim()) return true;
+    const search = panelSearch.toLowerCase();
+    return (
+      panel.title.toLowerCase().includes(search) ||
+      panel.description.toLowerCase().includes(search) ||
+      panel.tags?.some(tag => tag.toLowerCase().includes(search))
+    );
+  });
 
   return (
     <StorageProvider masterPassword={masterPassword}>
@@ -353,24 +379,26 @@ export default function App() {
           </div>
         </div>
 
-        {/* Life Planning Guide Card */}
+        {/* Panel Search */}
         <div className="mb-6">
-          <button
-            onClick={() => setActiveModal('ai')}
-            className="w-full bg-gradient-to-r from-blue-600 to-indigo-600 text-white rounded-2xl p-6 shadow-lg hover:shadow-xl transition-all text-left group"
-          >
-            <div className="flex items-center gap-4">
-              <div className="p-3 bg-white/20 rounded-xl">
-                <Brain className="w-8 h-8" />
-              </div>
-              <div>
-                <h2 className="text-white">Life Planning Guide</h2>
-                <p className="text-white/80 text-sm mt-1">
-                  Learn what to record at each stage of your life - from education to retirement
-                </p>
-              </div>
-            </div>
-          </button>
+          <div className="relative">
+            <Search className="absolute left-4 top-1/2 -translate-y-1/2 w-5 h-5 text-gray-400" />
+            <input
+              type="text"
+              placeholder="Search panels..."
+              value={panelSearch}
+              onChange={(e) => setPanelSearch(e.target.value)}
+              className="w-full pl-12 pr-4 py-3 border border-gray-200 rounded-xl focus:ring-2 focus:ring-blue-500 focus:border-transparent text-gray-900 bg-white shadow-sm"
+            />
+            {panelSearch && (
+              <button
+                onClick={() => setPanelSearch('')}
+                className="absolute right-4 top-1/2 -translate-y-1/2 text-gray-400 hover:text-gray-600"
+              >
+                <X className="w-4 h-4" />
+              </button>
+            )}
+          </div>
         </div>
 
         {/* Categories Grid or List */}
@@ -430,6 +458,9 @@ export default function App() {
       )}
       {activeModal === 'pets' && (
         <PetsManagerSecure onClose={handleModalClose} />
+      )}
+      {activeModal === 'holidayplans' && (
+        <HolidayPlansManagerSecure onClose={handleModalClose} />
       )}
       {activeModal === 'ai' && (
         <AIOverview onClose={handleModalClose} />

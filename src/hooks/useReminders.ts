@@ -32,6 +32,7 @@ export interface PanelReminders {
   health: ReminderCounts;
   dental: ReminderCounts;
   pets: ReminderCounts;
+  holidayplans: ReminderCounts;
 }
 
 const emptyReminders: PanelReminders = {
@@ -40,6 +41,7 @@ const emptyReminders: PanelReminders = {
   health: { overdue: 0, dueSoon: 0 },
   dental: { overdue: 0, dueSoon: 0 },
   pets: { overdue: 0, dueSoon: 0 },
+  holidayplans: { overdue: 0, dueSoon: 0 },
 };
 
 export function useReminders(): PanelReminders {
@@ -57,6 +59,7 @@ export function useReminders(): PanelReminders {
           health: { overdue: 0, dueSoon: 0 },
           dental: { overdue: 0, dueSoon: 0 },
           pets: { overdue: 0, dueSoon: 0 },
+          holidayplans: { overdue: 0, dueSoon: 0 },
         };
 
         // Load property data
@@ -212,6 +215,20 @@ export function useReminders(): PanelReminders {
           });
         } catch (e) {
           // Pets store might not exist yet
+        }
+
+        // Load holiday plans
+        try {
+          const holidays = await storage.get('holiday_plans');
+          holidays.forEach((holiday: any) => {
+            // Check if holiday starts soon (within 30 days)
+            // Don't mark past holidays as "overdue" - they're just history
+            if (holiday.startDate && isDueSoon(holiday.startDate)) {
+              newReminders.holidayplans.dueSoon++;
+            }
+          });
+        } catch (e) {
+          // Holiday plans store might not exist yet
         }
 
         setReminders(newReminders);

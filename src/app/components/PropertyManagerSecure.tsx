@@ -1359,6 +1359,22 @@ export function PropertyManagerSecure({ onClose }: PropertyManagerSecureProps) {
                       });
                     }
 
+                    // Add Maintenance History
+                    if (viewingDetails.maintenanceHistory && viewingDetails.maintenanceHistory.length > 0) {
+                      viewingDetails.maintenanceHistory.forEach((entry) => {
+                        sections.push({
+                          title: `Work: ${entry.description} (${formatDate(entry.date)})`,
+                          fields: [
+                            { label: 'Date', value: formatDate(entry.date) },
+                            { label: 'Type', value: maintenanceTypeLabels[entry.type] || entry.type },
+                            { label: 'Contractor', value: entry.contractor },
+                            { label: 'Cost', value: formatCurrency(entry.cost) },
+                            { label: 'Notes', value: entry.notes },
+                          ]
+                        });
+                      });
+                    }
+
                     // Add Utilities
                     if (viewingDetails.utilities && viewingDetails.utilities.length > 0) {
                       viewingDetails.utilities.forEach((utility) => {
@@ -1583,6 +1599,71 @@ export function PropertyManagerSecure({ onClose }: PropertyManagerSecureProps) {
                           </tr>
                         ))}
                       </tbody>
+                    </table>
+                  </div>
+                </div>
+              )}
+
+              {/* Maintenance History */}
+              {viewingDetails.maintenanceHistory && viewingDetails.maintenanceHistory.length > 0 && (
+                <div>
+                  <h4 className="text-sm font-medium text-gray-700 mb-3 flex items-center gap-2">
+                    <Wrench className="w-4 h-4" /> Maintenance History
+                  </h4>
+                  <div className="border border-gray-200 rounded-lg overflow-hidden">
+                    <table className="w-full text-sm">
+                      <thead className="bg-gray-50">
+                        <tr>
+                          <th className="px-4 py-2 text-left text-gray-600">Date</th>
+                          <th className="px-4 py-2 text-left text-gray-600">Type</th>
+                          <th className="px-4 py-2 text-left text-gray-600">Description</th>
+                          <th className="px-4 py-2 text-left text-gray-600">Contractor</th>
+                          <th className="px-4 py-2 text-right text-gray-600">Cost</th>
+                          <th className="px-4 py-2 text-center text-gray-600">Docs</th>
+                        </tr>
+                      </thead>
+                      <tbody className="divide-y divide-gray-100">
+                        {viewingDetails.maintenanceHistory.map((entry) => (
+                          <tr
+                            key={entry.id}
+                            className="hover:bg-cyan-50 cursor-pointer"
+                            onClick={() => setViewingMaintenanceHistory(entry)}
+                          >
+                            <td className="px-4 py-2">{entry.date ? formatDateUK(entry.date) : '-'}</td>
+                            <td className="px-4 py-2">
+                              <span className={`px-2 py-0.5 rounded text-xs font-medium ${
+                                entry.type === 'repair' ? 'bg-red-100 text-red-700' :
+                                entry.type === 'improvement' ? 'bg-green-100 text-green-700' :
+                                entry.type === 'service' ? 'bg-blue-100 text-blue-700' :
+                                entry.type === 'inspection' ? 'bg-purple-100 text-purple-700' :
+                                'bg-gray-100 text-gray-700'
+                              }`}>
+                                {maintenanceTypeLabels[entry.type] || entry.type}
+                              </span>
+                            </td>
+                            <td className="px-4 py-2 font-medium">{entry.description}</td>
+                            <td className="px-4 py-2">{entry.contractor || '-'}</td>
+                            <td className="px-4 py-2 text-right">£{entry.cost.toFixed(2)}</td>
+                            <td className="px-4 py-2 text-center">
+                              {entry.documents && entry.documents.length > 0 ? (
+                                <span className="text-xs text-gray-600 flex items-center justify-center gap-1">
+                                  <FileText className="w-3 h-3" />
+                                  {entry.documents.length}
+                                </span>
+                              ) : (
+                                <span className="text-gray-400 text-xs">-</span>
+                              )}
+                            </td>
+                          </tr>
+                        ))}
+                      </tbody>
+                      <tfoot className="bg-gray-50">
+                        <tr>
+                          <td colSpan={4} className="px-4 py-2 text-right font-medium text-gray-600">Total spent:</td>
+                          <td className="px-4 py-2 text-right font-medium">£{viewingDetails.maintenanceHistory.reduce((sum, e) => sum + e.cost, 0).toFixed(2)}</td>
+                          <td></td>
+                        </tr>
+                      </tfoot>
                     </table>
                   </div>
                 </div>

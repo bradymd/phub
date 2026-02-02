@@ -51,16 +51,6 @@
 
 ## TODO - Small Things
 
-### Design Consistency
-- [ ] Audit all panels for button placement (some top, some bottom)
-- [ ] Standardize modal structures per `docs/DESIGN_SYSTEM.md`
-- [ ] Create shared `<ViewModal>` and `<EditModal>` components
-
-### Code Quality
-- [ ] Extract common hooks: `useCRUDForm`, `useListView`
-- [ ] Extract shared components: `FormField`, `DocumentChip`
-- [ ] Consolidate `formatDate`/`formatCurrency` utilities
-
 ### UX Polish
 - [ ] Add loading states to all async operations
 - [ ] Consistent empty states across panels
@@ -69,6 +59,26 @@
 ---
 
 ## TODO - Big Things
+
+### Panel UI Consistency (Priority)
+
+**Goal:** Shared look and feel across all panels without over-engineering.
+
+**Approach:** Create small, visual-only shared components in `src/components/ui/PanelParts.tsx`:
+- [ ] `<RowActions>` - Edit/Delete/Download buttons (consistent colors, order)
+- [ ] `<TypeBadge>` - Colored category badges (Degree, Certification, etc.)
+- [ ] `<DocumentChip>` - Clickable document pills
+- [ ] `<ListRow>` - Standard list item structure (icon, title, subtitle, actions)
+- [ ] `<ViewModal>` / `<EditModal>` - Consistent modal structure
+
+Then update panels to use these components (can be done incrementally, one panel at a time).
+
+**What this is NOT:**
+- Not abstracting CRUD logic or state management
+- Not forcing complex panels (Vehicle, Property) into rigid patterns
+- Not a plugin system or framework
+
+**Estimated effort:** 1-2 days for components, then gradual panel updates
 
 ### Platform Support
 - [ ] Windows build + testing
@@ -79,10 +89,6 @@
 ### Performance
 - [ ] React.lazy for panel code splitting (when panel count grows)
 - [ ] Dynamic panel loading (replace if-statements in App.tsx)
-
-### Technical Debt
-- [ ] Split large components (Property: 3100 LOC, Vehicle: 3000 LOC)
-- [ ] Reduce ~90% pattern duplication across panels
 
 ---
 

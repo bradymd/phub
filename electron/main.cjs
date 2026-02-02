@@ -144,24 +144,20 @@ app.whenReady().then(() => {
       label: 'Help',
       submenu: [
         {
-          label: 'About Personal Hub',
+          label: 'Life Planning Guide',
           click: async () => {
-            const { dialog } = require('electron');
-            dialog.showMessageBox(mainWindow, {
-              type: 'info',
-              title: 'About Personal Hub',
-              message: 'Personal Hub',
-              detail: `Version: ${app.getVersion()}\n\nA secure, private desktop app for organizing your life.\n\nAll data is encrypted with AES-256-GCM and stored locally.`
-            });
+            if (mainWindow) {
+              mainWindow.webContents.send('menu:lifePlanningGuide');
+            }
           }
         },
+        { type: 'separator' },
         {
           label: 'Release Notes',
           click: async () => {
             shell.openExternal('https://github.com/bradymd/phub/blob/main/CHANGELOG.md');
           }
         },
-        { type: 'separator' },
         {
           label: 'Check for Updates',
           click: async () => {
@@ -173,6 +169,19 @@ app.whenReady().then(() => {
           label: 'Report an Issue',
           click: async () => {
             shell.openExternal('https://github.com/bradymd/phub/issues');
+          }
+        },
+        { type: 'separator' },
+        {
+          label: 'Version',
+          click: async () => {
+            const { dialog } = require('electron');
+            dialog.showMessageBox(mainWindow, {
+              type: 'info',
+              title: 'Version',
+              message: `Personal Hub v${app.getVersion()}`,
+              detail: 'A secure, private desktop app for organizing your life.\n\nAll data is encrypted with AES-256-GCM and stored locally.'
+            });
           }
         }
       ]
