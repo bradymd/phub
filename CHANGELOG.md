@@ -4,6 +4,8 @@ All notable changes to Personal Hub are documented here.
 
 ## [Unreleased]
 
+## [1.0.6] - 2026-02-02
+
 ### Added
 - Help menu with About, Release Notes, Check for Updates, Report an Issue
 - Alert badges on Pet section headers (Vaccinations, Vet Visits, Insurance) to show which section has overdue/due soon items

@@ -292,5 +292,5 @@ MIT License - See [ATTRIBUTIONS.md](ATTRIBUTIONS.md) for third-party licenses.
 
 ---
 
-**Version:** 1.0.5
+**Version:** 1.0.6
 **Last Updated:** February 2026
