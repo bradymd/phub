@@ -226,6 +226,16 @@ export function useReminders(): PanelReminders {
             if (holiday.startDate && isDueSoon(holiday.startDate)) {
               newReminders.holidayplans.dueSoon++;
             }
+            // Check accommodation balance due dates (only if not already paid)
+            (holiday.accommodation || []).forEach((acc: any) => {
+              if (acc.balanceDue && acc.balanceDue > 0 && acc.balanceDueDate && !acc.balancePaidDate) {
+                if (isPastDate(acc.balanceDueDate)) {
+                  newReminders.holidayplans.overdue++;
+                } else if (isDueSoon(acc.balanceDueDate)) {
+                  newReminders.holidayplans.dueSoon++;
+                }
+              }
+            });
           });
         } catch (e) {
           // Holiday plans store might not exist yet

@@ -28,6 +28,10 @@ interface Accommodation {
   checkIn: string;
   checkOut: string;
   cost?: number;
+  depositPaid?: number;
+  balanceDue?: number;
+  balanceDueDate?: string;
+  balancePaidDate?: string;
   confirmationNumber?: string;
   notes?: string;
   documents?: DocumentReference[];
@@ -1037,6 +1041,11 @@ export function HolidayPlansManagerSecure({ onClose }: HolidayPlansManagerSecure
                                       {formatCurrency(acc.cost)}
                                     </span>
                                   )}
+                                  {acc.depositPaid && (
+                                    <span className="text-gray-500">
+                                      Deposit: {formatCurrency(acc.depositPaid)}
+                                    </span>
+                                  )}
                                   {acc.confirmationNumber && (
                                     <span className="flex items-center gap-1">
                                       <Hash className="w-3 h-3" />
@@ -1044,6 +1053,24 @@ export function HolidayPlansManagerSecure({ onClose }: HolidayPlansManagerSecure
                                     </span>
                                   )}
                                 </div>
+                                {acc.balanceDue && acc.balanceDue > 0 && acc.balanceDueDate && (
+                                  acc.balancePaidDate ? (
+                                    <div className="mt-2 px-3 py-2 rounded-lg text-sm bg-green-50 text-green-700 border border-green-200">
+                                      <span className="font-medium">{formatCurrency(acc.balanceDue)}</span> paid on {formatDateUK(acc.balancePaidDate)}
+                                    </div>
+                                  ) : (
+                                    <div className={`mt-2 px-3 py-2 rounded-lg text-sm ${
+                                      new Date(acc.balanceDueDate) < new Date()
+                                        ? 'bg-red-50 text-red-700 border border-red-200'
+                                        : new Date(acc.balanceDueDate) <= new Date(Date.now() + 30 * 24 * 60 * 60 * 1000)
+                                          ? 'bg-orange-50 text-orange-700 border border-orange-200'
+                                          : 'bg-blue-50 text-blue-700 border border-blue-200'
+                                    }`}>
+                                      <span className="font-medium">{formatCurrency(acc.balanceDue)}</span> due by {formatDateUK(acc.balanceDueDate)}
+                                      {new Date(acc.balanceDueDate) < new Date() && ' (OVERDUE)'}
+                                    </div>
+                                  )
+                                )}
                                 {acc.notes && (
                                   <p className="text-sm text-gray-500 mt-2">{acc.notes}</p>
                                 )}
@@ -1384,7 +1411,7 @@ export function HolidayPlansManagerSecure({ onClose }: HolidayPlansManagerSecure
         {/* Add/Edit Accommodation Modal */}
         {editingAccommodation && viewingHoliday && (
           <div className="fixed inset-0 bg-black/50 flex items-center justify-center z-[60] p-4">
-            <div className="bg-white rounded-xl shadow-xl w-full max-w-lg">
+            <div className="bg-white rounded-xl shadow-xl w-full max-w-2xl">
               <div className="p-6 border-b border-gray-200">
                 <h2 className="text-xl font-bold text-gray-800">
                   {editingAccommodation.id ? 'Edit Accommodation' : 'Add Accommodation'}
@@ -1427,7 +1454,7 @@ export function HolidayPlansManagerSecure({ onClose }: HolidayPlansManagerSecure
                   </FormField>
                 </div>
                 <div className="grid grid-cols-2 gap-4">
-                  <FormField label="Cost (£)">
+                  <FormField label="Total Cost (£)">
                     <input
                       type="number"
                       value={editingAccommodation.cost || ''}
@@ -1440,6 +1467,40 @@ export function HolidayPlansManagerSecure({ onClose }: HolidayPlansManagerSecure
                       type="text"
                       value={editingAccommodation.confirmationNumber || ''}
                       onChange={(e) => setEditingAccommodation({ ...editingAccommodation, confirmationNumber: e.target.value })}
+                      className="w-full px-3 py-2 border border-gray-200 rounded-lg focus:ring-2 focus:ring-blue-500 text-gray-900"
+                    />
+                  </FormField>
+                </div>
+                <div className="grid grid-cols-4 gap-4">
+                  <FormField label="Deposit Paid (£)">
+                    <input
+                      type="number"
+                      value={editingAccommodation.depositPaid || ''}
+                      onChange={(e) => setEditingAccommodation({ ...editingAccommodation, depositPaid: e.target.value ? parseFloat(e.target.value) : undefined })}
+                      className="w-full px-3 py-2 border border-gray-200 rounded-lg focus:ring-2 focus:ring-blue-500 text-gray-900"
+                    />
+                  </FormField>
+                  <FormField label="Balance Due (£)">
+                    <input
+                      type="number"
+                      value={editingAccommodation.balanceDue || ''}
+                      onChange={(e) => setEditingAccommodation({ ...editingAccommodation, balanceDue: e.target.value ? parseFloat(e.target.value) : undefined })}
+                      className="w-full px-3 py-2 border border-gray-200 rounded-lg focus:ring-2 focus:ring-blue-500 text-gray-900"
+                    />
+                  </FormField>
+                  <FormField label="Balance Due Date">
+                    <input
+                      type="date"
+                      value={editingAccommodation.balanceDueDate || ''}
+                      onChange={(e) => setEditingAccommodation({ ...editingAccommodation, balanceDueDate: e.target.value })}
+                      className="w-full px-3 py-2 border border-gray-200 rounded-lg focus:ring-2 focus:ring-blue-500 text-gray-900"
+                    />
+                  </FormField>
+                  <FormField label="Balance Paid Date">
+                    <input
+                      type="date"
+                      value={editingAccommodation.balancePaidDate || ''}
+                      onChange={(e) => setEditingAccommodation({ ...editingAccommodation, balancePaidDate: e.target.value })}
                       className="w-full px-3 py-2 border border-gray-200 rounded-lg focus:ring-2 focus:ring-blue-500 text-gray-900"
                     />
                   </FormField>
