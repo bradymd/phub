@@ -4,6 +4,8 @@ A **private, local-first desktop application** for organizing your entire life. 
 
 **Built with [Electron](https://www.electronjs.org/)** - A cross-platform desktop application using React + TypeScript.
 
+![Personal Hub Dashboard](docs/screenshots/Main-Panel-v1.0.5.png)
+
 ---
 
 ## Security First
@@ -55,31 +57,95 @@ A **private, local-first desktop application** for organizing your entire life. 
 
 ---
 
+## Screenshots
+
+<details>
+<summary>Property Panel - Track your home details, mortgage, utilities, and maintenance</summary>
+
+![Property Panel](docs/screenshots/Property-Panel-Sample.png)
+</details>
+
+<details>
+<summary>Vehicle Panel - MOT, tax, insurance, and service history with reminders</summary>
+
+![Vehicle Panel](docs/screenshots/Vehicle-Panel-sample.png)
+</details>
+
+<details>
+<summary>Medical History - Track appointments, conditions, and follow-ups</summary>
+
+![Medical History Panel](docs/screenshots/Medical-History-Panel-sample.png)
+</details>
+
+<details>
+<summary>Dental Records - Dentist visits and hygienist appointments</summary>
+
+![Dental Panel](docs/screenshots/Dental-Panel-sample.png)
+</details>
+
+<details>
+<summary>Pets Panel - Vaccinations, vet visits, and insurance tracking</summary>
+
+![Pets Panel](docs/screenshots/Vets-Panel-sample.png)
+</details>
+
+<details>
+<summary>Holiday Plans - Plan trips with accommodation, travel, and activities</summary>
+
+![Holiday Plans Panel](docs/screenshots/Holiday-Panel-sample.png)
+</details>
+
+<details>
+<summary>Budget Panel - Track monthly income and expenses</summary>
+
+![Budget Panel](docs/screenshots/Budget-Panel-nodata.png)
+</details>
+
+<details>
+<summary>Kakeibo - Japanese mindful budgeting method</summary>
+
+![Kakeibo Panel](docs/screenshots/Kakeibo-Panel-nodata.png)
+</details>
+
+---
+
 ## Installation
 
 ### Download
 
-Download the latest release from [GitHub Releases](https://github.com/bradymd/phub/releases):
+- [**AppImage**](https://github.com/bradymd/phub/releases/latest/download/PersonalHub.AppImage) - recommended for most Linux users
+- [**Debian/Ubuntu (.deb)**](https://github.com/bradymd/phub/releases/latest/download/personal-hub.deb) - for apt-based systems
 
-- **Linux**: `personal-hub_X.X.X_amd64.deb` (recommended)
-- **Windows**: `PersonalHub Setup X.X.X.exe` (coming soon)
-- **macOS**: `PersonalHub-X.X.X.dmg` (coming soon)
+Or browse all releases at [GitHub Releases](https://github.com/bradymd/phub/releases).
 
-### Linux (Recommended)
+### Linux (.deb)
 
 ```bash
-sudo dpkg -i personal-hub_1.0.0_amd64.deb
+sudo dpkg -i personal-hub.deb
 personal-hub
 ```
 
-### Linux AppImage (Alternative)
-
-Requires FUSE2 and must run with `--no-sandbox`:
+### Linux (AppImage)
 
 ```bash
-sudo apt install libfuse2
-chmod +x PersonalHub-1.0.0.AppImage
-./PersonalHub-1.0.0.AppImage --no-sandbox
+chmod +x PersonalHub.AppImage
+./PersonalHub.AppImage
+```
+
+**Note:** If the AppImage fails to start, you may need FUSE2 or the `--no-sandbox` flag:
+```bash
+sudo apt install libfuse2        # If FUSE error
+./PersonalHub.AppImage --no-sandbox  # If sandbox error
+```
+
+### Command Line Install (Linux)
+
+```bash
+# AppImage
+curl -Lo PersonalHub.AppImage https://github.com/bradymd/phub/releases/latest/download/PersonalHub.AppImage && chmod +x PersonalHub.AppImage
+
+# Debian/Ubuntu
+curl -Lo personal-hub.deb https://github.com/bradymd/phub/releases/latest/download/personal-hub.deb && sudo dpkg -i personal-hub.deb
 ```
 
 ---
@@ -151,9 +217,9 @@ Each file is encrypted with **AES-256-GCM** using your master password.
 
 The app checks for updates on GitHub and shows a notification when available.
 
-**Linux .deb users:** Download the new `.deb` from [Releases](https://github.com/bradymd/phub/releases) and run:
+**Linux .deb users:** Download the new `.deb` from [Releases](https://github.com/bradymd/phub/releases/latest/download/personal-hub.deb) and run:
 ```bash
-sudo dpkg -i personal-hub_X.X.X_amd64.deb
+sudo dpkg -i personal-hub.deb
 ```
 
 **AppImage users:** Updates can install automatically via the in-app notification.
@@ -226,5 +292,5 @@ MIT License - See [ATTRIBUTIONS.md](ATTRIBUTIONS.md) for third-party licenses.
 
 ---
 
-**Version:** 1.0.0
-**Last Updated:** January 2026
+**Version:** 1.0.5
+**Last Updated:** February 2026
