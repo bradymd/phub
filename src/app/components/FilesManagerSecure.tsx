@@ -365,10 +365,10 @@ export function FilesManagerSecure({ onClose }: FilesManagerSecureProps) {
     <div className="fixed inset-0 bg-black/50 flex items-center justify-center z-50 p-4">
       <div className="bg-white rounded-2xl max-w-6xl w-full max-h-[90vh] overflow-hidden flex flex-col">
         {/* Header */}
-        <div className="p-6 border-b border-gray-200 bg-gradient-to-r from-purple-50 to-pink-50">
+        <div className="p-6 border-b border-gray-200 bg-gradient-to-r from-purple-50 to-purple-100">
           <div className="flex items-center justify-between">
             <div className="flex items-center gap-3">
-              <div className="p-3 bg-gradient-to-br from-purple-600 to-pink-600 text-white rounded-xl relative">
+              <div className="p-3 bg-gradient-to-br from-purple-500 to-purple-700 text-white rounded-xl relative">
                 <FolderPlus className="w-6 h-6" />
                 <div className="absolute -top-1 -right-1 bg-green-500 rounded-full p-1">
                   <Key className="w-3 h-3 text-white" />
@@ -506,7 +506,7 @@ export function FilesManagerSecure({ onClose }: FilesManagerSecureProps) {
 
           {/* Add file form */}
           {showAddForm ? (
-            <div className="mb-6 p-4 bg-gradient-to-br from-purple-50 to-pink-50 rounded-xl border-2 border-purple-200">
+            <div className="mb-6 p-4 bg-gradient-to-br from-purple-50 to-purple-100 rounded-xl border-2 border-purple-200">
               <h3 className="mb-3 font-medium">Upload New File</h3>
               <div className="space-y-3">
                 <div>

@@ -416,7 +416,7 @@ export function EducationManagerSecure({ onClose }: EducationManagerSecureProps)
   return (
     <div className="fixed inset-0 bg-black/50 z-50 overflow-hidden">
       <div className="absolute inset-2 bg-white rounded-2xl flex flex-col shadow-2xl">
-        <div className="p-6 border-b border-gray-200 bg-gradient-to-r from-purple-600 to-blue-600 text-white rounded-t-2xl">
+        <div className="p-6 border-b border-gray-200 bg-gradient-to-r from-purple-500 to-purple-700 text-white rounded-t-2xl">
           <div className="flex items-center justify-between">
             <div className="flex items-center gap-3">
               <div className="p-3 bg-white/20 text-white rounded-xl relative">

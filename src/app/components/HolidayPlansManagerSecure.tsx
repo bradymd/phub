@@ -799,7 +799,7 @@ export function HolidayPlansManagerSecure({ onClose }: HolidayPlansManagerSecure
           <div className="fixed inset-0 bg-black/50 flex items-start justify-center z-50 p-4 overflow-y-auto">
             <div className="bg-white rounded-xl shadow-xl w-full max-w-4xl my-8">
               {/* Header */}
-              <div className="p-6 border-b border-gray-200 bg-gradient-to-r from-blue-600 to-cyan-600 text-white rounded-t-xl">
+              <div className="p-6 border-b border-gray-200 bg-gradient-to-r from-blue-500 to-blue-700 text-white rounded-t-xl">
                 <div className="flex items-start justify-between">
                   <div>
                     <div className="flex items-center gap-2">

@@ -566,10 +566,10 @@ export function MedicalHistoryManagerSecure({ onClose }: MedicalHistoryManagerSe
   return (
     <div className="fixed inset-0 bg-black/50 z-50 overflow-hidden">
       <div className="absolute inset-2 bg-white rounded-2xl flex flex-col shadow-2xl">
-        <div className="p-6 border-b border-gray-200 bg-gradient-to-r from-red-50 to-pink-50">
+        <div className="p-6 border-b border-gray-200 bg-gradient-to-r from-rose-50 to-rose-100">
           <div className="flex items-center justify-between">
             <div className="flex items-center gap-3">
-              <div className="p-3 bg-gradient-to-br from-red-600 to-pink-600 text-white rounded-xl relative">
+              <div className="p-3 bg-gradient-to-br from-rose-500 to-rose-700 text-white rounded-xl relative">
                 <Heart className="w-6 h-6" />
                 <div className="absolute -top-1 -right-1 bg-green-500 rounded-full p-1">
                   <Key className="w-3 h-3 text-white" />
@@ -622,7 +622,7 @@ export function MedicalHistoryManagerSecure({ onClose }: MedicalHistoryManagerSe
         )}
 
         {showSummary && (
-        <div className="px-6 py-3 bg-gradient-to-br from-red-50 to-pink-50 border-b border-gray-200">
+        <div className="px-6 py-3 bg-gradient-to-br from-rose-50 to-rose-100 border-b border-gray-200">
           <div className="grid grid-cols-1 md:grid-cols-4 gap-3">
             <div className="bg-white rounded-lg p-3 shadow-sm">
               <div className="flex items-center gap-3 mb-2">
@@ -1032,7 +1032,7 @@ export function MedicalHistoryManagerSecure({ onClose }: MedicalHistoryManagerSe
 
         <div className="flex-1 overflow-y-auto p-6 medical-history-list">
           {showAddForm && (
-            <div className="mb-6 p-6 rounded-xl bg-gradient-to-br from-red-50 to-pink-50 border-2 border-red-200">
+            <div className="mb-6 p-6 rounded-xl bg-gradient-to-br from-rose-50 to-rose-100 border-2 border-red-200">
               <h3 className="mb-4">Add Medical Record</h3>
               <div className="space-y-4">
                 <div className="grid grid-cols-1 md:grid-cols-2 gap-4">

@@ -151,7 +151,7 @@ function RecordForm({
   return (
     <div className="fixed inset-0 bg-black/60 z-[60] flex items-center justify-center p-4">
       <div className="bg-white rounded-2xl max-w-2xl w-full max-h-[90vh] overflow-y-auto shadow-2xl">
-        <div className="bg-gradient-to-r from-teal-600 to-cyan-600 text-white p-6 rounded-t-2xl sticky top-0 z-10">
+        <div className="bg-gradient-to-r from-teal-500 to-teal-700 text-white p-6 rounded-t-2xl sticky top-0 z-10">
           <div className="flex items-center justify-between">
             <h2 className="text-xl font-semibold flex items-center gap-2">
               <Smile className="w-6 h-6" />
@@ -446,7 +446,7 @@ function ViewModal({ record, onClose, onEdit, onPrint, onViewDocument, onMarkCom
   return (
     <div className="fixed inset-0 bg-black/60 z-[60] flex items-center justify-center p-4">
       <div className="bg-white rounded-2xl max-w-2xl w-full max-h-[90vh] overflow-y-auto shadow-2xl">
-        <div className="bg-gradient-to-r from-teal-600 to-cyan-600 text-white p-6 rounded-t-2xl sticky top-0 z-10">
+        <div className="bg-gradient-to-r from-teal-500 to-teal-700 text-white p-6 rounded-t-2xl sticky top-0 z-10">
           <div className="flex items-center justify-between">
             <div>
               <h2 className="text-xl font-semibold">{record.patientName}</h2>
@@ -1005,7 +1005,7 @@ export function DentalManagerSecure({ onClose }: DentalManagerSecureProps) {
     <div className="fixed inset-0 bg-black/60 z-50 overflow-hidden">
       <div className="absolute inset-2 bg-white rounded-2xl shadow-2xl flex flex-col">
         {/* Header */}
-        <div className="bg-gradient-to-r from-teal-600 to-cyan-600 text-white p-6 rounded-t-2xl flex-shrink-0">
+        <div className="bg-gradient-to-r from-teal-500 to-teal-700 text-white p-6 rounded-t-2xl flex-shrink-0">
           <div className="flex items-center justify-between">
             <div className="flex items-center gap-3">
               <Smile className="w-8 h-8" />

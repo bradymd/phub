@@ -160,10 +160,10 @@ export function ContactsManagerSecure({ onClose }: ContactsManagerSecureProps) {
   return (
     <div className="fixed inset-0 bg-black/50 flex items-center justify-center z-50 p-4">
       <div className="bg-white rounded-2xl max-w-4xl w-full max-h-[90vh] overflow-hidden flex flex-col">
-        <div className="p-6 border-b border-gray-200 bg-gradient-to-r from-green-50 to-blue-50">
+        <div className="p-6 border-b border-gray-200 bg-gradient-to-r from-green-50 to-green-100">
           <div className="flex items-center justify-between">
             <div className="flex items-center gap-3">
-              <div className="p-3 bg-gradient-to-br from-green-600 to-blue-600 text-white rounded-xl relative">
+              <div className="p-3 bg-gradient-to-br from-green-500 to-green-700 text-white rounded-xl relative">
                 <Users className="w-6 h-6" />
                 <div className="absolute -top-1 -right-1 bg-green-500 rounded-full p-1">
                   <Key className="w-3 h-3 text-white" />

@@ -178,7 +178,7 @@ export function PensionManagerSecure({ onClose }: PensionManagerSecureProps) {
   return (
     <div className="fixed inset-0 bg-black/50 flex items-center justify-center z-50 p-4">
       <div className="bg-white rounded-2xl w-full max-w-6xl h-[90vh] flex flex-col shadow-2xl">
-        <div className="p-6 border-b border-gray-200 bg-gradient-to-r from-green-600 to-emerald-600 text-white rounded-t-2xl">
+        <div className="p-6 border-b border-gray-200 bg-gradient-to-r from-green-500 to-green-700 text-white rounded-t-2xl">
           <div className="flex items-center justify-between gap-4">
             <div className="flex items-center gap-3 flex-shrink-0">
               <PiggyBank className="w-6 h-6" />

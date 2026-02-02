@@ -29,6 +29,23 @@ const colorValues: Record<PanelColor, string> = {
   pink: '#ec4899',
 };
 
+// Gradient values for panels - light to dark matching panel headers
+const gradientValues: Record<PanelColor, string> = {
+  amber: 'linear-gradient(to right, #f59e0b, #b45309)',   // amber-500 to amber-700
+  indigo: 'linear-gradient(to right, #6366f1, #4338ca)',  // indigo-500 to indigo-700
+  blue: 'linear-gradient(to right, #3b82f6, #1d4ed8)',    // blue-500 to blue-700
+  rose: 'linear-gradient(to right, #f43f5e, #be123c)',    // rose-500 to rose-700
+  teal: 'linear-gradient(to right, #14b8a6, #0f766e)',    // teal-500 to teal-700
+  sky: 'linear-gradient(to right, #0ea5e9, #0369a1)',     // sky-500 to sky-700
+  slate: 'linear-gradient(to right, #475569, #1e293b)',   // slate-600 to slate-800
+  emerald: 'linear-gradient(to right, #10b981, #047857)', // emerald-500 to emerald-700
+  orange: 'linear-gradient(to right, #f97316, #c2410c)', // orange-500 to orange-700
+  cyan: 'linear-gradient(to right, #06b6d4, #0e7490)',    // cyan-500 to cyan-700
+  purple: 'linear-gradient(to right, #a855f7, #7c3aed)',  // purple-500 to purple-700
+  green: 'linear-gradient(to right, #22c55e, #15803d)',   // green-500 to green-700
+  pink: 'linear-gradient(to right, #ec4899, #be185d)',    // pink-500 to pink-700
+};
+
 export function CategoryCard({ title, icon: Icon, description, onClick, overdue = 0, dueSoon = 0, color = 'blue' }: CategoryCardProps) {
   const hasReminders = overdue > 0 || dueSoon > 0;
 
@@ -68,7 +85,10 @@ export function CategoryCard({ title, icon: Icon, description, onClick, overdue 
         </div>
       </div>
       {/* Bottom accent bar */}
-      <div className="h-1 flex-shrink-0" style={{ backgroundColor: colorValues[color] }} />
+      <div
+        className="h-1 flex-shrink-0"
+        style={{ background: gradientValues[color] }}
+      />
     </button>
   );
 }

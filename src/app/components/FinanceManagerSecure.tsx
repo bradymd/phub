@@ -221,7 +221,7 @@ export function FinanceManagerSecure({ onClose }: FinanceManagerSecureProps) {
   return (
     <div className="fixed inset-0 bg-black/50 z-50 overflow-hidden">
       <div className="absolute inset-2 bg-white rounded-2xl flex flex-col shadow-2xl">
-        <div className="p-6 border-b border-gray-200 flex items-center justify-between bg-gradient-to-r from-blue-600 to-purple-600 text-white rounded-t-2xl">
+        <div className="p-6 border-b border-gray-200 flex items-center justify-between bg-gradient-to-r from-blue-500 to-blue-700 text-white rounded-t-2xl">
           <div className="flex items-center gap-3">
             <Wallet className="w-6 h-6" />
             <h2 className="text-xl font-semibold">Banks & Savings Manager</h2>

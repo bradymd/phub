@@ -389,7 +389,7 @@ export function BudgetManagerSecure({ onClose }: BudgetManagerSecureProps) {
   return (
     <div className="fixed inset-0 bg-black/50 z-50 overflow-hidden">
       <div className="absolute inset-2 bg-white rounded-2xl flex flex-col shadow-2xl">
-        <div className="p-6 border-b border-gray-200 flex items-center justify-between bg-gradient-to-r from-red-600 to-orange-600 text-white rounded-t-2xl">
+        <div className="p-6 border-b border-gray-200 flex items-center justify-between bg-gradient-to-r from-rose-500 to-rose-700 text-white rounded-t-2xl">
           <div className="flex items-center gap-3">
             <Receipt className="w-6 h-6" />
             <h2 className="text-xl font-semibold">Budget & Expenses</h2>
