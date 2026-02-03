@@ -40,9 +40,15 @@ const masterKeyFile = path.join(hubDir, '.master.key');
 
 // Create main window
 function createWindow() {
+  // Try to use the icon - use absolute path for better debugging
+  const iconPath = path.resolve(path.join(__dirname, '../build/test-icon.png'));
+  console.log('Loading icon from:', iconPath);
+  console.log('Icon exists:', fsSync.existsSync(iconPath));
+
   mainWindow = new BrowserWindow({
     width: 1400,
     height: 900,
+    icon: iconPath,
     webPreferences: {
       preload: path.join(__dirname, 'preload.cjs'),
       contextIsolation: true,

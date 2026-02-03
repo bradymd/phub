@@ -1,0 +1,10 @@
+[Desktop Entry]
+Name=PersonalHub
+Comment=Secure personal data management application
+Exec=personal-hub --enable-features=UseOzonePlatform,WaylandWindowDecorations --ozone-platform-hint=auto %U
+Terminal=false
+Type=Application
+Icon=personal-hub
+StartupWMClass=personal-hub
+Categories=Utility;
+MimeType=x-scheme-handler/personalhub;

@@ -12,7 +12,7 @@
   "scripts": {
     "build": "vite build",
     "dev": "vite",
-    "electron:dev": "NODE_ENV=development concurrently \"npm run dev\" \"wait-on http://localhost:5173 && electron . --no-sandbox\"",
+    "electron:dev": "NODE_ENV=development concurrently \"npm run dev\" \"wait-on http://localhost:5173 && electron . --no-sandbox --enable-features=UseOzonePlatform,WaylandWindowDecorations --ozone-platform-hint=auto\"",
     "electron:build": "npm run build && electron-builder",
     "build:win": "npm run build && electron-builder --win",
     "build:mac": "npm run build && electron-builder --mac",
@@ -116,7 +116,6 @@
   "build": {
     "appId": "com.personalhub.app",
     "productName": "PersonalHub",
-    "afterAllArtifactBuild": "./build/afterBuild.cjs",
     "directories": {
       "output": "dist-electron"
     },
@@ -135,7 +134,12 @@
         "deb"
       ],
       "category": "Utility",
-      "icon": "build/icon.png"
+      "icon": "build/icon.png",
+      "executableName": "personal-hub",
+      "artifactName": "${productName}-${version}-${arch}.${ext}"
+    },
+    "appImage": {
+      "artifactName": "${productName}-${version}-${arch}.AppImage"
     },
     "win": {
       "target": [
