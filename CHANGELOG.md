@@ -4,6 +4,32 @@ All notable changes to Personal Hub are documented here.
 
 ## [Unreleased]
 
+## [1.0.7] - 2026-02-03
+
+### Fixed
+- **Panel visibility persistence**: User visibility preferences now persist across backup/restore operations
+  - Hidden panels no longer reset to defaults after restore
+  - Panel usage statistics also preserved
+- **Line break display in notes**: Fixed whitespace handling across all panels (7 panels, 10 locations)
+  - Holiday Plans: travel, accommodation, car hire, itinerary, activities notes
+  - Pets: insurance notes
+  - Certificates: certificate notes in list view
+  - Medical History: provider notes
+  - Property: maintenance entry notes
+  - Password Manager: entry notes
+  - Virtual High Street: entry notes
+- **Application icon on Ubuntu 24.04**: Fixed icon transparency and display issues
+
+### Added
+- **Search finds hidden panels**: Search bar now searches ALL panels regardless of visibility
+  - Hidden panels shown in search results with "Hidden" badge
+  - Info message: "Searching all panels (including hidden ones)"
+- **Holiday Plans**: Accommodation balance payment tracking with reminders
+- **Windows icon file** for electron-builder
+
+### Changed
+- Panel color gradients unified for consistent visual design
+
 ## [1.0.6] - 2026-02-02
 
 ### Added
