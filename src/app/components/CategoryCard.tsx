@@ -10,6 +10,7 @@ interface CategoryCardProps {
   overdue?: number;
   dueSoon?: number;
   color?: PanelColor;
+  isHidden?: boolean;
 }
 
 // Map panel colors to actual hex values (avoids Tailwind purge issues)
@@ -46,7 +47,7 @@ const gradientValues: Record<PanelColor, string> = {
   pink: 'linear-gradient(to right, #ec4899, #be185d)',    // pink-500 to pink-700
 };
 
-export function CategoryCard({ title, icon: Icon, description, onClick, overdue = 0, dueSoon = 0, color = 'blue' }: CategoryCardProps) {
+export function CategoryCard({ title, icon: Icon, description, onClick, overdue = 0, dueSoon = 0, color = 'blue', isHidden = false }: CategoryCardProps) {
   const hasReminders = overdue > 0 || dueSoon > 0;
 
   return (
@@ -62,6 +63,11 @@ export function CategoryCard({ title, icon: Icon, description, onClick, overdue 
                 <Icon className="w-6 h-6" />
               </div>
               <h3 className="text-gray-900">{title}</h3>
+              {isHidden && (
+                <span className="px-2 py-0.5 bg-gray-100 text-gray-600 rounded text-xs font-medium">
+                  Hidden
+                </span>
+              )}
               {hasReminders && (
                 <div className="flex items-center gap-1">
                   {overdue > 0 && (

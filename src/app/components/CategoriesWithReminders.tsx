@@ -18,6 +18,7 @@ interface CategoriesWithRemindersProps {
   viewMode: 'grid' | 'list';
   isCategoryVisible: (id: string) => boolean;
   onCategoryClick: (id: string) => void;
+  searchActive?: boolean;
 }
 
 export function CategoriesWithReminders({
@@ -25,6 +26,7 @@ export function CategoriesWithReminders({
   viewMode,
   isCategoryVisible,
   onCategoryClick,
+  searchActive = false,
 }: CategoriesWithRemindersProps) {
   const reminders = useReminders();
   const { recordPanelAccess, getUsageScore, isLoaded } = usePanelUsage();
@@ -58,9 +60,12 @@ export function CategoriesWithReminders({
     return r.overdue > 0 || r.dueSoon > 0;
   };
 
-  // A panel should be shown if it's explicitly visible OR if it has reminders
+  // A panel should be shown if:
+  // - Search is active (show ALL panels)
+  // - It's explicitly visible
+  // - It has reminders
   const shouldShowPanel = (panelId: string) => {
-    return isCategoryVisible(panelId) || panelHasReminders(panelId);
+    return searchActive || isCategoryVisible(panelId) || panelHasReminders(panelId);
   };
 
   // Check if reminders have loaded (any panel has non-zero values)
@@ -142,6 +147,7 @@ export function CategoriesWithReminders({
       <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
         {sortedCategories.map((category) => {
           const panelReminders = getRemindersForPanel(category.id);
+          const isHidden = !isCategoryVisible(category.id) && !panelHasReminders(category.id);
           return (
             <CategoryCard
               key={category.id}
@@ -152,6 +158,7 @@ export function CategoriesWithReminders({
               overdue={panelReminders.overdue}
               dueSoon={panelReminders.dueSoon}
               color={category.color}
+              isHidden={searchActive && isHidden}
             />
           );
         })}

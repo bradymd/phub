@@ -254,6 +254,10 @@ export default function App() {
 
         if (!confirm) return;
 
+        // Preserve user preferences before clearing
+        const hiddenCategoriesBackup = localStorage.getItem('hidden_categories');
+        const panelUsageBackup = localStorage.getItem('panel_usage');
+
         // Clear existing data
         localStorage.clear();
 
@@ -261,6 +265,14 @@ export default function App() {
         Object.entries(importPackage.data).forEach(([key, value]) => {
           localStorage.setItem(key, value as string);
         });
+
+        // Restore user preferences (these should persist across restores)
+        if (hiddenCategoriesBackup) {
+          localStorage.setItem('hidden_categories', hiddenCategoriesBackup);
+        }
+        if (panelUsageBackup) {
+          localStorage.setItem('panel_usage', panelUsageBackup);
+        }
 
         alert('✅ Data imported successfully! Refreshing app...');
         window.location.reload();
@@ -399,6 +411,12 @@ export default function App() {
               </button>
             )}
           </div>
+          {panelSearch.trim() && (
+            <div className="mt-3 text-sm text-gray-600 flex items-center gap-2">
+              <span className="text-blue-600">ℹ️</span>
+              <span>Searching all panels (including hidden ones)</span>
+            </div>
+          )}
         </div>
 
         {/* Categories Grid or List */}
@@ -407,6 +425,7 @@ export default function App() {
           viewMode={viewMode}
           isCategoryVisible={isCategoryVisible}
           onCategoryClick={(id) => setActiveModal(id as ModalType)}
+          searchActive={panelSearch.trim().length > 0}
         />
 
         {/* Footer */}
