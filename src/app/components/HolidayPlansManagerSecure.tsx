@@ -1,7 +1,8 @@
 import { useState, useEffect } from 'react';
 import {
   Plane, Plus, Calendar, MapPin, Users, Hotel, Car, Train, Ship, Bus,
-  Ticket, FileText, StickyNote, Clock, DollarSign, Hash, Upload, Edit2, X, Printer
+  Ticket, FileText, StickyNote, Clock, DollarSign, Hash, Upload, Edit2, X, Printer,
+  CalendarDays, MapPinned
 } from 'lucide-react';
 import { useStorage, useDocumentService } from '../../contexts/StorageContext';
 import { PdfJsViewer } from './PdfJsViewer';
@@ -35,6 +36,32 @@ interface Accommodation {
   confirmationNumber?: string;
   notes?: string;
   documents?: DocumentReference[];
+}
+
+interface CarHire {
+  id: string;
+  company: string;
+  pickupLocation: string;
+  pickupDate: string;
+  pickupTime?: string;
+  dropoffLocation: string;
+  dropoffDate: string;
+  dropoffTime?: string;
+  drivers: string[];
+  deposit?: number;
+  totalCost?: number;
+  bookingReference?: string;
+  notes?: string;
+  documents?: DocumentReference[];
+}
+
+interface ItineraryDay {
+  id: string;
+  date: string;
+  dayNumber: number;
+  title?: string;
+  description: string;
+  notes?: string;
 }
 
 interface TravelLeg {
@@ -73,6 +100,8 @@ interface HolidayPlan {
   endDate: string;
   travelers: Traveler[];
   accommodation: Accommodation[];
+  carHire?: CarHire[];
+  itinerary?: ItineraryDay[];
   travel: TravelLeg[];
   activities: Activity[];
   notes?: string;
@@ -153,6 +182,8 @@ export function HolidayPlansManagerSecure({ onClose }: HolidayPlansManagerSecure
   const [openSections, setOpenSections] = useState<Record<string, boolean>>({
     travelers: true,
     accommodation: true,
+    carHire: true,
+    itinerary: true,
     travel: true,
     activities: true,
     documents: true
@@ -164,6 +195,8 @@ export function HolidayPlansManagerSecure({ onClose }: HolidayPlansManagerSecure
   // Sub-item editing
   const [editingTraveler, setEditingTraveler] = useState<Traveler | null>(null);
   const [editingAccommodation, setEditingAccommodation] = useState<Accommodation | null>(null);
+  const [editingCarHire, setEditingCarHire] = useState<CarHire | null>(null);
+  const [editingItineraryDay, setEditingItineraryDay] = useState<ItineraryDay | null>(null);
   const [editingTravel, setEditingTravel] = useState<TravelLeg | null>(null);
   const [editingActivity, setEditingActivity] = useState<Activity | null>(null);
 
@@ -268,44 +301,64 @@ export function HolidayPlansManagerSecure({ onClose }: HolidayPlansManagerSecure
   const handleFileUpload = async (
     file: File,
     holiday: HolidayPlan,
-    target: 'holiday' | 'accommodation' | 'travel' | 'activity',
+    target: 'holiday' | 'accommodation' | 'travel' | 'activity' | 'carHire',
     targetId?: string
   ) => {
     try {
       setError('');
-      const docRef = await documentService.saveDocument('holiday_plans', file);
 
-      const updatedHoliday = { ...holiday };
+      // Convert File to data URL
+      const reader = new FileReader();
+      reader.onload = async () => {
+        try {
+          const dataUrl = reader.result as string;
+          const docRef = await documentService.saveDocument('holiday_plans', file.name, dataUrl);
 
-      if (target === 'holiday') {
-        updatedHoliday.documents = [...(updatedHoliday.documents || []), docRef];
-      } else if (target === 'accommodation' && targetId) {
-        const idx = updatedHoliday.accommodation.findIndex(a => a.id === targetId);
-        if (idx >= 0) {
-          updatedHoliday.accommodation[idx].documents = [
-            ...(updatedHoliday.accommodation[idx].documents || []),
-            docRef
-          ];
-        }
-      } else if (target === 'travel' && targetId) {
-        const idx = updatedHoliday.travel.findIndex(t => t.id === targetId);
-        if (idx >= 0) {
-          updatedHoliday.travel[idx].documents = [
-            ...(updatedHoliday.travel[idx].documents || []),
-            docRef
-          ];
-        }
-      } else if (target === 'activity' && targetId) {
-        const idx = updatedHoliday.activities.findIndex(a => a.id === targetId);
-        if (idx >= 0) {
-          updatedHoliday.activities[idx].documents = [
-            ...(updatedHoliday.activities[idx].documents || []),
-            docRef
-          ];
-        }
-      }
+          const updatedHoliday = { ...holiday };
 
-      await updateHoliday(updatedHoliday);
+          if (target === 'holiday') {
+            updatedHoliday.documents = [...(updatedHoliday.documents || []), docRef];
+          } else if (target === 'accommodation' && targetId) {
+            const idx = updatedHoliday.accommodation.findIndex(a => a.id === targetId);
+            if (idx >= 0) {
+              updatedHoliday.accommodation[idx].documents = [
+                ...(updatedHoliday.accommodation[idx].documents || []),
+                docRef
+              ];
+            }
+          } else if (target === 'travel' && targetId) {
+            const idx = updatedHoliday.travel.findIndex(t => t.id === targetId);
+            if (idx >= 0) {
+              updatedHoliday.travel[idx].documents = [
+                ...(updatedHoliday.travel[idx].documents || []),
+                docRef
+              ];
+            }
+          } else if (target === 'activity' && targetId) {
+            const idx = updatedHoliday.activities.findIndex(a => a.id === targetId);
+            if (idx >= 0) {
+              updatedHoliday.activities[idx].documents = [
+                ...(updatedHoliday.activities[idx].documents || []),
+                docRef
+              ];
+            }
+          } else if (target === 'carHire' && targetId) {
+            const idx = (updatedHoliday.carHire || []).findIndex(c => c.id === targetId);
+            if (idx >= 0 && updatedHoliday.carHire) {
+              updatedHoliday.carHire[idx].documents = [
+                ...(updatedHoliday.carHire[idx].documents || []),
+                docRef
+              ];
+            }
+          }
+
+          await updateHoliday(updatedHoliday);
+        } catch (err) {
+          setError('Failed to save document');
+          console.error('Document save error:', err);
+        }
+      };
+      reader.readAsDataURL(file);
     } catch (err) {
       setError('Failed to upload document');
       console.error(err);
@@ -314,7 +367,7 @@ export function HolidayPlansManagerSecure({ onClose }: HolidayPlansManagerSecure
 
   const viewDocument = async (docRef: DocumentReference) => {
     try {
-      const dataUrl = await documentService.loadDocument('holiday_plans', docRef.storagePath);
+      const dataUrl = await documentService.loadDocument('holiday_plans', docRef);
       if (dataUrl) {
         // Convert to blob URL for large files
         const [header, base64] = dataUrl.split(',');
@@ -334,7 +387,7 @@ export function HolidayPlansManagerSecure({ onClose }: HolidayPlansManagerSecure
 
   const downloadDocument = async (docRef: DocumentReference) => {
     try {
-      const dataUrl = await documentService.loadDocument('holiday_plans', docRef.storagePath);
+      const dataUrl = await documentService.loadDocument('holiday_plans', docRef);
       if (dataUrl) {
         const link = document.createElement('a');
         link.href = dataUrl;
@@ -459,6 +512,60 @@ export function HolidayPlansManagerSecure({ onClose }: HolidayPlansManagerSecure
     updateHoliday(updated);
   };
 
+  // Car Hire CRUD
+  const addCarHire = (holiday: HolidayPlan, carHire: Omit<CarHire, 'id'>) => {
+    const updated = {
+      ...holiday,
+      carHire: [...(holiday.carHire || []), { ...carHire, id: Date.now().toString() }]
+    };
+    updateHoliday(updated);
+  };
+
+  const updateCarHire = (holiday: HolidayPlan, carHire: CarHire) => {
+    const updated = {
+      ...holiday,
+      carHire: (holiday.carHire || []).map(c => c.id === carHire.id ? carHire : c)
+    };
+    updateHoliday(updated);
+  };
+
+  const deleteCarHire = async (holiday: HolidayPlan, carHireId: string) => {
+    const carHire = holiday.carHire?.find(c => c.id === carHireId);
+    if (carHire?.documents?.length) {
+      await documentService.deleteDocuments('holiday_plans', carHire.documents);
+    }
+    const updated = {
+      ...holiday,
+      carHire: (holiday.carHire || []).filter(c => c.id !== carHireId)
+    };
+    updateHoliday(updated);
+  };
+
+  // Itinerary CRUD
+  const addItineraryDay = (holiday: HolidayPlan, day: Omit<ItineraryDay, 'id'>) => {
+    const updated = {
+      ...holiday,
+      itinerary: [...(holiday.itinerary || []), { ...day, id: Date.now().toString() }].sort((a, b) => a.dayNumber - b.dayNumber)
+    };
+    updateHoliday(updated);
+  };
+
+  const updateItineraryDay = (holiday: HolidayPlan, day: ItineraryDay) => {
+    const updated = {
+      ...holiday,
+      itinerary: (holiday.itinerary || []).map(d => d.id === day.id ? day : d).sort((a, b) => a.dayNumber - b.dayNumber)
+    };
+    updateHoliday(updated);
+  };
+
+  const deleteItineraryDay = (holiday: HolidayPlan, dayId: string) => {
+    const updated = {
+      ...holiday,
+      itinerary: (holiday.itinerary || []).filter(d => d.id !== dayId)
+    };
+    updateHoliday(updated);
+  };
+
   const deleteHolidayDocument = async (holiday: HolidayPlan, docId: string) => {
     const doc = holiday.documents?.find(d => d.id === docId);
     if (doc) {
@@ -504,6 +611,19 @@ export function HolidayPlansManagerSecure({ onClose }: HolidayPlansManagerSecure
     const printWindow = window.open('', '_blank');
     if (!printWindow) return;
 
+    // Helper to preserve line breaks in text
+    const formatTextForPrint = (text: string | undefined): string => {
+      if (!text) return '';
+      // Escape HTML characters and convert newlines to <br> tags
+      return text
+        .replace(/&/g, '&amp;')
+        .replace(/</g, '&lt;')
+        .replace(/>/g, '&gt;')
+        .replace(/"/g, '&quot;')
+        .replace(/'/g, '&#039;')
+        .replace(/\n/g, '<br>');
+    };
+
     const html = `
       <!DOCTYPE html>
       <html>
@@ -524,7 +644,17 @@ export function HolidayPlansManagerSecure({ onClose }: HolidayPlansManagerSecure
           .badge-internal { background: #ffedd5; color: #c2410c; }
           .cost { color: #059669; font-weight: bold; }
           .total { font-size: 18px; color: #059669; font-weight: bold; margin-top: 20px; padding: 12px; background: #ecfdf5; border-radius: 8px; }
-          .notes { font-style: italic; color: #6b7280; margin-top: 8px; }
+          .notes {
+            font-style: italic;
+            color: #6b7280;
+            margin-top: 8px;
+            white-space: pre-wrap;
+            word-wrap: break-word;
+          }
+          .section p {
+            white-space: pre-wrap;
+            word-wrap: break-word;
+          }
           @media print { body { padding: 0; } }
         </style>
       </head>
@@ -538,7 +668,7 @@ export function HolidayPlansManagerSecure({ onClose }: HolidayPlansManagerSecure
             ${holiday.travelers.map(t => `
               <div class="item">
                 <div class="item-title">${t.name}</div>
-                ${t.notes ? `<div class="notes">${t.notes}</div>` : ''}
+                ${t.notes ? `<div class="notes">${formatTextForPrint(t.notes)}</div>` : ''}
               </div>
             `).join('')}
           </div>
@@ -559,7 +689,7 @@ export function HolidayPlansManagerSecure({ onClose }: HolidayPlansManagerSecure
                   ${t.bookingReference ? ` • Ref: ${t.bookingReference}` : ''}
                   ${t.cost ? ` • <span class="cost">${formatCurrency(t.cost)}</span>` : ''}
                 </div>
-                ${t.notes ? `<div class="notes">${t.notes}</div>` : ''}
+                ${t.notes ? `<div class="notes">${formatTextForPrint(t.notes)}</div>` : ''}
               </div>
             `).join('')}
           </div>
@@ -577,7 +707,20 @@ export function HolidayPlansManagerSecure({ onClose }: HolidayPlansManagerSecure
                   ${a.confirmationNumber ? ` • Ref: ${a.confirmationNumber}` : ''}
                   ${a.cost ? ` • <span class="cost">${formatCurrency(a.cost)}</span>` : ''}
                 </div>
-                ${a.notes ? `<div class="notes">${a.notes}</div>` : ''}
+                ${a.notes ? `<div class="notes">${formatTextForPrint(a.notes)}</div>` : ''}
+              </div>
+            `).join('')}
+          </div>
+        ` : ''}
+
+        ${(holiday.itinerary || []).length > 0 ? `
+          <div class="section">
+            <h2>Day-by-Day Itinerary</h2>
+            ${(holiday.itinerary || []).map(day => `
+              <div class="item">
+                <div class="item-title">Day ${day.dayNumber}: ${formatDateUK(day.date)}${day.title ? ` - ${day.title}` : ''}</div>
+                <div class="item-details">${day.description}</div>
+                ${day.notes ? `<div class="notes">${formatTextForPrint(day.notes)}</div>` : ''}
               </div>
             `).join('')}
           </div>
@@ -595,7 +738,7 @@ export function HolidayPlansManagerSecure({ onClose }: HolidayPlansManagerSecure
                   ${a.bookingReference ? ` • Ref: ${a.bookingReference}` : ''}
                   ${a.cost ? ` • <span class="cost">${formatCurrency(a.cost)}</span>` : ''}
                 </div>
-                ${a.notes ? `<div class="notes">${a.notes}</div>` : ''}
+                ${a.notes ? `<div class="notes">${formatTextForPrint(a.notes)}</div>` : ''}
               </div>
             `).join('')}
           </div>
@@ -604,7 +747,7 @@ export function HolidayPlansManagerSecure({ onClose }: HolidayPlansManagerSecure
         ${holiday.notes ? `
           <div class="section">
             <h2>Notes</h2>
-            <p>${holiday.notes}</p>
+            <p>${formatTextForPrint(holiday.notes)}</p>
           </div>
         ` : ''}
 
@@ -798,10 +941,10 @@ export function HolidayPlansManagerSecure({ onClose }: HolidayPlansManagerSecure
           </div>
         )}
 
-        {/* Holiday Management Modal - main screen for viewing/editing a holiday */}
+        {/* Holiday Management Modal - FULL SCREEN for better editing */}
         {viewingHoliday && (
-          <div className="fixed inset-0 bg-black/50 flex items-start justify-center z-50 p-4 overflow-y-auto">
-            <div className="bg-white rounded-xl shadow-xl w-full max-w-4xl my-8">
+          <div className="fixed inset-0 bg-black/50 flex items-center justify-center z-50">
+            <div className="bg-white rounded-xl shadow-xl w-full h-full max-w-[95vw] max-h-[95vh] m-4 flex flex-col">
               {/* Header */}
               <div className="p-6 border-b border-gray-200 bg-gradient-to-r from-blue-500 to-blue-700 text-white rounded-t-xl">
                 <div className="flex items-start justify-between">
@@ -847,8 +990,8 @@ export function HolidayPlansManagerSecure({ onClose }: HolidayPlansManagerSecure
                 </div>
               </div>
 
-              {/* Content */}
-              <div className="p-6 space-y-6 max-h-[calc(100vh-200px)] overflow-y-auto">
+              {/* Content - Scrollable with proper full-screen height */}
+              <div className="flex-1 overflow-y-auto p-6 space-y-6">
                 {/* Travelers Section */}
                 <div className="border border-gray-200 rounded-lg overflow-hidden">
                   <div className="bg-gray-50 px-4">
@@ -965,7 +1108,7 @@ export function HolidayPlansManagerSecure({ onClose }: HolidayPlansManagerSecure
                                       )}
                                     </div>
                                     {travel.notes && (
-                                      <p className="text-sm text-gray-500 mt-2">{travel.notes}</p>
+                                      <p className="text-sm text-gray-500 mt-2 whitespace-pre-wrap">{travel.notes}</p>
                                     )}
                                     {travel.documents && travel.documents.length > 0 && (
                                       <div className="flex flex-wrap gap-2 mt-2">
@@ -1072,7 +1215,7 @@ export function HolidayPlansManagerSecure({ onClose }: HolidayPlansManagerSecure
                                   )
                                 )}
                                 {acc.notes && (
-                                  <p className="text-sm text-gray-500 mt-2">{acc.notes}</p>
+                                  <p className="text-sm text-gray-500 mt-2 whitespace-pre-wrap">{acc.notes}</p>
                                 )}
                                 {acc.documents && acc.documents.length > 0 && (
                                   <div className="flex flex-wrap gap-2 mt-2">
@@ -1090,6 +1233,175 @@ export function HolidayPlansManagerSecure({ onClose }: HolidayPlansManagerSecure
                                 size="sm"
                                 onEdit={() => setEditingAccommodation(acc)}
                                 onDelete={() => deleteAccommodation(viewingHoliday, acc.id)}
+                              />
+                            </div>
+                          </div>
+                        ))
+                      )}
+                    </div>
+                  )}
+                </div>
+
+                {/* Car Hire Section */}
+                <div className="border border-gray-200 rounded-lg overflow-hidden">
+                  <div className="bg-gray-50 px-4">
+                    <SectionHeader
+                      title="Car Hire"
+                      icon={Car}
+                      count={viewingHoliday.carHire?.length || 0}
+                      isOpen={openSections.carHire}
+                      onToggle={() => toggleSection('carHire')}
+                      actions={
+                        <button
+                          onClick={() => setEditingCarHire({
+                            id: '', company: '', pickupLocation: '', pickupDate: '',
+                            dropoffLocation: '', dropoffDate: '', drivers: [], documents: []
+                          })}
+                          className="text-sm text-blue-600 hover:text-blue-700"
+                        >
+                          + Add
+                        </button>
+                      }
+                    />
+                  </div>
+                  {openSections.carHire && (
+                    <div className="divide-y divide-gray-100">
+                      {(!viewingHoliday.carHire || viewingHoliday.carHire.length === 0) ? (
+                        <div className="p-4 text-gray-500 text-sm text-center">No car hire added</div>
+                      ) : (
+                        viewingHoliday.carHire.map((hire) => (
+                          <div key={hire.id} className="p-4">
+                            <div className="flex items-start justify-between">
+                              <div className="flex-1">
+                                <h4 className="font-medium text-gray-900">{hire.company}</h4>
+                                <div className="space-y-2 mt-2">
+                                  <div className="flex items-center gap-2 text-sm text-gray-600">
+                                    <MapPinned className="w-4 h-4 text-green-500" />
+                                    <span><strong>Pickup:</strong> {hire.pickupLocation}</span>
+                                    <span className="text-gray-400">•</span>
+                                    <Calendar className="w-4 h-4" />
+                                    <span>{formatDateUK(hire.pickupDate)}</span>
+                                    {hire.pickupTime && <span>at {hire.pickupTime}</span>}
+                                  </div>
+                                  <div className="flex items-center gap-2 text-sm text-gray-600">
+                                    <MapPinned className="w-4 h-4 text-red-500" />
+                                    <span><strong>Drop-off:</strong> {hire.dropoffLocation}</span>
+                                    <span className="text-gray-400">•</span>
+                                    <Calendar className="w-4 h-4" />
+                                    <span>{formatDateUK(hire.dropoffDate)}</span>
+                                    {hire.dropoffTime && <span>at {hire.dropoffTime}</span>}
+                                  </div>
+                                  {hire.drivers && hire.drivers.length > 0 && (
+                                    <div className="flex items-center gap-2 text-sm text-gray-600">
+                                      <Users className="w-4 h-4" />
+                                      <span><strong>Drivers:</strong> {hire.drivers.join(', ')}</span>
+                                    </div>
+                                  )}
+                                  <div className="flex flex-wrap items-center gap-3 text-sm">
+                                    {hire.deposit && (
+                                      <span className="text-gray-600">
+                                        Deposit: {formatCurrency(hire.deposit)}
+                                      </span>
+                                    )}
+                                    {hire.totalCost && (
+                                      <span className="text-green-600 font-medium">
+                                        Total: {formatCurrency(hire.totalCost)}
+                                      </span>
+                                    )}
+                                    {hire.bookingReference && (
+                                      <span className="flex items-center gap-1 text-gray-600">
+                                        <Hash className="w-3 h-3" />
+                                        {hire.bookingReference}
+                                      </span>
+                                    )}
+                                  </div>
+                                </div>
+                                {hire.notes && (
+                                  <p className="text-sm text-gray-500 mt-2 whitespace-pre-wrap">{hire.notes}</p>
+                                )}
+                                {hire.documents && hire.documents.length > 0 && (
+                                  <div className="flex flex-wrap gap-2 mt-2">
+                                    {hire.documents.map((doc) => (
+                                      <DocumentChip
+                                        key={doc.id}
+                                        filename={doc.filename}
+                                        onClick={() => viewDocument(doc)}
+                                      />
+                                    ))}
+                                  </div>
+                                )}
+                              </div>
+                              <RowActions
+                                size="sm"
+                                onEdit={() => setEditingCarHire(hire)}
+                                onDelete={() => deleteCarHire(viewingHoliday, hire.id)}
+                              />
+                            </div>
+                          </div>
+                        ))
+                      )}
+                    </div>
+                  )}
+                </div>
+
+                {/* Itinerary Section */}
+                <div className="border border-gray-200 rounded-lg overflow-hidden">
+                  <div className="bg-gray-50 px-4">
+                    <SectionHeader
+                      title="Day-by-Day Itinerary"
+                      icon={CalendarDays}
+                      count={viewingHoliday.itinerary?.length || 0}
+                      isOpen={openSections.itinerary}
+                      onToggle={() => toggleSection('itinerary')}
+                      actions={
+                        <button
+                          onClick={() => {
+                            const dayNumber = (viewingHoliday.itinerary?.length || 0) + 1;
+                            const startDate = new Date(viewingHoliday.startDate);
+                            const date = new Date(startDate.getTime() + (dayNumber - 1) * 24 * 60 * 60 * 1000);
+                            setEditingItineraryDay({
+                              id: '',
+                              dayNumber,
+                              date: date.toISOString().split('T')[0],
+                              description: ''
+                            });
+                          }}
+                          className="text-sm text-blue-600 hover:text-blue-700"
+                        >
+                          + Add Day
+                        </button>
+                      }
+                    />
+                  </div>
+                  {openSections.itinerary && (
+                    <div className="divide-y divide-gray-100">
+                      {(!viewingHoliday.itinerary || viewingHoliday.itinerary.length === 0) ? (
+                        <div className="p-4 text-gray-500 text-sm text-center">No itinerary added</div>
+                      ) : (
+                        viewingHoliday.itinerary.map((day) => (
+                          <div key={day.id} className="p-4">
+                            <div className="flex items-start justify-between">
+                              <div className="flex-1">
+                                <div className="flex items-center gap-3">
+                                  <div className="px-3 py-1 bg-blue-100 text-blue-700 rounded-lg font-medium">
+                                    Day {day.dayNumber}
+                                  </div>
+                                  <span className="text-sm text-gray-600">{formatDateUK(day.date)}</span>
+                                  {day.title && (
+                                    <h4 className="font-medium text-gray-900">{day.title}</h4>
+                                  )}
+                                </div>
+                                <div className="mt-2 text-gray-700 whitespace-pre-wrap">{day.description}</div>
+                                {day.notes && (
+                                  <div className="mt-2 p-2 bg-gray-50 rounded text-sm text-gray-600 whitespace-pre-wrap">
+                                    <strong>Notes:</strong> {day.notes}
+                                  </div>
+                                )}
+                              </div>
+                              <RowActions
+                                size="sm"
+                                onEdit={() => setEditingItineraryDay(day)}
+                                onDelete={() => deleteItineraryDay(viewingHoliday, day.id)}
                               />
                             </div>
                           </div>
@@ -1157,7 +1469,7 @@ export function HolidayPlansManagerSecure({ onClose }: HolidayPlansManagerSecure
                                   )}
                                 </div>
                                 {activity.notes && (
-                                  <p className="text-sm text-gray-500 mt-2">{activity.notes}</p>
+                                  <p className="text-sm text-gray-500 mt-2 whitespace-pre-wrap">{activity.notes}</p>
                                 )}
                                 {activity.documents && activity.documents.length > 0 && (
                                   <div className="flex flex-wrap gap-2 mt-2">
@@ -1258,7 +1570,7 @@ export function HolidayPlansManagerSecure({ onClose }: HolidayPlansManagerSecure
         {/* Edit Holiday Modal */}
         {editingHoliday && (
           <div className="fixed inset-0 bg-black/50 flex items-center justify-center z-50 p-4">
-            <div className="bg-white rounded-xl shadow-xl w-full max-w-lg">
+            <div className="bg-white rounded-xl shadow-xl w-full max-w-4xl max-h-[90vh] overflow-y-auto">
               <div className="p-6 border-b border-gray-200">
                 <h2 className="text-xl font-bold text-gray-800">Edit Holiday</h2>
               </div>
@@ -1293,7 +1605,7 @@ export function HolidayPlansManagerSecure({ onClose }: HolidayPlansManagerSecure
                   <textarea
                     value={editingHoliday.notes || ''}
                     onChange={(e) => setEditingHoliday({ ...editingHoliday, notes: e.target.value })}
-                    rows={3}
+                    rows={6}
                     className="w-full px-3 py-2 border border-gray-200 rounded-lg focus:ring-2 focus:ring-blue-500 text-gray-900"
                   />
                 </FormField>
@@ -1357,7 +1669,7 @@ export function HolidayPlansManagerSecure({ onClose }: HolidayPlansManagerSecure
         {/* Add/Edit Traveler Modal */}
         {editingTraveler && viewingHoliday && (
           <div className="fixed inset-0 bg-black/50 flex items-center justify-center z-[60] p-4">
-            <div className="bg-white rounded-xl shadow-xl w-full max-w-md">
+            <div className="bg-white rounded-xl shadow-xl w-full max-w-2xl">
               <div className="p-6 border-b border-gray-200">
                 <h2 className="text-xl font-bold text-gray-800">
                   {editingTraveler.id ? 'Edit Traveler' : 'Add Traveler'}
@@ -1376,7 +1688,7 @@ export function HolidayPlansManagerSecure({ onClose }: HolidayPlansManagerSecure
                   <textarea
                     value={editingTraveler.notes || ''}
                     onChange={(e) => setEditingTraveler({ ...editingTraveler, notes: e.target.value })}
-                    rows={2}
+                    rows={4}
                     className="w-full px-3 py-2 border border-gray-200 rounded-lg focus:ring-2 focus:ring-blue-500 text-gray-900"
                   />
                 </FormField>
@@ -1509,7 +1821,8 @@ export function HolidayPlansManagerSecure({ onClose }: HolidayPlansManagerSecure
                   <textarea
                     value={editingAccommodation.notes || ''}
                     onChange={(e) => setEditingAccommodation({ ...editingAccommodation, notes: e.target.value })}
-                    rows={2}
+                    rows={5}
+                    placeholder="e.g., Breakfast included, Sea view room, Late checkout allowed..."
                     className="w-full px-3 py-2 border border-gray-200 rounded-lg focus:ring-2 focus:ring-blue-500 text-gray-900"
                   />
                 </FormField>
@@ -1572,7 +1885,7 @@ export function HolidayPlansManagerSecure({ onClose }: HolidayPlansManagerSecure
         {/* Add/Edit Travel Modal */}
         {editingTravel && viewingHoliday && (
           <div className="fixed inset-0 bg-black/50 flex items-center justify-center z-[60] p-4">
-            <div className="bg-white rounded-xl shadow-xl w-full max-w-lg">
+            <div className="bg-white rounded-xl shadow-xl w-full max-w-3xl">
               <div className="p-6 border-b border-gray-200">
                 <h2 className="text-xl font-bold text-gray-800">
                   {editingTravel.id ? 'Edit Travel' : 'Add Travel'}
@@ -1675,7 +1988,8 @@ export function HolidayPlansManagerSecure({ onClose }: HolidayPlansManagerSecure
                   <textarea
                     value={editingTravel.notes || ''}
                     onChange={(e) => setEditingTravel({ ...editingTravel, notes: e.target.value })}
-                    rows={2}
+                    rows={4}
+                    placeholder="e.g., Seat numbers, baggage allowance, terminal info..."
                     className="w-full px-3 py-2 border border-gray-200 rounded-lg focus:ring-2 focus:ring-blue-500 text-gray-900"
                   />
                 </FormField>
@@ -1738,7 +2052,7 @@ export function HolidayPlansManagerSecure({ onClose }: HolidayPlansManagerSecure
         {/* Add/Edit Activity Modal */}
         {editingActivity && viewingHoliday && (
           <div className="fixed inset-0 bg-black/50 flex items-center justify-center z-[60] p-4">
-            <div className="bg-white rounded-xl shadow-xl w-full max-w-lg">
+            <div className="bg-white rounded-xl shadow-xl w-full max-w-3xl">
               <div className="p-6 border-b border-gray-200">
                 <h2 className="text-xl font-bold text-gray-800">
                   {editingActivity.id ? 'Edit Activity' : 'Add Activity'}
@@ -1802,7 +2116,8 @@ export function HolidayPlansManagerSecure({ onClose }: HolidayPlansManagerSecure
                   <textarea
                     value={editingActivity.notes || ''}
                     onChange={(e) => setEditingActivity({ ...editingActivity, notes: e.target.value })}
-                    rows={2}
+                    rows={4}
+                    placeholder="e.g., Dress code, what to bring, meeting point..."
                     className="w-full px-3 py-2 border border-gray-200 rounded-lg focus:ring-2 focus:ring-blue-500 text-gray-900"
                   />
                 </FormField>
@@ -1862,6 +2177,324 @@ export function HolidayPlansManagerSecure({ onClose }: HolidayPlansManagerSecure
           </div>
         )}
 
+        {/* Add/Edit Car Hire Modal */}
+        {editingCarHire && viewingHoliday && (
+          <div className="fixed inset-0 bg-black/50 flex items-center justify-center z-[60] p-4">
+            <div className="bg-white rounded-xl shadow-xl w-full max-w-2xl max-h-[90vh] overflow-y-auto">
+              <div className="p-6 border-b border-gray-200">
+                <h2 className="text-xl font-bold text-gray-800">
+                  {editingCarHire.id ? 'Edit Car Hire' : 'Add Car Hire'}
+                </h2>
+              </div>
+              <div className="p-6 space-y-4">
+                <FormField label="Rental Company" required>
+                  <input
+                    type="text"
+                    value={editingCarHire.company}
+                    onChange={(e) => setEditingCarHire({ ...editingCarHire, company: e.target.value })}
+                    placeholder="e.g., Hertz, Enterprise, Avis"
+                    className="w-full px-3 py-2 border border-gray-200 rounded-lg focus:ring-2 focus:ring-blue-500 text-gray-900"
+                  />
+                </FormField>
+
+                <div className="space-y-4 p-4 bg-green-50 rounded-lg border border-green-200">
+                  <h3 className="font-medium text-green-800 flex items-center gap-2">
+                    <MapPinned className="w-4 h-4" />
+                    Pickup Details
+                  </h3>
+                  <FormField label="Pickup Location" required>
+                    <input
+                      type="text"
+                      value={editingCarHire.pickupLocation}
+                      onChange={(e) => setEditingCarHire({ ...editingCarHire, pickupLocation: e.target.value })}
+                      placeholder="e.g., Rome Airport, Terminal 3"
+                      className="w-full px-3 py-2 border border-gray-200 rounded-lg focus:ring-2 focus:ring-blue-500 text-gray-900"
+                    />
+                  </FormField>
+                  <div className="grid grid-cols-2 gap-4">
+                    <FormField label="Pickup Date" required>
+                      <input
+                        type="date"
+                        value={editingCarHire.pickupDate}
+                        onChange={(e) => setEditingCarHire({ ...editingCarHire, pickupDate: e.target.value })}
+                        className="w-full px-3 py-2 border border-gray-200 rounded-lg focus:ring-2 focus:ring-blue-500 text-gray-900"
+                      />
+                    </FormField>
+                    <FormField label="Pickup Time">
+                      <input
+                        type="time"
+                        value={editingCarHire.pickupTime || ''}
+                        onChange={(e) => setEditingCarHire({ ...editingCarHire, pickupTime: e.target.value })}
+                        className="w-full px-3 py-2 border border-gray-200 rounded-lg focus:ring-2 focus:ring-blue-500 text-gray-900"
+                      />
+                    </FormField>
+                  </div>
+                </div>
+
+                <div className="space-y-4 p-4 bg-red-50 rounded-lg border border-red-200">
+                  <h3 className="font-medium text-red-800 flex items-center gap-2">
+                    <MapPinned className="w-4 h-4" />
+                    Drop-off Details
+                  </h3>
+                  <FormField label="Drop-off Location" required>
+                    <input
+                      type="text"
+                      value={editingCarHire.dropoffLocation}
+                      onChange={(e) => setEditingCarHire({ ...editingCarHire, dropoffLocation: e.target.value })}
+                      placeholder="e.g., Milan Central Station"
+                      className="w-full px-3 py-2 border border-gray-200 rounded-lg focus:ring-2 focus:ring-blue-500 text-gray-900"
+                    />
+                  </FormField>
+                  <div className="grid grid-cols-2 gap-4">
+                    <FormField label="Drop-off Date" required>
+                      <input
+                        type="date"
+                        value={editingCarHire.dropoffDate}
+                        onChange={(e) => setEditingCarHire({ ...editingCarHire, dropoffDate: e.target.value })}
+                        className="w-full px-3 py-2 border border-gray-200 rounded-lg focus:ring-2 focus:ring-blue-500 text-gray-900"
+                      />
+                    </FormField>
+                    <FormField label="Drop-off Time">
+                      <input
+                        type="time"
+                        value={editingCarHire.dropoffTime || ''}
+                        onChange={(e) => setEditingCarHire({ ...editingCarHire, dropoffTime: e.target.value })}
+                        className="w-full px-3 py-2 border border-gray-200 rounded-lg focus:ring-2 focus:ring-blue-500 text-gray-900"
+                      />
+                    </FormField>
+                  </div>
+                </div>
+
+                <FormField label="Named Drivers">
+                  <input
+                    type="text"
+                    value={editingCarHire.drivers?.join(', ') || ''}
+                    onChange={(e) => {
+                      const value = e.target.value;
+                      // Split by comma, but preserve the last part exactly as typed (including spaces)
+                      // to allow typing names with spaces
+                      const parts = value.split(',');
+                      const drivers = parts.map((part, index) => {
+                        // Only trim completed entries (not the one being typed)
+                        if (index === parts.length - 1) {
+                          // Keep the last part as-is while typing
+                          return part;
+                        }
+                        return part.trim();
+                      }).filter((d, index) => {
+                        // Keep the last part even if just spaces (while typing)
+                        // Filter out empty entries for completed parts
+                        return index === parts.length - 1 || d.length > 0;
+                      });
+
+                      setEditingCarHire({
+                        ...editingCarHire,
+                        drivers
+                      });
+                    }}
+                    onBlur={(e) => {
+                      // Clean up on blur - trim all entries including the last one
+                      const cleaned = editingCarHire.drivers?.map(d => d.trim()).filter(d => d) || [];
+                      setEditingCarHire({
+                        ...editingCarHire,
+                        drivers: cleaned
+                      });
+                    }}
+                    placeholder="e.g., John Smith, Jane Doe (comma-separated)"
+                    className="w-full px-3 py-2 border border-gray-200 rounded-lg focus:ring-2 focus:ring-blue-500 text-gray-900"
+                  />
+                </FormField>
+
+                <div className="grid grid-cols-3 gap-4">
+                  <FormField label="Deposit (£)">
+                    <input
+                      type="number"
+                      value={editingCarHire.deposit || ''}
+                      onChange={(e) => setEditingCarHire({ ...editingCarHire, deposit: e.target.value ? parseFloat(e.target.value) : undefined })}
+                      className="w-full px-3 py-2 border border-gray-200 rounded-lg focus:ring-2 focus:ring-blue-500 text-gray-900"
+                    />
+                  </FormField>
+                  <FormField label="Total Cost (£)">
+                    <input
+                      type="number"
+                      value={editingCarHire.totalCost || ''}
+                      onChange={(e) => setEditingCarHire({ ...editingCarHire, totalCost: e.target.value ? parseFloat(e.target.value) : undefined })}
+                      className="w-full px-3 py-2 border border-gray-200 rounded-lg focus:ring-2 focus:ring-blue-500 text-gray-900"
+                    />
+                  </FormField>
+                  <FormField label="Booking Reference">
+                    <input
+                      type="text"
+                      value={editingCarHire.bookingReference || ''}
+                      onChange={(e) => setEditingCarHire({ ...editingCarHire, bookingReference: e.target.value })}
+                      className="w-full px-3 py-2 border border-gray-200 rounded-lg focus:ring-2 focus:ring-blue-500 text-gray-900"
+                    />
+                  </FormField>
+                </div>
+
+                <FormField label="Notes">
+                  <textarea
+                    value={editingCarHire.notes || ''}
+                    onChange={(e) => setEditingCarHire({ ...editingCarHire, notes: e.target.value })}
+                    rows={6}
+                    placeholder="e.g., Insurance included, Full tank policy, GPS included"
+                    className="w-full px-3 py-2 border border-gray-200 rounded-lg focus:ring-2 focus:ring-blue-500 text-gray-900"
+                  />
+                </FormField>
+
+                {editingCarHire.id && (
+                  <div>
+                    <label className="block text-sm font-medium text-gray-700 mb-2">Documents</label>
+                    <div className="flex flex-wrap gap-2 mb-2">
+                      {editingCarHire.documents?.map((doc) => (
+                        <DocumentChip
+                          key={doc.id}
+                          filename={doc.filename}
+                          onClick={() => viewDocument(doc)}
+                        />
+                      ))}
+                    </div>
+                    <label className="flex items-center gap-2 px-4 py-2 bg-gray-100 text-gray-700 rounded-lg hover:bg-gray-200 transition-colors cursor-pointer w-fit">
+                      <Upload className="w-4 h-4" />
+                      Upload Document
+                      <input
+                        type="file"
+                        className="hidden"
+                        onChange={(e) => {
+                          const file = e.target.files?.[0];
+                          if (file) {
+                            handleFileUpload(file, viewingHoliday, 'carHire', editingCarHire.id);
+                          }
+                        }}
+                      />
+                    </label>
+                  </div>
+                )}
+              </div>
+              <div className="p-4 border-t border-gray-200 flex justify-end gap-2">
+                <button
+                  onClick={() => setEditingCarHire(null)}
+                  className="px-4 py-2 text-gray-600 hover:bg-gray-100 rounded-lg transition-colors"
+                >
+                  Cancel
+                </button>
+                <button
+                  onClick={() => {
+                    if (editingCarHire.company.trim() && editingCarHire.pickupLocation && editingCarHire.pickupDate
+                        && editingCarHire.dropoffLocation && editingCarHire.dropoffDate) {
+                      if (editingCarHire.id) {
+                        updateCarHire(viewingHoliday, editingCarHire);
+                      } else {
+                        addCarHire(viewingHoliday, editingCarHire);
+                      }
+                      setEditingCarHire(null);
+                    }
+                  }}
+                  className="px-4 py-2 bg-blue-600 text-white rounded-lg hover:bg-blue-700 transition-colors"
+                >
+                  {editingCarHire.id ? 'Save' : 'Add'}
+                </button>
+              </div>
+            </div>
+          </div>
+        )}
+
+        {/* Add/Edit Itinerary Day Modal */}
+        {editingItineraryDay && viewingHoliday && (
+          <div className="fixed inset-0 bg-black/50 flex items-center justify-center z-[60] p-4">
+            <div className="bg-white rounded-xl shadow-xl w-full max-w-2xl max-h-[90vh] overflow-y-auto">
+              <div className="p-6 border-b border-gray-200">
+                <h2 className="text-xl font-bold text-gray-800">
+                  {editingItineraryDay.id ? 'Edit Day' : 'Add Day to Itinerary'}
+                </h2>
+              </div>
+              <div className="p-6 space-y-4">
+                <div className="grid grid-cols-2 gap-4">
+                  <FormField label="Day Number" required>
+                    <input
+                      type="number"
+                      min="1"
+                      value={editingItineraryDay.dayNumber}
+                      onChange={(e) => {
+                        const dayNum = parseInt(e.target.value) || 1;
+                        const startDate = new Date(viewingHoliday.startDate);
+                        const date = new Date(startDate.getTime() + (dayNum - 1) * 24 * 60 * 60 * 1000);
+                        setEditingItineraryDay({
+                          ...editingItineraryDay,
+                          dayNumber: dayNum,
+                          date: date.toISOString().split('T')[0]
+                        });
+                      }}
+                      className="w-full px-3 py-2 border border-gray-200 rounded-lg focus:ring-2 focus:ring-blue-500 text-gray-900"
+                    />
+                  </FormField>
+                  <FormField label="Date" required>
+                    <input
+                      type="date"
+                      value={editingItineraryDay.date}
+                      onChange={(e) => setEditingItineraryDay({ ...editingItineraryDay, date: e.target.value })}
+                      className="w-full px-3 py-2 border border-gray-200 rounded-lg focus:ring-2 focus:ring-blue-500 text-gray-900"
+                    />
+                  </FormField>
+                </div>
+
+                <FormField label="Day Title (Optional)">
+                  <input
+                    type="text"
+                    value={editingItineraryDay.title || ''}
+                    onChange={(e) => setEditingItineraryDay({ ...editingItineraryDay, title: e.target.value })}
+                    placeholder="e.g., Exploring Rome, Beach Day, Travel Day"
+                    className="w-full px-3 py-2 border border-gray-200 rounded-lg focus:ring-2 focus:ring-blue-500 text-gray-900"
+                  />
+                </FormField>
+
+                <FormField label="Itinerary Description" required>
+                  <textarea
+                    value={editingItineraryDay.description}
+                    onChange={(e) => setEditingItineraryDay({ ...editingItineraryDay, description: e.target.value })}
+                    rows={8}
+                    placeholder="Describe the day's activities, plans, and schedule..."
+                    className="w-full px-3 py-2 border border-gray-200 rounded-lg focus:ring-2 focus:ring-blue-500 text-gray-900"
+                  />
+                </FormField>
+
+                <FormField label="Additional Notes">
+                  <textarea
+                    value={editingItineraryDay.notes || ''}
+                    onChange={(e) => setEditingItineraryDay({ ...editingItineraryDay, notes: e.target.value })}
+                    rows={3}
+                    placeholder="Any special notes, reminders, or considerations for this day..."
+                    className="w-full px-3 py-2 border border-gray-200 rounded-lg focus:ring-2 focus:ring-blue-500 text-gray-900"
+                  />
+                </FormField>
+              </div>
+              <div className="p-4 border-t border-gray-200 flex justify-end gap-2">
+                <button
+                  onClick={() => setEditingItineraryDay(null)}
+                  className="px-4 py-2 text-gray-600 hover:bg-gray-100 rounded-lg transition-colors"
+                >
+                  Cancel
+                </button>
+                <button
+                  onClick={() => {
+                    if (editingItineraryDay.description.trim()) {
+                      if (editingItineraryDay.id) {
+                        updateItineraryDay(viewingHoliday, editingItineraryDay);
+                      } else {
+                        addItineraryDay(viewingHoliday, editingItineraryDay);
+                      }
+                      setEditingItineraryDay(null);
+                    }
+                  }}
+                  className="px-4 py-2 bg-blue-600 text-white rounded-lg hover:bg-blue-700 transition-colors"
+                >
+                  {editingItineraryDay.id ? 'Save' : 'Add'}
+                </button>
+              </div>
+            </div>
+          </div>
+        )}
+
         {/* Document Viewer */}
         {viewingDocument && (
           <div className="fixed inset-0 bg-black/90 flex flex-col z-[70]">
@@ -1897,8 +2530,26 @@ export function HolidayPlansManagerSecure({ onClose }: HolidayPlansManagerSecure
               ) : viewingDocument.docRef.mimeType === 'application/pdf' ? (
                 <PdfJsViewer fileUrl={viewingDocument.blobUrl} />
               ) : (
-                <div className="flex items-center justify-center h-full text-white">
-                  <p>Preview not available for this file type</p>
+                <div className="flex flex-col items-center justify-center h-full text-white gap-4">
+                  <FileText className="w-16 h-16 text-gray-400" />
+                  <p className="text-lg">Preview not available for this file type</p>
+                  <p className="text-sm text-gray-400">{viewingDocument.docRef.filename}</p>
+                  <button
+                    onClick={async () => {
+                      try {
+                        await documentService.openDocumentExternal('holiday_plans', viewingDocument.docRef);
+                        URL.revokeObjectURL(viewingDocument.blobUrl);
+                        setViewingDocument(null);
+                      } catch (err) {
+                        console.error('Failed to open document externally:', err);
+                        setError('Failed to open document with system application');
+                      }
+                    }}
+                    className="px-4 py-2 bg-blue-600 hover:bg-blue-700 rounded-lg transition-colors"
+                  >
+                    Open with System Application
+                  </button>
+                  <p className="text-xs text-gray-500">This will open the file in your default application for this file type</p>
                 </div>
               )}
             </div>

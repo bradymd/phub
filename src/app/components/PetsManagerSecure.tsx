@@ -1923,7 +1923,7 @@ export function PetsManagerSecure({ onClose }: PetsManagerSecureProps) {
                       {selectedPet.insurance.notes && (
                         <div className="mt-3 pt-3 border-t">
                           <p className="text-xs text-gray-500">Notes</p>
-                          <p className="text-sm text-gray-600">{selectedPet.insurance.notes}</p>
+                          <p className="text-sm text-gray-600 whitespace-pre-wrap">{selectedPet.insurance.notes}</p>
                         </div>
                       )}
                       {selectedPet.insurance.documents && selectedPet.insurance.documents.length > 0 && (

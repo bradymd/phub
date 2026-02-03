@@ -218,7 +218,7 @@ export function PasswordManager({ onClose }: PasswordManagerProps) {
                       </button>
                     </div>
                     {entry.notes && (
-                      <p className="text-sm text-gray-500 mt-2 pt-2 border-t border-gray-200">
+                      <p className="text-sm text-gray-500 mt-2 pt-2 border-t border-gray-200 whitespace-pre-wrap">
                         {entry.notes}
                       </p>
                     )}

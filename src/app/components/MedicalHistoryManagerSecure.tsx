@@ -958,7 +958,7 @@ export function MedicalHistoryManagerSecure({ onClose }: MedicalHistoryManagerSe
                             <p><span className="text-gray-500">Renewal:</span> {new Date(provider.renewalDate).toLocaleDateString('en-GB')}</p>
                           )}
                           {provider.notes && (
-                            <p className="text-gray-600 italic">{provider.notes}</p>
+                            <p className="text-gray-600 italic whitespace-pre-wrap">{provider.notes}</p>
                           )}
                           <div className="mt-2">
                             <div className="flex flex-wrap gap-2">

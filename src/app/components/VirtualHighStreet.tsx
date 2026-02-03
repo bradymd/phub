@@ -480,7 +480,7 @@ export function VirtualHighStreet({ onClose }: VirtualHighStreetProps) {
               {selectedEntry.notes && (
                 <div>
                   <p className="text-sm text-gray-500 mb-1">Notes</p>
-                  <p className="text-gray-700">{selectedEntry.notes}</p>
+                  <p className="text-gray-700 whitespace-pre-wrap">{selectedEntry.notes}</p>
                 </div>
               )}
 

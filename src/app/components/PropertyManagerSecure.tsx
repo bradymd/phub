@@ -2280,7 +2280,7 @@ export function PropertyManagerSecure({ onClose }: PropertyManagerSecureProps) {
                               <p>Date: {formatDateUK(entry.date)} | Cost: £{entry.cost.toFixed(2)}</p>
                               {entry.company && <p>Company: {entry.company}</p>}
                               {entry.contactDetails && <p>Contact: {entry.contactDetails}</p>}
-                              {entry.notes && <p className="text-gray-500 italic">{entry.notes}</p>}
+                              {entry.notes && <p className="text-gray-500 italic whitespace-pre-wrap">{entry.notes}</p>}
                             </div>
                           </div>
                           <div className="flex items-center gap-1">

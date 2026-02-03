@@ -810,7 +810,7 @@ export function CertificateManagerSecure({ onClose }: CertificateManagerSecurePr
                               </button>
                             )}
                             {cert.notes && (
-                              <p className="mt-2 text-gray-600 italic">{cert.notes}</p>
+                              <p className="mt-2 text-gray-600 italic whitespace-pre-wrap">{cert.notes}</p>
                             )}
                           </div>
                         </div>
