@@ -12,6 +12,38 @@ const os = require('os');
 const archiver = require('archiver');
 const yauzl = require('yauzl');
 
+// Wrap console methods to prevent EPIPE errors
+const originalConsoleWarn = console.warn;
+const originalConsoleError = console.error;
+const originalConsoleLog = console.log;
+
+console.warn = (...args) => {
+  try {
+    originalConsoleWarn.apply(console, args);
+  } catch (err) {
+    if (err.code !== 'EPIPE') throw err;
+    // Silently ignore EPIPE errors
+  }
+};
+
+console.error = (...args) => {
+  try {
+    originalConsoleError.apply(console, args);
+  } catch (err) {
+    if (err.code !== 'EPIPE') throw err;
+    // Silently ignore EPIPE errors
+  }
+};
+
+console.log = (...args) => {
+  try {
+    originalConsoleLog.apply(console, args);
+  } catch (err) {
+    if (err.code !== 'EPIPE') throw err;
+    // Silently ignore EPIPE errors
+  }
+};
+
 // Auto-updater configuration
 autoUpdater.autoDownload = false; // Don't auto-download, let user decide
 autoUpdater.autoInstallOnAppQuit = true;
@@ -66,14 +98,25 @@ function createWindow() {
 
   // Check for updates after window is ready (production only)
   // Delay to ensure React components have mounted and set up listeners
+  // Only check for updates if we're in a proper distribution format
   if (process.env.NODE_ENV !== 'development') {
-    mainWindow.webContents.once('did-finish-load', () => {
-      setTimeout(() => {
-        autoUpdater.checkForUpdates().catch(err => {
-          console.log('Auto-update check failed:', err.message);
-        });
-      }, 3000); // 3 second delay for React to mount
-    });
+    // Check if we're running in a distributable format that supports updates
+    const isPackaged = app.isPackaged;
+    const isAppImage = process.env.APPIMAGE !== undefined;
+    const isWindowsPortable = process.platform === 'win32' && process.env.PORTABLE_EXECUTABLE_DIR;
+
+    // Only check for updates if we're in a proper packaged format
+    if (isPackaged && (isAppImage || isWindowsPortable || process.platform === 'darwin')) {
+      mainWindow.webContents.once('did-finish-load', () => {
+        setTimeout(() => {
+          autoUpdater.checkForUpdates().catch(err => {
+            console.log('Auto-update check failed:', err.message);
+          });
+        }, 3000); // 3 second delay for React to mount
+      });
+    } else {
+      console.log('Skipping auto-update check - not in updateable package format');
+    }
   }
 }
 
@@ -167,7 +210,20 @@ app.whenReady().then(() => {
         {
           label: 'Check for Updates',
           click: async () => {
-            autoUpdater.checkForUpdates();
+            // Only check if in updateable format
+            const isAppImage = process.env.APPIMAGE !== undefined;
+            const isWindowsPortable = process.platform === 'win32' && process.env.PORTABLE_EXECUTABLE_DIR;
+
+            if (app.isPackaged && (isAppImage || isWindowsPortable || process.platform === 'darwin')) {
+              autoUpdater.checkForUpdates();
+            } else {
+              dialog.showMessageBox(mainWindow, {
+                type: 'info',
+                title: 'Updates Not Available',
+                message: 'Automatic updates are not available in development mode or when running from source.',
+                buttons: ['OK']
+              });
+            }
           }
         },
         { type: 'separator' },

@@ -91,30 +91,128 @@ const dataUrlToBlobUrl = (dataUrl: string): string => {
 - Style conventions: `docs/STYLE_CONVENTIONS.md`
 - Panel architecture: `docs/PANEL_PLUGIN_ARCHITECTURE.md`
 
+## Document Categories
+
+Currently defined document categories (in `src/services/document-service.ts`):
+- `medical` - Medical History panel
+- `education` - Education panel
+- `certificates` - Certificates & Property panels (shared)
+- `pets` - Pets panel
+- `dental` - Dental panel
+- `holiday_plans` - Holiday Plans panel
+
+When adding document support to a new panel, you MUST add its category to both the type definition and the directory creation list.
+
+## Important Development Considerations
+
+### Print Function Updates
+
+When adding new data sections or forms to existing panels, **you MUST update the print function** if one exists. Users expect to see ALL data in printed summaries.
+
+Example: The Holiday Plans panel has these sections:
+- Travelers
+- Travel
+- Accommodation
+- Car Hire
+- **Itinerary** (initially missing from print!)
+- Activities
+- Notes
+
+Always check and update:
+1. Look for print functions (e.g., `printHolidaySummary`, `printPanel`, etc.)
+2. Add HTML generation for new sections in the same style
+3. Maintain consistent formatting with existing sections
+4. Test that all data appears in the print preview
+
+### External Document Opening
+
+For documents that can't be previewed in-browser (e.g., .docx, .xlsx, .pptx):
+- Use `documentService.openDocumentExternal()` to open with system default application
+- Provide clear UI feedback about what will happen
+- This creates a temp file and opens it with the OS default handler
+
 ## Common Tasks
 
-### Adding a New Panel
+### Adding a New Panel - COMPLETE CHECKLIST
 
-1. Add to `src/config/panels.ts`:
+When adding a new panel, follow this checklist to ensure everything is properly integrated:
+
+#### 1. Panel Definition
+Add to `src/config/panels.ts`:
 ```typescript
 {
-  id: 'newpanel',
+  id: 'newpanel',  // Unique ID, lowercase, no spaces
   title: 'New Panel',
-  icon: SomeIcon,
+  icon: SomeIcon,  // Import from lucide-react
   description: 'Description here',
-  group: 'lifestyle',  // or core, finance, regional
+  group: 'lifestyle',  // or core, finance, regional, system
   defaultVisible: false,  // true for essential, false for niche
-  region: 'global',
-  tags: ['searchable', 'keywords'],
+  region: 'global',  // or uk, us, eu
+  tags: ['searchable', 'keywords'],  // For search functionality
 }
 ```
 
-2. Create `src/app/components/NewPanelManagerSecure.tsx` following existing patterns
+#### 2. Component Implementation
+Create `src/app/components/NewPanelManagerSecure.tsx`:
+- Follow existing panel patterns for structure
+- Choose a consistent store name (e.g., 'new_panel_items')
+- Use storage API correctly: `storage.update('store_name', id, data)`
+- If using documents, integrate with `documentService`
 
-3. In `App.tsx`:
-   - Add import
-   - Add to PanelId type in `src/config/panels.ts`
-   - Add rendering conditional
+**IMPORTANT - Document Support Requirements:**
+If your panel uses document uploads via `documentService`:
+1. **Add your category to the DocumentCategory type** in `src/services/document-service.ts`:
+   ```typescript
+   export type DocumentCategory = '...' | 'your_panel_name';
+   ```
+2. **Add your category to the directory creation list** in `ensureDocumentDirectories()`:
+   ```typescript
+   const categories: DocumentCategory[] = [..., 'your_panel_name'];
+   ```
+3. **Use a consistent category name** when calling document methods:
+   ```typescript
+   documentService.saveDocument('your_panel_name', ...)
+   documentService.loadDocument('your_panel_name', ...)
+   documentService.deleteDocuments('your_panel_name', ...)
+   ```
+4. **Never assume the directory exists** - the DocumentService will create it on startup, but only if it's in the categories list!
+
+#### 3. App Integration
+In `src/app/App.tsx`:
+- Add import statement
+- Add to PanelId type union in `src/config/panels.ts`
+- Add rendering conditional in the modal section
+
+#### 4. Data Persistence & Backup
+**CRITICAL**: The backup system automatically includes all `.encrypted.json` files from the data directory. Your panel's data will be backed up if:
+- You use the standard storage API (`storage.get`, `storage.update`, etc.)
+- Your store name creates a file like `[store_name].encrypted.json`
+- Documents are stored via `documentService` (automatically backed up)
+
+#### 5. Testing Checklist
+- [ ] Panel appears in Settings under correct group
+- [ ] Panel opens and closes properly
+- [ ] Data persists after app restart
+- [ ] Search works (if tags are set)
+- [ ] Backup includes panel data (check data/[store_name].encrypted.json exists)
+- [ ] Restore brings back panel data correctly
+- [ ] Panel visibility setting persists
+
+#### 6. Common Store Names (for consistency)
+- `certificates` → `documents_certificates`
+- `education` → `education_records`
+- `health` → `medical_records`
+- `dental` → `dental_records`
+- `vehicles` → `vehicles`
+- `property` → `properties`
+- `contacts` → `contacts`
+- `finance` → `finance_items`
+- `pensions` → `pensions`
+- `budget` → `budget_items` + `custom_categories`
+- `kakeibo` → `kakeibo_months`
+- `files` → `user_files` + `file_categories`
+- `pets` → `pets`
+- `holidayplans` → `holiday_plans`
 
 ### Checking Current Panels
 

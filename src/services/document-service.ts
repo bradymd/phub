@@ -47,7 +47,7 @@ export interface DocumentReference {
   size: number;
 }
 
-export type DocumentCategory = 'medical' | 'education' | 'certificates';
+export type DocumentCategory = 'medical' | 'education' | 'certificates' | 'pets' | 'dental' | 'holiday_plans';
 
 export class DocumentService {
   private documentsBaseDir = 'PersonalHub/documents';
@@ -59,7 +59,7 @@ export class DocumentService {
   // Ensure all document directories exist
   private async ensureDocumentDirectories(): Promise<void> {
     try {
-      const categories: DocumentCategory[] = ['medical', 'education', 'certificates'];
+      const categories: DocumentCategory[] = ['medical', 'education', 'certificates', 'pets', 'dental', 'holiday_plans'];
 
       for (const category of categories) {
         const dir = `${this.documentsBaseDir}/${category}`;
@@ -448,6 +448,12 @@ export class DocumentService {
         const writeResult = await window.electronAPI.docs.writeBinaryFile(tempPath, base64Data);
         if (!writeResult.success || !writeResult.path) {
           throw new Error(writeResult.error || 'Failed to write temp file');
+        }
+
+        // Open the file with the system's default application
+        const openResult = await window.electronAPI.shell.openPath(writeResult.path);
+        if (!openResult.success) {
+          throw new Error(openResult.error || 'Failed to open file with system application');
         }
 
         // Return the full system path
