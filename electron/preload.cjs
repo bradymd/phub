@@ -52,6 +52,7 @@ contextBridge.exposeInMainWorld('electronAPI', {
     download: () => ipcRenderer.invoke('updater:download'),
     install: () => ipcRenderer.invoke('updater:install'),
     getVersion: () => ipcRenderer.invoke('updater:getVersion'),
+    getCapabilities: () => ipcRenderer.invoke('updater:getCapabilities'),
     // Event listeners for update notifications
     onChecking: (callback) => ipcRenderer.on('updater:checking', callback),
     onAvailable: (callback) => ipcRenderer.on('updater:available', (event, info) => callback(info)),

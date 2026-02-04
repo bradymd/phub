@@ -1,0 +1,127 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<component type="desktop-application">
+  <id>com.personalhub.app</id>
+  <name>Personal Hub</name>
+  <summary>Secure, encrypted personal life organizer</summary>
+  <developer id="com.github.bradymd">
+    <name>bradymd</name>
+  </developer>
+  <metadata_license>MIT</metadata_license>
+  <project_license>MIT</project_license>
+
+  <description>
+    <p>
+      A private, local-first desktop application for organizing your entire life.
+      Track your documents, finances, vehicles, property, medical records, contacts,
+      and passwords - all encrypted and stored securely on your own device.
+    </p>
+    <p>Features:</p>
+    <ul>
+      <li>AES-256-GCM encryption for all sensitive data</li>
+      <li>Master password protection with PBKDF2 key derivation</li>
+      <li>No cloud storage - everything stays on your device</li>
+      <li>No telemetry - completely private</li>
+      <li>Open source - inspect the code yourself</li>
+    </ul>
+    <p>Organize your life with specialized panels:</p>
+    <ul>
+      <li>Contacts, Documents, Certificates, Education, Employment</li>
+      <li>Finance, Pensions, Budget, Kakeibo (Japanese budgeting)</li>
+      <li>Vehicles with MOT/tax/insurance reminders</li>
+      <li>Property with maintenance schedules</li>
+      <li>Medical and Dental records with appointment tracking</li>
+      <li>Pets with vaccination and vet visit tracking</li>
+      <li>Password manager disguised as a virtual high street</li>
+    </ul>
+    <p>
+      Your data belongs to you. It never leaves your device.
+    </p>
+  </description>
+
+  <launchable type="desktop-id">personal-hub.desktop</launchable>
+
+  <url type="homepage">https://github.com/bradymd/phub</url>
+  <url type="bugtracker">https://github.com/bradymd/phub/issues</url>
+  <url type="vcs-browser">https://github.com/bradymd/phub</url>
+
+  <screenshots>
+    <screenshot type="default">
+      <caption>Main dashboard with smart panel ordering</caption>
+      <image>https://raw.githubusercontent.com/bradymd/phub/main/docs/screenshots/Main-Panel-v1.0.5.png</image>
+    </screenshot>
+    <screenshot>
+      <caption>Property panel - track home details, mortgage, and maintenance</caption>
+      <image>https://raw.githubusercontent.com/bradymd/phub/main/docs/screenshots/Property-Panel-Sample.png</image>
+    </screenshot>
+    <screenshot>
+      <caption>Vehicle panel - MOT, tax, insurance with reminders</caption>
+      <image>https://raw.githubusercontent.com/bradymd/phub/main/docs/screenshots/Vehicle-Panel-sample.png</image>
+    </screenshot>
+    <screenshot>
+      <caption>Medical history - appointments and conditions</caption>
+      <image>https://raw.githubusercontent.com/bradymd/phub/main/docs/screenshots/Medical-History-Panel-sample.png</image>
+    </screenshot>
+    <screenshot>
+      <caption>Holiday planning with accommodation and activities</caption>
+      <image>https://raw.githubusercontent.com/bradymd/phub/main/docs/screenshots/Holiday-Panel-sample.png</image>
+    </screenshot>
+  </screenshots>
+
+  <branding>
+    <color type="primary" scheme_preference="light">#3b82f6</color>
+    <color type="primary" scheme_preference="dark">#1e40af</color>
+  </branding>
+
+  <content_rating type="oars-1.1" />
+
+  <categories>
+    <category>Office</category>
+    <category>Utility</category>
+    <category>Finance</category>
+  </categories>
+
+  <keywords>
+    <keyword>personal</keyword>
+    <keyword>organizer</keyword>
+    <keyword>encrypted</keyword>
+    <keyword>privacy</keyword>
+    <keyword>password manager</keyword>
+    <keyword>documents</keyword>
+    <keyword>finance</keyword>
+    <keyword>budget</keyword>
+    <keyword>medical</keyword>
+    <keyword>vehicles</keyword>
+    <keyword>property</keyword>
+  </keywords>
+
+  <releases>
+    <release version="1.0.7" date="2026-02-04">
+      <description>
+        <ul>
+          <li>Fixed panel visibility persistence and search functionality</li>
+          <li>Fixed line break display in notes fields</li>
+          <li>Fixed application icon display on Ubuntu 24.04</li>
+          <li>Documentation updates</li>
+        </ul>
+      </description>
+    </release>
+    <release version="1.0.6" date="2026-02-02">
+      <description>
+        <ul>
+          <li>Added accommodation balance payment tracking with reminders</li>
+          <li>Unified panel colors throughout</li>
+          <li>UX improvements: mark complete, colored panels, auto-show reminders</li>
+        </ul>
+      </description>
+    </release>
+  </releases>
+
+  <supports>
+    <control>pointing</control>
+    <control>keyboard</control>
+  </supports>
+
+  <requires>
+    <display_length compare="ge">768</display_length>
+  </requires>
+</component>

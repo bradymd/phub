@@ -4,6 +4,21 @@ All notable changes to Personal Hub are documented here.
 
 ## [Unreleased]
 
+### Fixed
+- **Holiday Plans**: Car hire total cost now included in overall holiday cost calculation
+- **Holiday Plans**: Car hire section now included in print summary
+- **Pensions panel**: Fixed click propagation bug where clicking in edit form fields opened the details modal
+- **Pensions panel**: Scroll position now preserved after saving edits (no longer jumps to top)
+- **Update checker**: Now works for .deb package installs (directs to GitHub releases page)
+
+### Changed
+- **Pensions panel**: Notes text areas now vertically resizable
+
+### Added
+- **macOS build**: Added macOS support (.zip distribution)
+- **Installation guide**: New `docs/INSTALLATION.md` with platform-specific instructions
+- **AppStream metadata**: Added `com.personalhub.app.metainfo.xml` for Linux software center integration (App Details)
+
 ## [1.0.7] - 2026-02-03
 
 ### Fixed

@@ -94,7 +94,8 @@ export function PensionManagerSecure({ onClose }: PensionManagerSecureProps) {
     try {
       setError('');
       await storage.update('pensions', editingPension.id, editingPension);
-      await loadPensions();
+      // Update local state directly to preserve scroll position
+      setPensions(prev => prev.map(p => p.id === editingPension.id ? editingPension : p));
       setEditingPension(null);
     } catch (err) {
       setError('Failed to update pension');
@@ -389,8 +390,8 @@ export function PensionManagerSecure({ onClose }: PensionManagerSecureProps) {
                   value={newPension.notes}
                   onChange={(e) => setNewPension({ ...newPension, notes: e.target.value })}
                   placeholder="Notes (optional)..."
-                  className="w-full px-4 py-2 border border-gray-300 rounded-lg bg-white resize-none"
-                  rows={2}
+                  className="w-full px-4 py-2 border border-gray-300 rounded-lg bg-white resize-y min-h-[60px]"
+                  rows={3}
                 />
                 <div className="flex gap-2">
                   <button
@@ -432,7 +433,7 @@ export function PensionManagerSecure({ onClose }: PensionManagerSecureProps) {
                   }`}
                 >
                   {editingPension?.id === pension.id ? (
-                    <div className="space-y-4">
+                    <div className="space-y-4" onClick={(e) => e.stopPropagation()}>
                       <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
                         <div>
                           <label className="block text-sm font-medium text-gray-700 mb-1">Pension Fund Name</label>
@@ -530,8 +531,8 @@ export function PensionManagerSecure({ onClose }: PensionManagerSecureProps) {
                           value={editingPension.notes}
                           onChange={(e) => setEditingPension({ ...editingPension, notes: e.target.value })}
                           placeholder="Notes (optional)..."
-                          className="w-full px-4 py-2 border border-gray-300 rounded-lg bg-white resize-none"
-                          rows={2}
+                          className="w-full px-4 py-2 border border-gray-300 rounded-lg bg-white resize-y min-h-[60px]"
+                          rows={3}
                         />
                       </div>
                       <div className="flex gap-2">
@@ -977,7 +978,7 @@ export function PensionManagerSecure({ onClose }: PensionManagerSecureProps) {
                   value={editingPension.notes}
                   onChange={(e) => setEditingPension({ ...editingPension, notes: e.target.value })}
                   placeholder="Notes (optional)..."
-                  className="w-full px-4 py-2 border border-gray-300 rounded-lg bg-white resize-none focus:ring-2 focus:ring-green-500 focus:border-transparent"
+                  className="w-full px-4 py-2 border border-gray-300 rounded-lg bg-white resize-y min-h-[80px] focus:ring-2 focus:ring-green-500 focus:border-transparent"
                   rows={3}
                 />
               </div>

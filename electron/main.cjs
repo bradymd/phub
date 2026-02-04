@@ -210,17 +210,13 @@ app.whenReady().then(() => {
         {
           label: 'Check for Updates',
           click: async () => {
-            // Only check if in updateable format
-            const isAppImage = process.env.APPIMAGE !== undefined;
-            const isWindowsPortable = process.platform === 'win32' && process.env.PORTABLE_EXECUTABLE_DIR;
-
-            if (app.isPackaged && (isAppImage || isWindowsPortable || process.platform === 'darwin')) {
+            if (app.isPackaged) {
               autoUpdater.checkForUpdates();
             } else {
               dialog.showMessageBox(mainWindow, {
                 type: 'info',
                 title: 'Updates Not Available',
-                message: 'Automatic updates are not available in development mode or when running from source.',
+                message: 'Update checking is not available in development mode.',
                 buttons: ['OK']
               });
             }
@@ -350,6 +346,22 @@ ipcMain.handle('updater:install', () => {
 
 ipcMain.handle('updater:getVersion', () => {
   return { version: app.getVersion() };
+});
+
+ipcMain.handle('updater:getCapabilities', () => {
+  const isAppImage = process.env.APPIMAGE !== undefined;
+  const isWindowsInstaller = process.platform === 'win32';
+  const isMac = process.platform === 'darwin';
+
+  // Auto-update only works for AppImage, Windows installer, and macOS
+  const canAutoUpdate = app.isPackaged && (isAppImage || isWindowsInstaller || isMac);
+
+  return {
+    canCheck: app.isPackaged,
+    canAutoUpdate,
+    platform: process.platform,
+    installType: isAppImage ? 'appimage' : (process.platform === 'linux' ? 'deb' : 'installer')
+  };
 });
 
 // File system IPC handlers

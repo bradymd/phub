@@ -56,9 +56,9 @@ npm run build:all
 ```
 
 **Output files** (in `dist-electron/`):
-- Linux: `PersonalHub-X.X.X.AppImage`
+- Linux: `PersonalHub-X.X.X-x86_64.AppImage`, `PersonalHub-X.X.X-amd64.deb`
 - Windows: `PersonalHub Setup X.X.X.exe`
-- macOS: `PersonalHub-X.X.X.dmg`
+- macOS: `PersonalHub-X.X.X-mac.zip`
 
 ### Step 3: Create GitHub Release
 
@@ -164,6 +164,8 @@ Update available: 1.1.0
 - **Requires code signing** for updates to work smoothly
 - Without signing: users get security warnings, auto-update may fail
 - Apple Developer account costs $99/year
+- Builds produce .zip file (not .dmg) for cross-platform compatibility
+- Users must bypass Gatekeeper on first launch (see docs/INSTALLATION.md)
 
 ---
 

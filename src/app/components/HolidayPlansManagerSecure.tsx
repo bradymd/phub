@@ -592,7 +592,8 @@ export function HolidayPlansManagerSecure({ onClose }: HolidayPlansManagerSecure
     const accCost = holiday.accommodation.reduce((sum, a) => sum + (a.cost || 0), 0);
     const travelCost = holiday.travel.reduce((sum, t) => sum + (t.cost || 0), 0);
     const activityCost = holiday.activities.reduce((sum, a) => sum + (a.cost || 0), 0);
-    return accCost + travelCost + activityCost;
+    const carHireCost = (holiday.carHire || []).reduce((sum, c) => sum + (c.totalCost || 0), 0);
+    return accCost + travelCost + activityCost + carHireCost;
   };
 
   // =============================================================================
@@ -708,6 +709,25 @@ export function HolidayPlansManagerSecure({ onClose }: HolidayPlansManagerSecure
                   ${a.cost ? ` • <span class="cost">${formatCurrency(a.cost)}</span>` : ''}
                 </div>
                 ${a.notes ? `<div class="notes">${formatTextForPrint(a.notes)}</div>` : ''}
+              </div>
+            `).join('')}
+          </div>
+        ` : ''}
+
+        ${(holiday.carHire || []).length > 0 ? `
+          <div class="section">
+            <h2>Car Hire</h2>
+            ${(holiday.carHire || []).map(c => `
+              <div class="item">
+                <div class="item-title">${c.company}</div>
+                <div class="item-details">
+                  Pickup: ${c.pickupLocation} on ${formatDateUK(c.pickupDate)}${c.pickupTime ? ` at ${c.pickupTime}` : ''}<br>
+                  Dropoff: ${c.dropoffLocation} on ${formatDateUK(c.dropoffDate)}${c.dropoffTime ? ` at ${c.dropoffTime}` : ''}
+                  ${c.bookingReference ? ` • Ref: ${c.bookingReference}` : ''}
+                  ${c.totalCost ? ` • <span class="cost">${formatCurrency(c.totalCost)}</span>` : ''}
+                </div>
+                ${c.drivers?.length ? `<div class="notes">Drivers: ${c.drivers.join(', ')}</div>` : ''}
+                ${c.notes ? `<div class="notes">${formatTextForPrint(c.notes)}</div>` : ''}
               </div>
             `).join('')}
           </div>

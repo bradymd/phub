@@ -141,6 +141,12 @@
     "appImage": {
       "artifactName": "${productName}-${version}-${arch}.AppImage"
     },
+    "deb": {
+      "artifactName": "${productName}-${version}-${arch}.${ext}",
+      "fpm": [
+        "build/com.personalhub.app.metainfo.xml=/usr/share/metainfo/com.personalhub.app.metainfo.xml"
+      ]
+    },
     "win": {
       "target": [
         {
@@ -171,7 +177,7 @@
       "shortcutName": "Personal Hub"
     },
     "mac": {
-      "target": "dmg",
+      "target": ["zip", "dir"],
       "category": "public.app-category.utilities",
       "icon": "build/icon.icns"
     }

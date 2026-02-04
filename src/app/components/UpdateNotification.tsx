@@ -1,5 +1,5 @@
 import { useState, useEffect } from 'react';
-import { Download, RefreshCw, X, CheckCircle, AlertCircle } from 'lucide-react';
+import { Download, RefreshCw, X, CheckCircle, AlertCircle, ExternalLink } from 'lucide-react';
 
 interface UpdateInfo {
   version: string;
@@ -12,6 +12,13 @@ interface DownloadProgress {
   bytesPerSecond: number;
   transferred: number;
   total: number;
+}
+
+interface UpdateCapabilities {
+  canCheck: boolean;
+  canAutoUpdate: boolean;
+  platform: string;
+  installType: string;
 }
 
 type UpdateStatus =
@@ -30,6 +37,7 @@ export function UpdateNotification() {
   const [error, setError] = useState<string | null>(null);
   const [dismissed, setDismissed] = useState(false);
   const [currentVersion, setCurrentVersion] = useState<string>('');
+  const [capabilities, setCapabilities] = useState<UpdateCapabilities | null>(null);
 
   useEffect(() => {
     // Check if we're in Electron
@@ -40,9 +48,12 @@ export function UpdateNotification() {
     const api = (window as any).electronAPI;
     if (!api.updater) return;
 
-    // Get current version
+    // Get current version and capabilities
     api.updater.getVersion().then((result: { version: string }) => {
       setCurrentVersion(result.version);
+    });
+    api.updater.getCapabilities().then((caps: UpdateCapabilities) => {
+      setCapabilities(caps);
     });
 
     // Set up event listeners
@@ -159,7 +170,8 @@ export function UpdateNotification() {
               <div>
                 <p className="font-medium text-green-800">Update Available</p>
                 <p className="text-sm text-green-700 mt-1">
-                  Version {updateInfo.version} is ready to download
+                  Version {updateInfo.version} is ready
+                  {capabilities?.canAutoUpdate ? ' to download' : ''}
                 </p>
                 {currentVersion && (
                   <p className="text-xs text-green-600 mt-1">
@@ -176,12 +188,24 @@ export function UpdateNotification() {
             </button>
           </div>
           <div className="mt-3 flex gap-2">
-            <button
-              onClick={handleDownload}
-              className="px-3 py-1.5 bg-green-600 text-white rounded-lg text-sm font-medium hover:bg-green-700 transition-colors"
-            >
-              Download Now
-            </button>
+            {capabilities?.canAutoUpdate ? (
+              <button
+                onClick={handleDownload}
+                className="px-3 py-1.5 bg-green-600 text-white rounded-lg text-sm font-medium hover:bg-green-700 transition-colors"
+              >
+                Download Now
+              </button>
+            ) : (
+              <a
+                href={`https://github.com/bradymd/phub/releases/tag/v${updateInfo.version}`}
+                target="_blank"
+                rel="noopener noreferrer"
+                className="px-3 py-1.5 bg-green-600 text-white rounded-lg text-sm font-medium hover:bg-green-700 transition-colors flex items-center gap-1.5"
+              >
+                <ExternalLink className="w-3.5 h-3.5" />
+                View on GitHub
+              </a>
+            )}
             <button
               onClick={handleDismiss}
               className="px-3 py-1.5 bg-green-100 text-green-700 rounded-lg text-sm font-medium hover:bg-green-200 transition-colors"
