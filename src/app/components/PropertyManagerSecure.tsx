@@ -2921,6 +2921,10 @@ export function PropertyManagerSecure({ onClose }: PropertyManagerSecureProps) {
               <div className="flex gap-2 pt-4 border-t">
                 <button
                   onClick={() => {
+                    if (viewingDetails && !editingProperty) {
+                      setEditingProperty(viewingDetails);
+                      setViewingDetails(null);
+                    }
                     setEditingMaintenanceHistory(viewingMaintenanceHistory);
                     setViewingMaintenanceHistory(null);
                   }}
@@ -3073,6 +3077,10 @@ export function PropertyManagerSecure({ onClose }: PropertyManagerSecureProps) {
               <div className="flex gap-2 pt-4 border-t">
                 <button
                   onClick={() => {
+                    if (viewingDetails && !editingProperty) {
+                      setEditingProperty(viewingDetails);
+                      setViewingDetails(null);
+                    }
                     setEditingMaintenanceItem(viewingMaintenanceItem);
                     setViewingMaintenanceItem(null);
                   }}
