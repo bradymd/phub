@@ -432,125 +432,6 @@ export function PensionManagerSecure({ onClose }: PensionManagerSecureProps) {
                       : 'bg-gradient-to-br from-blue-50 to-cyan-50 border-2 border-blue-200'
                   }`}
                 >
-                  {editingPension?.id === pension.id ? (
-                    <div className="space-y-4" onClick={(e) => e.stopPropagation()}>
-                      <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-                        <div>
-                          <label className="block text-sm font-medium text-gray-700 mb-1">Pension Fund Name</label>
-                          <input
-                            type="text"
-                            value={editingPension.name}
-                            onChange={(e) => setEditingPension({ ...editingPension, name: e.target.value })}
-                            placeholder="Pension fund name..."
-                            className="w-full px-4 py-2 border border-gray-300 rounded-lg bg-white"
-                          />
-                        </div>
-                        <div>
-                          <label className="block text-sm font-medium text-gray-700 mb-1">Pension Type</label>
-                          <select
-                            value={editingPension.pensionType}
-                            onChange={(e) => setEditingPension({ ...editingPension, pensionType: e.target.value as 'DB' | 'DC' })}
-                            className="w-full px-4 py-2 border border-gray-300 rounded-lg bg-white"
-                          >
-                            <option value="DC">DC - Defined Contribution</option>
-                            <option value="DB">DB - Defined Benefit</option>
-                          </select>
-                        </div>
-                      </div>
-                      <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-                        <div>
-                          <label className="block text-sm font-medium text-gray-700 mb-1">Current Pot Value (£)</label>
-                          <input
-                            type="text"
-                            value={editingPension.potValue}
-                            onChange={(e) => setEditingPension({ ...editingPension, potValue: e.target.value })}
-                            placeholder={editingPension.pensionType === 'DC' ? 'Current pot value (£)...' : 'N/A for DB pensions'}
-                            disabled={editingPension.pensionType === 'DB'}
-                            className="w-full px-4 py-2 border border-gray-300 rounded-lg bg-white disabled:bg-gray-100"
-                          />
-                        </div>
-                        <div>
-                          <label className="block text-sm font-medium text-gray-700 mb-1">Annual Income Estimate (£)</label>
-                          <input
-                            type="text"
-                            value={editingPension.annuityEstimate}
-                            onChange={(e) => setEditingPension({ ...editingPension, annuityEstimate: e.target.value })}
-                            placeholder="Annual income estimate (£)..."
-                            className="w-full px-4 py-2 border border-gray-300 rounded-lg bg-white"
-                          />
-                        </div>
-                      </div>
-                      <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-                        <div>
-                          <label className="block text-sm font-medium text-gray-700 mb-1">Spouse Pension (£/year)</label>
-                          <input
-                            type="text"
-                            value={editingPension.spousePension}
-                            onChange={(e) => setEditingPension({ ...editingPension, spousePension: e.target.value })}
-                            placeholder="Spouse pension (£/year) - optional..."
-                            className="w-full px-4 py-2 border border-gray-300 rounded-lg bg-white"
-                          />
-                        </div>
-                        <div></div>
-                      </div>
-                      <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-                        <div>
-                          <label className="block text-sm font-medium text-gray-700 mb-1">Employer/Provider</label>
-                          <input
-                            type="text"
-                            value={editingPension.source}
-                            onChange={(e) => setEditingPension({ ...editingPension, source: e.target.value })}
-                            placeholder="Employer/provider..."
-                            className="w-full px-4 py-2 border border-gray-300 rounded-lg bg-white"
-                          />
-                        </div>
-                        <div>
-                          <label className="block text-sm font-medium text-gray-700 mb-1">Account/Policy Number</label>
-                          <input
-                            type="text"
-                            value={editingPension.accountNumber}
-                            onChange={(e) => setEditingPension({ ...editingPension, accountNumber: e.target.value })}
-                            placeholder="Account/policy number (optional)..."
-                            className="w-full px-4 py-2 border border-gray-300 rounded-lg bg-white"
-                          />
-                        </div>
-                      </div>
-                      <div>
-                        <label className="block text-sm font-medium text-gray-700 mb-1">Website URL</label>
-                        <input
-                          type="text"
-                          value={editingPension.website}
-                          onChange={(e) => setEditingPension({ ...editingPension, website: e.target.value })}
-                          placeholder="Website URL (e.g., https://example.com) - optional..."
-                          className="w-full px-4 py-2 border border-gray-300 rounded-lg bg-white"
-                        />
-                      </div>
-                      <div>
-                        <label className="block text-sm font-medium text-gray-700 mb-1">Notes</label>
-                        <textarea
-                          value={editingPension.notes}
-                          onChange={(e) => setEditingPension({ ...editingPension, notes: e.target.value })}
-                          placeholder="Notes (optional)..."
-                          className="w-full px-4 py-2 border border-gray-300 rounded-lg bg-white resize-y min-h-[60px]"
-                          rows={3}
-                        />
-                      </div>
-                      <div className="flex gap-2">
-                        <button
-                          onClick={updatePension}
-                          className="flex-1 px-4 py-2 bg-green-600 text-white rounded-lg hover:bg-green-700 transition-colors"
-                        >
-                          Save Changes
-                        </button>
-                        <button
-                          onClick={() => setEditingPension(null)}
-                          className="px-4 py-2 bg-gray-200 text-gray-700 rounded-lg hover:bg-gray-300 transition-colors"
-                        >
-                          Cancel
-                        </button>
-                      </div>
-                    </div>
-                  ) : (
                     <div>
                       <div className="flex items-start justify-between mb-3">
                         <div className="flex-1">
@@ -626,7 +507,6 @@ export function PensionManagerSecure({ onClose }: PensionManagerSecureProps) {
                         )}
                       </div>
                     </div>
-                  )}
                 </div>
               ))}
             </div>
@@ -866,8 +746,8 @@ export function PensionManagerSecure({ onClose }: PensionManagerSecureProps) {
         </div>
       )}
 
-      {/* Edit Modal - shows when editing from list view */}
-      {editingPension && viewMode === 'list' && (
+      {/* Edit Modal */}
+      {editingPension && (
         <div className="fixed inset-0 bg-black/60 flex items-center justify-center z-[9999] p-4">
           <div className="bg-white rounded-2xl max-w-2xl w-full p-6 shadow-2xl max-h-[90vh] overflow-y-auto">
             <div className="flex items-center justify-between mb-6">

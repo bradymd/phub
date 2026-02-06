@@ -55,6 +55,12 @@ await storage.update('storeName', item.id, item);
 await storage.update('storeName', item);
 ```
 
+### Inline Editing in Clickable Cards
+
+**NEVER use inline edit forms inside clickable card elements.** When a card has an `onClick` handler (e.g., to open a details view), embedding an edit form inline causes clicks on form fields to leak through to the parent card's handler, switching back to view mode. `stopPropagation` wrappers are unreliable for this.
+
+**Always use a modal for editing**, even in grid view. The Pension panel was fixed for this - check other panels if they exhibit the same bug (click to edit, then clicking a field snaps back to view mode).
+
 ### Document Display
 
 Documents should be displayed as **colored clickable chips**, not as rows with separate view buttons:

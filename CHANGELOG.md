@@ -2,7 +2,7 @@
 
 All notable changes to Personal Hub are documented here.
 
-## [Unreleased]
+## [1.0.8] - 2026-02-05
 
 ### Fixed
 - **Holiday Plans**: Car hire total cost now included in overall holiday cost calculation
