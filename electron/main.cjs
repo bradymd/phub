@@ -98,15 +98,9 @@ function createWindow() {
 
   // Check for updates after window is ready (production only)
   // Delay to ensure React components have mounted and set up listeners
-  // Only check for updates if we're in a proper distribution format
   if (process.env.NODE_ENV !== 'development') {
-    // Check if we're running in a distributable format that supports updates
-    const isPackaged = app.isPackaged;
-    const isAppImage = process.env.APPIMAGE !== undefined;
-    const isWindowsPortable = process.platform === 'win32' && process.env.PORTABLE_EXECUTABLE_DIR;
-
-    // Only check for updates if we're in a proper packaged format
-    if (isPackaged && (isAppImage || isWindowsPortable || process.platform === 'darwin')) {
+    // Check for updates if packaged (AppImage, deb, Windows installer, macOS)
+    if (app.isPackaged) {
       mainWindow.webContents.once('did-finish-load', () => {
         setTimeout(() => {
           autoUpdater.checkForUpdates().catch(err => {
@@ -115,7 +109,7 @@ function createWindow() {
         }, 3000); // 3 second delay for React to mount
       });
     } else {
-      console.log('Skipping auto-update check - not in updateable package format');
+      console.log('Skipping auto-update check - running from source');
     }
   }
 }
