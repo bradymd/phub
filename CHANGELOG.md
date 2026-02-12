@@ -2,6 +2,11 @@
 
 All notable changes to Personal Hub are documented here.
 
+## [Unreleased]
+
+### Fixed
+- **Property panel**: Maintenance item and history edits from the details view modal now persist to storage immediately (previously changes were silently lost unless the user also saved the entire property form)
+
 ## [1.0.8] - 2026-02-05
 
 ### Fixed

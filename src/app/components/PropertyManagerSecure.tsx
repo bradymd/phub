@@ -273,6 +273,9 @@ export function PropertyManagerSecure({ onClose }: PropertyManagerSecureProps) {
   const [editingMaintenanceHistory, setEditingMaintenanceHistory] = useState<MaintenanceHistoryEntry | null>(null);
   const [viewingMaintenanceHistory, setViewingMaintenanceHistory] = useState<MaintenanceHistoryEntry | null>(null);
 
+  // Track when editing a maintenance item/history from the view modal (not the property edit form)
+  const [editingFromView, setEditingFromView] = useState(false);
+
   useEffect(() => {
     loadProperties();
   }, []);
@@ -391,16 +394,41 @@ export function PropertyManagerSecure({ onClose }: PropertyManagerSecureProps) {
     setShowMaintenanceForm(false);
   };
 
-  const updateMaintenanceItem = (propertyId: string, updatedItem: MaintenanceItem) => {
-    if (editingProperty && editingProperty.id === propertyId) {
-      setEditingProperty({
-        ...editingProperty,
-        maintenanceItems: editingProperty.maintenanceItems.map(m =>
-          m.id === updatedItem.id ? updatedItem : m
-        )
-      });
+  const updateMaintenanceItem = async (propertyId: string, updatedItem: MaintenanceItem) => {
+    if (editingFromView) {
+      // Editing from the view modal — persist directly to storage
+      try {
+        const property = properties.find(p => p.id === propertyId);
+        if (!property) return;
+        const updatedProperty: Property = {
+          ...property,
+          maintenanceItems: property.maintenanceItems.map(m =>
+            m.id === updatedItem.id ? updatedItem : m
+          )
+        };
+        await storage.update('properties', propertyId, updatedProperty);
+        setProperties(properties.map(p => p.id === propertyId ? updatedProperty : p));
+        notifyDataChange();
+        setViewingDetails(updatedProperty);
+        setEditingProperty(null);
+        setEditingMaintenanceItem(null);
+        setEditingFromView(false);
+      } catch (err) {
+        setError('Failed to update maintenance item');
+        console.error(err);
+      }
+    } else {
+      // Editing from the property edit form — in-memory only until property is saved
+      if (editingProperty && editingProperty.id === propertyId) {
+        setEditingProperty({
+          ...editingProperty,
+          maintenanceItems: editingProperty.maintenanceItems.map(m =>
+            m.id === updatedItem.id ? updatedItem : m
+          )
+        });
+      }
+      setEditingMaintenanceItem(null);
     }
-    setEditingMaintenanceItem(null);
   };
 
   const deleteMaintenanceItem = async (propertyId: string, itemId: string) => {
@@ -489,17 +517,43 @@ export function PropertyManagerSecure({ onClose }: PropertyManagerSecureProps) {
     setShowMaintenanceHistoryForm(false);
   };
 
-  const updateMaintenanceHistoryEntry = (propertyId: string, updatedEntry: MaintenanceHistoryEntry) => {
-    if (editingProperty && editingProperty.id === propertyId) {
-      const sortedHistory = editingProperty.maintenanceHistory?.map(e =>
-        e.id === updatedEntry.id ? updatedEntry : e
-      ).sort((a, b) => new Date(b.date).getTime() - new Date(a.date).getTime()) || [];
-      setEditingProperty({
-        ...editingProperty,
-        maintenanceHistory: sortedHistory
-      });
+  const updateMaintenanceHistoryEntry = async (propertyId: string, updatedEntry: MaintenanceHistoryEntry) => {
+    if (editingFromView) {
+      // Editing from the view modal — persist directly to storage
+      try {
+        const property = properties.find(p => p.id === propertyId);
+        if (!property) return;
+        const sortedHistory = (property.maintenanceHistory || []).map(e =>
+          e.id === updatedEntry.id ? updatedEntry : e
+        ).sort((a, b) => new Date(b.date).getTime() - new Date(a.date).getTime());
+        const updatedProperty: Property = {
+          ...property,
+          maintenanceHistory: sortedHistory
+        };
+        await storage.update('properties', propertyId, updatedProperty);
+        setProperties(properties.map(p => p.id === propertyId ? updatedProperty : p));
+        notifyDataChange();
+        setViewingDetails(updatedProperty);
+        setEditingProperty(null);
+        setEditingMaintenanceHistory(null);
+        setEditingFromView(false);
+      } catch (err) {
+        setError('Failed to update maintenance record');
+        console.error(err);
+      }
+    } else {
+      // Editing from the property edit form — in-memory only until property is saved
+      if (editingProperty && editingProperty.id === propertyId) {
+        const sortedHistory = editingProperty.maintenanceHistory?.map(e =>
+          e.id === updatedEntry.id ? updatedEntry : e
+        ).sort((a, b) => new Date(b.date).getTime() - new Date(a.date).getTime()) || [];
+        setEditingProperty({
+          ...editingProperty,
+          maintenanceHistory: sortedHistory
+        });
+      }
+      setEditingMaintenanceHistory(null);
     }
-    setEditingMaintenanceHistory(null);
   };
 
   const deleteMaintenanceHistoryEntry = async (propertyId: string, entryId: string) => {
@@ -2575,7 +2629,7 @@ export function PropertyManagerSecure({ onClose }: PropertyManagerSecureProps) {
           <div className="bg-white rounded-2xl max-w-lg w-full p-6 shadow-2xl">
             <div className="flex items-center justify-between mb-4">
               <h3 className="text-lg font-semibold">Edit Maintenance Item</h3>
-              <button onClick={() => setEditingMaintenanceItem(null)} className="p-2 hover:bg-gray-100 rounded-lg">
+              <button onClick={() => { setEditingMaintenanceItem(null); if (editingFromView) { setEditingFromView(false); setEditingProperty(null); } }} className="p-2 hover:bg-gray-100 rounded-lg">
                 <X className="w-5 h-5" />
               </button>
             </div>
@@ -2677,7 +2731,7 @@ export function PropertyManagerSecure({ onClose }: PropertyManagerSecureProps) {
                   Save
                 </button>
                 <button
-                  onClick={() => setEditingMaintenanceItem(null)}
+                  onClick={() => { setEditingMaintenanceItem(null); if (editingFromView) { setEditingFromView(false); setEditingProperty(null); } }}
                   className="px-4 py-2 bg-gray-200 text-gray-700 rounded-lg hover:bg-gray-300"
                 >
                   Cancel
@@ -2694,7 +2748,7 @@ export function PropertyManagerSecure({ onClose }: PropertyManagerSecureProps) {
           <div className="bg-white rounded-2xl max-w-lg w-full p-6 shadow-2xl">
             <div className="flex items-center justify-between mb-4">
               <h3 className="text-lg font-semibold">Edit Maintenance Record</h3>
-              <button onClick={() => setEditingMaintenanceHistory(null)} className="p-2 hover:bg-gray-100 rounded-lg">
+              <button onClick={() => { setEditingMaintenanceHistory(null); if (editingFromView) { setEditingFromView(false); setEditingProperty(null); } }} className="p-2 hover:bg-gray-100 rounded-lg">
                 <X className="w-5 h-5" />
               </button>
             </div>
@@ -2809,7 +2863,7 @@ export function PropertyManagerSecure({ onClose }: PropertyManagerSecureProps) {
                   Save
                 </button>
                 <button
-                  onClick={() => setEditingMaintenanceHistory(null)}
+                  onClick={() => { setEditingMaintenanceHistory(null); if (editingFromView) { setEditingFromView(false); setEditingProperty(null); } }}
                   className="px-4 py-2 bg-gray-200 text-gray-700 rounded-lg hover:bg-gray-300"
                 >
                   Cancel
@@ -2923,8 +2977,8 @@ export function PropertyManagerSecure({ onClose }: PropertyManagerSecureProps) {
                   onClick={() => {
                     if (viewingDetails && !editingProperty) {
                       setEditingProperty(viewingDetails);
-                      setViewingDetails(null);
                     }
+                    setEditingFromView(true);
                     setEditingMaintenanceHistory(viewingMaintenanceHistory);
                     setViewingMaintenanceHistory(null);
                   }}
@@ -3079,8 +3133,8 @@ export function PropertyManagerSecure({ onClose }: PropertyManagerSecureProps) {
                   onClick={() => {
                     if (viewingDetails && !editingProperty) {
                       setEditingProperty(viewingDetails);
-                      setViewingDetails(null);
                     }
+                    setEditingFromView(true);
                     setEditingMaintenanceItem(viewingMaintenanceItem);
                     setViewingMaintenanceItem(null);
                   }}
