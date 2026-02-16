@@ -20,7 +20,7 @@ export interface FileInfo {
 export interface IntegrityReport {
   timestamp: string;
   matched: Array<{ ref: DocumentReference; category: string; file: FileInfo }>;
-  missingFiles: Array<{ ref: DocumentReference; category: string }>;
+  missingFiles: Array<{ ref: DocumentReference; category: string; sourceKey: string; recordId: string }>;
   orphanedFiles: Array<{ file: FileInfo; category: string }>;
   dataFiles: FileInfo[];
   totalDataRecords: number;
@@ -79,13 +79,18 @@ function extractDocRefs(record: any): DocumentReference[] {
   const refs: DocumentReference[] = [];
   if (!record || typeof record !== 'object') return refs;
 
+  if (isDocumentReference(record)) {
+    refs.push(record);
+    return refs;
+  }
+
   for (const value of Object.values(record)) {
     if (Array.isArray(value)) {
       for (const item of value) {
-        if (isDocumentReference(item)) {
-          refs.push(item);
-        }
+        refs.push(...extractDocRefs(item));
       }
+    } else if (value && typeof value === 'object') {
+      refs.push(...extractDocRefs(value));
     }
   }
   return refs;
@@ -134,7 +139,7 @@ export async function runIntegrityCheck(storage: StorageService): Promise<Integr
 
   // 3. Discover all storage keys and scan for DocumentReferences
   const dataKeys = await discoverDataKeys();
-  const allRefs: Array<{ ref: DocumentReference; category: string }> = [];
+  const allRefs: Array<{ ref: DocumentReference; category: string; sourceKey: string; recordId: string }> = [];
 
   for (const key of dataKeys) {
     try {
@@ -146,7 +151,7 @@ export async function runIntegrityCheck(storage: StorageService): Promise<Integr
         for (const ref of refs) {
           // Determine category from the encryptedPath by checking disk
           const category = findCategoryForRef(ref, diskFiles) || 'unknown';
-          allRefs.push({ ref, category });
+          allRefs.push({ ref, category, sourceKey: key, recordId: record.id });
         }
       }
     } catch {
@@ -156,14 +161,17 @@ export async function runIntegrityCheck(storage: StorageService): Promise<Integr
 
   // 4. Cross-reference: check each metadata ref against disk
   const matchedDiskKeys = new Set<string>();
+  // Track which disk category each sourceKey's files belong to
+  const sourceKeyCategories = new Map<string, string>();
 
-  for (const { ref, category } of allRefs) {
+  for (const { ref, category, sourceKey, recordId } of allRefs) {
     const diskKey = `${category}/${ref.encryptedPath}`;
     const diskEntry = diskFiles.get(diskKey);
 
     if (diskEntry) {
       report.matched.push({ ref, category, file: diskEntry.file });
       matchedDiskKeys.add(diskKey);
+      sourceKeyCategories.set(sourceKey, category);
     } else {
       // Try all categories if the initial match failed
       let found = false;
@@ -173,12 +181,15 @@ export async function runIntegrityCheck(storage: StorageService): Promise<Integr
         if (altEntry) {
           report.matched.push({ ref, category: cat, file: altEntry.file });
           matchedDiskKeys.add(altKey);
+          sourceKeyCategories.set(sourceKey, cat);
           found = true;
           break;
         }
       }
       if (!found) {
-        report.missingFiles.push({ ref, category });
+        // Resolve category from sibling matched files in the same sourceKey
+        const resolvedCategory = sourceKeyCategories.get(sourceKey) || category;
+        report.missingFiles.push({ ref, category: resolvedCategory, sourceKey, recordId });
       }
     }
 
@@ -212,4 +223,56 @@ export async function runIntegrityCheck(storage: StorageService): Promise<Integr
   report.dataFiles = dataFiles;
 
   return report;
+}
+
+/**
+ * Recursively remove a DocumentReference by id from an object.
+ * Returns true if something was removed.
+ */
+function removeDocRefById(obj: any, docId: string): boolean {
+  if (!obj || typeof obj !== 'object') return false;
+
+  let removed = false;
+  for (const key of Object.keys(obj)) {
+    const value = obj[key];
+    if (Array.isArray(value)) {
+      const before = value.length;
+      obj[key] = value.filter((item: any) => !(isDocumentReference(item) && item.id === docId));
+      if (obj[key].length < before) removed = true;
+      // Also recurse into remaining array items (nested objects)
+      for (const item of obj[key]) {
+        if (removeDocRefById(item, docId)) removed = true;
+      }
+    } else if (isDocumentReference(value) && value.id === docId) {
+      obj[key] = undefined;
+      removed = true;
+    } else if (value && typeof value === 'object') {
+      if (removeDocRefById(value, docId)) removed = true;
+    }
+  }
+  return removed;
+}
+
+/**
+ * Remove a dead document reference from storage.
+ * Finds the record by sourceKey + recordId, removes the ref by docId, and saves.
+ */
+export async function removeDeadReference(
+  storage: StorageService,
+  sourceKey: string,
+  recordId: string,
+  docId: string
+): Promise<void> {
+  const records = await storage.get<any>(sourceKey);
+  const record = records.find((r: any) => r.id === recordId);
+  if (!record) {
+    throw new Error(`Record ${recordId} not found in ${sourceKey}`);
+  }
+
+  const removed = removeDocRefById(record, docId);
+  if (!removed) {
+    throw new Error(`Document reference ${docId} not found in record`);
+  }
+
+  await storage.update(sourceKey, recordId, record);
 }

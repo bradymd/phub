@@ -1,8 +1,9 @@
 import { useState, useEffect } from 'react';
-import { X, Download, Upload, HardDrive, AlertCircle, CheckCircle, Clock, Database, Shield, FileWarning, RefreshCw, Eye, Trash2 } from 'lucide-react';
-import { useStorage, useMasterKey } from '../../contexts/StorageContext';
-import { createBackup, getReconciliationReport, restoreBackup, importLegacyBackup, BackupManifest, ReconciliationReport } from '../../services/backup';
-import { runIntegrityCheck, IntegrityReport, FileInfo } from '../../services/integrity';
+import { X, Download, Upload, HardDrive, AlertCircle, CheckCircle, Clock, Database, Shield, FileWarning, RefreshCw, Eye, Trash2, FolderInput } from 'lucide-react';
+import { useStorage, useMasterKey, useDocumentService } from '../../contexts/StorageContext';
+import { createBackup, getReconciliationReport, restoreBackup, importLegacyBackup, listAutoBackups, BackupManifest, ReconciliationReport, AutoBackupInfo } from '../../services/backup';
+import { runIntegrityCheck, removeDeadReference, IntegrityReport, FileInfo } from '../../services/integrity';
+import { DocumentCategory } from '../../services/document-service';
 import { showSaveDialog, showOpenDialog } from '../../utils/file-system';
 import { decrypt } from '../../utils/crypto';
 
@@ -13,6 +14,7 @@ interface BackupManagerProps {
 export function BackupManager({ onClose }: BackupManagerProps) {
   const storage = useStorage();
   const masterKey = useMasterKey();
+  const documentService = useDocumentService();
   const [isBackingUp, setIsBackingUp] = useState(false);
   const [isRestoring, setIsRestoring] = useState(false);
   const [isChecking, setIsChecking] = useState(false);
@@ -25,6 +27,7 @@ export function BackupManager({ onClose }: BackupManagerProps) {
   const [restoreSelections, setRestoreSelections] = useState<Set<string>>(new Set());
   const [orphanRetry, setOrphanRetry] = useState<{ category: string; file: FileInfo } | null>(null);
   const [orphanPassword, setOrphanPassword] = useState('');
+  const [autoBackups, setAutoBackups] = useState<AutoBackupInfo[]>([]);
 
   // Convert data URL to Blob URL for better iframe rendering (especially for large PDFs)
   const dataUrlToBlobUrl = (dataUrl: string): string => {
@@ -47,6 +50,9 @@ export function BackupManager({ onClose }: BackupManagerProps) {
   // Run integrity check on open
   useEffect(() => {
     handleIntegrityCheck();
+    listAutoBackups()
+      .then(backups => setAutoBackups(backups))
+      .catch(err => console.error('Failed to list auto-backups:', err));
   }, []);
 
   const handleIntegrityCheck = async () => {
@@ -60,6 +66,48 @@ export function BackupManager({ onClose }: BackupManagerProps) {
       setError(`Integrity check failed: ${err instanceof Error ? err.message : String(err)}`);
     } finally {
       setIsChecking(false);
+    }
+  };
+
+  const handleReimportMissing = async (encryptedPath: string, category: string, filename: string) => {
+    try {
+      const input = document.createElement('input');
+      input.type = 'file';
+      input.accept = '.' + filename.split('.').pop();
+      input.onchange = async (e) => {
+        const file = (e.target as HTMLInputElement).files?.[0];
+        if (!file) return;
+
+        const reader = new FileReader();
+        reader.onload = async () => {
+          try {
+            const dataUrl = reader.result as string;
+            await documentService.reimportDocument(category as DocumentCategory, encryptedPath, dataUrl);
+            setSuccess(`Re-imported: ${filename}`);
+            // Re-run integrity check to update the report
+            const report = await runIntegrityCheck(storage);
+            setIntegrityReport(report);
+          } catch (err) {
+            setError(`Failed to re-import ${filename}: ${err instanceof Error ? err.message : String(err)}`);
+          }
+        };
+        reader.readAsDataURL(file);
+      };
+      input.click();
+    } catch (err) {
+      setError(`Failed to re-import: ${err instanceof Error ? err.message : String(err)}`);
+    }
+  };
+
+  const handleRemoveDeadRef = async (sourceKey: string, recordId: string, docId: string, filename: string) => {
+    if (!confirm(`Remove reference to "${filename}"? This cannot be undone.`)) return;
+    try {
+      await removeDeadReference(storage, sourceKey, recordId, docId);
+      setSuccess(`Removed dead reference: ${filename}`);
+      const report = await runIntegrityCheck(storage);
+      setIntegrityReport(report);
+    } catch (err) {
+      setError(`Failed to remove reference: ${err instanceof Error ? err.message : String(err)}`);
     }
   };
 
@@ -92,6 +140,25 @@ export function BackupManager({ onClose }: BackupManagerProps) {
       setError(`Backup failed: ${err instanceof Error ? err.message : String(err)}`);
     } finally {
       setIsBackingUp(false);
+    }
+  };
+
+  const handleRestoreAutoBackup = async (backupPath: string) => {
+    try {
+      setError('');
+      setSuccess('');
+      setReconciliation(null);
+      setIsRestoring(true);
+      setRestoreFilePath(backupPath);
+
+      const report = await getReconciliationReport(backupPath);
+      setReconciliation(report);
+      setRestoreSelections(new Set());
+    } catch (err) {
+      console.error('Failed to read auto-backup:', err);
+      setError(`Failed to read auto-backup: ${err instanceof Error ? err.message : String(err)}`);
+    } finally {
+      setIsRestoring(false);
     }
   };
 
@@ -420,9 +487,34 @@ export function BackupManager({ onClose }: BackupManagerProps) {
                     <span className="font-medium text-green-700">{integrityReport.matched.length}</span>
                   </div>
                   {integrityReport.missingFiles.length > 0 && (
-                    <div className="flex justify-between text-red-600">
-                      <span>Missing document files</span>
-                      <span className="font-medium">{integrityReport.missingFiles.length}</span>
+                    <div className="text-red-600">
+                      <div className="flex justify-between">
+                        <span>Missing document files</span>
+                        <span className="font-medium">{integrityReport.missingFiles.length}</span>
+                      </div>
+                      <div className="mt-1 text-xs text-red-500 space-y-1">
+                        {integrityReport.missingFiles.map((f, i) => (
+                          <div key={i} className="flex items-center gap-2 pl-2">
+                            <FileWarning className="w-3 h-3 flex-shrink-0" />
+                            <span className="truncate flex-1">{f.ref.filename}</span>
+                            <span className="flex-shrink-0 text-gray-500">{f.sourceKey.replace(/_/g, ' ')}</span>
+                            <button
+                              onClick={() => handleReimportMissing(f.ref.encryptedPath, f.category, f.ref.filename)}
+                              className="p-1 text-blue-600 hover:bg-blue-50 rounded"
+                              title="Re-import file"
+                            >
+                              <FolderInput className="w-3 h-3" />
+                            </button>
+                            <button
+                              onClick={() => handleRemoveDeadRef(f.sourceKey, f.recordId, f.ref.id, f.ref.filename)}
+                              className="p-1 text-red-600 hover:bg-red-50 rounded"
+                              title="Remove dead reference"
+                            >
+                              <Trash2 className="w-3 h-3" />
+                            </button>
+                          </div>
+                        ))}
+                      </div>
                     </div>
                   )}
                   {integrityReport.orphanedFiles.length > 0 && (
@@ -578,6 +670,43 @@ export function BackupManager({ onClose }: BackupManagerProps) {
                   </button>
                 </div>
               </div>
+
+              {/* Auto-Backups List */}
+              {autoBackups.length > 0 && (
+                <div className="mt-4 pt-4 border-t border-amber-200">
+                  <h4 className="text-sm font-semibold text-gray-700 mb-2 flex items-center gap-2">
+                    <Clock className="w-4 h-4" />
+                    Automatic Backups
+                  </h4>
+                  <p className="text-xs text-gray-500 mb-3">
+                    Created automatically as you use the app. Last 5 are kept.
+                  </p>
+                  <div className="space-y-2">
+                    {autoBackups.map((backup) => (
+                      <div
+                        key={backup.filename}
+                        className="flex items-center justify-between bg-white p-3 rounded-lg border border-amber-100"
+                      >
+                        <div>
+                          <p className="text-sm font-medium text-gray-800">
+                            {new Date(backup.createdAt).toLocaleString()}
+                          </p>
+                          <p className="text-xs text-gray-500">
+                            {(backup.size / (1024 * 1024)).toFixed(1)} MB
+                          </p>
+                        </div>
+                        <button
+                          onClick={() => handleRestoreAutoBackup(backup.path)}
+                          disabled={isRestoring}
+                          className="px-3 py-1.5 text-sm bg-amber-600 text-white rounded-lg hover:bg-amber-700 transition-colors disabled:bg-amber-400 disabled:cursor-not-allowed"
+                        >
+                          Restore
+                        </button>
+                      </div>
+                    ))}
+                  </div>
+                </div>
+              )}
             </div>
 
             {/* Restore Confirmation */}

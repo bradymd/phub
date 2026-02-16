@@ -98,6 +98,66 @@ export async function restoreBackup(
   return { restoredCount: result.restoredCount, errors: result.errors || [] };
 }
 
+export interface AutoBackupInfo {
+  filename: string;
+  path: string;
+  size: number;
+  createdAt: string;
+}
+
+/**
+ * List available auto-backups, newest first
+ */
+export async function listAutoBackups(): Promise<AutoBackupInfo[]> {
+  if (!isElectron || !window.electronAPI?.backup) {
+    return [];
+  }
+
+  const result = await (window.electronAPI.backup as any).listAutoBackups();
+
+  if (!result.success) {
+    throw new Error(result.error || 'Failed to list auto-backups');
+  }
+
+  return result.backups || [];
+}
+
+/**
+ * Create an automatic backup
+ * Writes to ~/Documents/PersonalHub/backups/auto/ with timestamped filename
+ * Called on startup and after every N data changes
+ */
+export async function createAutoBackup(): Promise<BackupManifest | null> {
+  if (!isElectron || !window.electronAPI?.backup) {
+    return null; // Auto-backup only works in Electron
+  }
+
+  const result = await (window.electronAPI.backup as any).createAutoBackup();
+
+  if (!result.success) {
+    throw new Error(result.error || 'Auto-backup failed');
+  }
+
+  return result.manifest;
+}
+
+/**
+ * Prune old auto-backups, keeping only the most recent N
+ */
+export async function pruneAutoBackups(keep: number = 5): Promise<number> {
+  if (!isElectron || !window.electronAPI?.backup) {
+    return 0;
+  }
+
+  const result = await (window.electronAPI.backup as any).pruneAutoBackups(keep);
+
+  if (!result.success) {
+    throw new Error(result.error || 'Auto-backup prune failed');
+  }
+
+  return result.deleted;
+}
+
 /**
  * Legacy: Import old-format encrypted JSON backup
  * For backward compatibility with .encrypted.json backups

@@ -42,7 +42,10 @@ contextBridge.exposeInMainWorld('electronAPI', {
     create: (outputPath) => ipcRenderer.invoke('backup:create', outputPath),
     reconcile: (backupPath) => ipcRenderer.invoke('backup:reconcile', backupPath),
     restore: (backupPath, filesToRestore) => ipcRenderer.invoke('backup:restore', backupPath, filesToRestore),
-    importLegacy: (filePath, masterKey) => ipcRenderer.invoke('backup:importLegacy', filePath, masterKey)
+    importLegacy: (filePath, masterKey) => ipcRenderer.invoke('backup:importLegacy', filePath, masterKey),
+    createAutoBackup: () => ipcRenderer.invoke('backup:createAutoBackup'),
+    pruneAutoBackups: (keep) => ipcRenderer.invoke('backup:pruneAutoBackups', keep),
+    listAutoBackups: () => ipcRenderer.invoke('backup:listAutoBackups')
   },
   shell: {
     openPath: (filePath) => ipcRenderer.invoke('shell:openPath', filePath)

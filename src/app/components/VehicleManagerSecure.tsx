@@ -361,6 +361,12 @@ export function VehicleManagerSecure({ onClose }: VehicleManagerSecureProps) {
       const vehicle = vehicles.find(v => v.id === vehicleId);
       if (!vehicle) return;
 
+      // Clean up documents before removing the entry
+      const entry = vehicle.serviceHistory.find(e => e.id === entryId);
+      if (entry?.documents?.length) {
+        await documentService.deleteDocuments('certificates', entry.documents);
+      }
+
       const updatedVehicle = {
         ...vehicle,
         serviceHistory: vehicle.serviceHistory.filter(e => e.id !== entryId)

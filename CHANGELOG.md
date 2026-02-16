@@ -4,6 +4,14 @@ All notable changes to Personal Hub are documented here.
 
 ## [Unreleased]
 
+### Added
+- **Automatic backups**: Your data is now backed up automatically as you work — no manual action needed
+  - Backups are created after every few changes and on app startup (if changes were made)
+  - Last 5 backups are kept in `~/Documents/PersonalHub/backups/auto/`
+  - Restore from any auto-backup via Backup & Restore → Automatic Backups section
+- **Startup integrity check**: A warning banner appears if any document files are missing, with a link to Backup & Restore to investigate
+- **Cascading document cleanup**: Deleting a vehicle service entry now properly removes its attached document files (previously left orphaned files on disk)
+
 ### Fixed
 - **Property panel**: Maintenance item and history edits from the details view modal now persist to storage immediately (previously changes were silently lost unless the user also saved the entire property form)
 

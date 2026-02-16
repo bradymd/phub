@@ -9,12 +9,16 @@
  * - Password change: Only re-wraps Master Key, doesn't re-encrypt all data
  */
 
-import { createContext, useContext, ReactNode, useState, useEffect } from 'react';
+import { createContext, useContext, ReactNode, useState, useEffect, useRef, useCallback } from 'react';
 import { StorageService, createStorageService } from '../services/storage';
 import { DocumentService, createDocumentService } from '../services/document-service';
 import { hashPassword } from '../utils/crypto';
 import { generateMasterKey, wrapMasterKey, unwrapMasterKey, masterKeyToString } from '../services/master-key';
 import { masterKeyExists, readWrappedMasterKey, writeWrappedMasterKey } from '../services/master-key-storage';
+import { createAutoBackup, pruneAutoBackups } from '../services/backup';
+
+// Auto-backup after this many data changes
+const AUTO_BACKUP_CHANGE_THRESHOLD = 5;
 
 interface StorageContextType {
   storage: StorageService;
@@ -40,11 +44,37 @@ export function StorageProvider({ masterPassword, children }: StorageProviderPro
   const [currentPassword, setCurrentPassword] = useState(masterPassword);
   const [isInitialized, setIsInitialized] = useState(false);
   const [dataVersion, setDataVersion] = useState(0);
+  // Persist change counter across sessions so we don't create identical backups
+  const changesSinceBackupRef = useRef(
+    parseInt(localStorage.getItem('changes_since_backup') || '0', 10)
+  );
+  const backupInProgressRef = useRef(false);
+
+  const runAutoBackup = useCallback(() => {
+    if (backupInProgressRef.current) return;
+    if (changesSinceBackupRef.current === 0) return; // Nothing changed — skip
+    backupInProgressRef.current = true;
+    createAutoBackup()
+      .then(() => pruneAutoBackups(5))
+      .then(() => {
+        changesSinceBackupRef.current = 0;
+        localStorage.setItem('changes_since_backup', '0');
+      })
+      .catch(err => console.error('Auto-backup failed (non-critical):', err))
+      .finally(() => {
+        backupInProgressRef.current = false;
+      });
+  }, []);
 
   // Call this after updating data to trigger reminder refresh
-  const notifyDataChange = () => {
+  const notifyDataChange = useCallback(() => {
     setDataVersion(v => v + 1);
-  };
+    changesSinceBackupRef.current += 1;
+    localStorage.setItem('changes_since_backup', String(changesSinceBackupRef.current));
+    if (changesSinceBackupRef.current >= AUTO_BACKUP_CHANGE_THRESHOLD) {
+      runAutoBackup();
+    }
+  }, [runAutoBackup]);
 
   // Initialize master key on mount
   useEffect(() => {
@@ -76,6 +106,9 @@ export function StorageProvider({ masterPassword, children }: StorageProviderPro
         setStorage(createStorageService(keyString));
         setDocumentService(createDocumentService(keyString));
         setIsInitialized(true);
+
+        // Auto-backup on startup (non-blocking)
+        runAutoBackup();
       } catch (err) {
         console.error('Failed to initialize master key:', err);
         throw new Error('Failed to initialize encryption. Please check your password.');
@@ -83,7 +116,7 @@ export function StorageProvider({ masterPassword, children }: StorageProviderPro
     }
 
     initializeMasterKey();
-  }, [masterPassword]);
+  }, [masterPassword, runAutoBackup]);
 
   const changePassword = async (oldPassword: string, newPassword: string) => {
     // 1. Verify current password

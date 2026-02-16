@@ -972,6 +972,133 @@ ipcMain.handle('backup:importLegacy', async (event, backupFilePath, masterKey) =
   }
 });
 
+// List auto-backups with metadata
+ipcMain.handle('backup:listAutoBackups', async () => {
+  try {
+    const autoBackupDir = path.join(hubDir, 'backups', 'auto');
+
+    try {
+      await fs.access(autoBackupDir);
+    } catch {
+      return { success: true, backups: [] };
+    }
+
+    const entries = await fs.readdir(autoBackupDir, { withFileTypes: true });
+    const backups = [];
+
+    for (const entry of entries) {
+      if (entry.isFile() && entry.name.endsWith('.phub')) {
+        const fullPath = path.join(autoBackupDir, entry.name);
+        const stat = await fs.stat(fullPath);
+        backups.push({
+          filename: entry.name,
+          path: fullPath,
+          size: stat.size,
+          createdAt: stat.mtime.toISOString()
+        });
+      }
+    }
+
+    // Sort newest first
+    backups.sort((a, b) => b.createdAt.localeCompare(a.createdAt));
+    return { success: true, backups };
+  } catch (err) {
+    console.error('Failed to list auto-backups:', err);
+    return { success: false, error: err.message };
+  }
+});
+
+// Auto-backup: Create backup in auto-backup directory
+ipcMain.handle('backup:createAutoBackup', async () => {
+  try {
+    const autoBackupDir = path.join(hubDir, 'backups', 'auto');
+    await fs.mkdir(autoBackupDir, { recursive: true });
+
+    const timestamp = new Date().toISOString().replace(/[:.]/g, '-');
+    const filename = `auto-${timestamp}.phub`;
+    const outputPath = path.join(autoBackupDir, filename);
+
+    const dataFiles = await collectFiles(dataDir);
+    const documentFiles = await collectFiles(docsDir);
+
+    let hasMasterKey = false;
+    try {
+      await fs.access(masterKeyFile);
+      hasMasterKey = true;
+    } catch {}
+
+    const manifest = {
+      version: '2.0.0',
+      timestamp: new Date().toISOString(),
+      dataFiles: dataFiles.map(f => ({ path: f.relativePath, size: f.size })),
+      documentFiles: documentFiles.map(f => ({ path: f.relativePath, size: f.size })),
+      hasMasterKey
+    };
+
+    const output = fsSync.createWriteStream(outputPath);
+    const archive = archiver('zip', { zlib: { level: 1 } });
+
+    const archivePromise = new Promise((resolve, reject) => {
+      output.on('close', resolve);
+      archive.on('error', reject);
+      output.on('error', reject);
+    });
+
+    archive.pipe(output);
+    archive.append(JSON.stringify(manifest, null, 2), { name: 'manifest.json' });
+
+    if (hasMasterKey) {
+      archive.file(masterKeyFile, { name: '.master.key' });
+    }
+
+    for (const file of dataFiles) {
+      archive.file(file.absolutePath, { name: `data/${file.relativePath}` });
+    }
+
+    for (const file of documentFiles) {
+      archive.file(file.absolutePath, { name: `documents/${file.relativePath}` });
+    }
+
+    await archive.finalize();
+    await archivePromise;
+
+    return { success: true, manifest, path: outputPath };
+  } catch (err) {
+    console.error('Auto-backup failed:', err);
+    return { success: false, error: err.message };
+  }
+});
+
+// Prune old auto-backups, keeping only the most recent N
+ipcMain.handle('backup:pruneAutoBackups', async (event, keep) => {
+  try {
+    const autoBackupDir = path.join(hubDir, 'backups', 'auto');
+
+    try {
+      await fs.access(autoBackupDir);
+    } catch {
+      return { success: true, deleted: 0 };
+    }
+
+    const entries = await fs.readdir(autoBackupDir, { withFileTypes: true });
+    const backupFiles = entries
+      .filter(e => e.isFile() && e.name.endsWith('.phub'))
+      .map(e => e.name)
+      .sort()
+      .reverse(); // newest first (ISO timestamps sort correctly)
+
+    const toDelete = backupFiles.slice(keep);
+    for (const file of toDelete) {
+      await fs.unlink(path.join(autoBackupDir, file));
+    }
+
+    return { success: true, deleted: toDelete.length };
+  } catch (err) {
+    console.error('Auto-backup prune failed:', err);
+    return { success: false, error: err.message };
+  }
+});
+
 // Helper: Compare a backup file entry with its disk counterpart
 // Note: This is now only used for display purposes, not for determining what to restore
 // Restore always replaces ALL files (full backup/restore model)

@@ -43,6 +43,7 @@ import { ImportWizard } from './components/ImportWizard';
 import { BackupManager } from './components/BackupManager';
 import { PasswordChangeModal } from './components/PasswordChangeModal';
 import { UpdateNotification } from './components/UpdateNotification';
+import { IntegrityBanner } from './components/IntegrityBanner';
 
 type ModalType = PanelId | 'ai' | 'backup' | null;
 
@@ -391,6 +392,9 @@ export default function App() {
           </div>
         </div>
 
+        {/* Integrity Warning Banner */}
+        <IntegrityBanner onOpenBackup={() => setActiveModal('backup')} />
+
         {/* Panel Search */}
         <div className="mb-6">
           <div className="relative">
@@ -430,8 +434,8 @@ export default function App() {
 
         {/* Footer */}
         <div className="mt-8 text-center text-sm text-gray-500">
-          <p>All data is encrypted with AES-256-GCM and stored locally in your browser. Nothing is sent to any server.</p>
-          <p className="mt-2 text-orange-600 font-medium">⚠️ Important: Export your data regularly to back up your information!</p>
+          <p>All data is encrypted with AES-256-GCM and stored locally. Nothing is sent to any server.</p>
+          <p className="mt-2 text-green-700">Your data is automatically backed up. Open Backup & Restore to manage backups.</p>
         </div>
       </div>
 

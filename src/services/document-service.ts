@@ -29,6 +29,9 @@ declare global {
         reconcile: (backupPath: string) => Promise<{ success: boolean; report?: any; error?: string }>;
         restore: (backupPath: string, filesToRestore: string[] | null) => Promise<{ success: boolean; restoredCount?: number; errors?: string[]; error?: string }>;
         importLegacy: (filePath: string, masterKey: string) => Promise<{ success: boolean; records?: number; keys?: string[]; error?: string }>;
+        createAutoBackup: () => Promise<{ success: boolean; manifest?: any; path?: string; error?: string }>;
+        pruneAutoBackups: (keep: number) => Promise<{ success: boolean; deleted?: number; error?: string }>;
+        listAutoBackups: () => Promise<{ success: boolean; backups?: Array<{ filename: string; path: string; size: number; createdAt: string }>; error?: string }>;
       };
       shell: {
         openPath: (filePath: string) => Promise<{ success: boolean; error?: string }>;
@@ -407,6 +410,33 @@ export class DocumentService {
     } catch (err) {
       console.error(`Failed to delete document ${docRef.filename}:`, err);
       throw new Error(`Failed to delete document: ${err instanceof Error ? err.message : 'Unknown error'}`);
+    }
+  }
+
+  /**
+   * Re-import a missing document file to a specific encrypted path.
+   * Used by integrity check to restore files from original copies.
+   */
+  async reimportDocument(category: DocumentCategory, encryptedPath: string, dataUrl: string): Promise<void> {
+    try {
+      await this.ensureDocumentDirectories();
+      const filePath = `${this.documentsBaseDir}/${category}/${encryptedPath}`;
+      const encryptedContent = await encrypt(dataUrl, this.masterPassword);
+
+      if (isElectron && window.electronAPI) {
+        const writeResult = await window.electronAPI.docs.writeTextFile(filePath, encryptedContent);
+        if (!writeResult.success) {
+          throw new Error(writeResult.error || 'Failed to write file');
+        }
+      } else {
+        const { writeTextFile, BaseDirectory } = await import('@tauri-apps/plugin-fs');
+        await writeTextFile(filePath, encryptedContent, { baseDir: BaseDirectory.Document });
+      }
+
+      console.log(`Re-imported document to: ${filePath}`);
+    } catch (err) {
+      console.error(`Failed to re-import document:`, err);
+      throw new Error(`Failed to re-import document: ${err instanceof Error ? err.message : 'Unknown error'}`);
     }
   }
 
