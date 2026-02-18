@@ -2442,7 +2442,7 @@ export function VehicleManagerSecure({ onClose }: VehicleManagerSecureProps) {
                           <button
                             key={idx}
                             onClick={() => viewFile(doc)}
-                            className="flex items-center gap-2 px-3 py-2 bg-purple-100 text-purple-700 rounded-lg hover:bg-purple-200 text-xs"
+                            className="flex items-center gap-2 px-3 py-2 bg-purple-50/70 text-purple-400 rounded-lg hover:bg-purple-100/80 text-xs"
                           >
                             <FileText className="w-3 h-3" />
                             {doc.filename}
