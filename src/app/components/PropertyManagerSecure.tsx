@@ -688,6 +688,12 @@ export function PropertyManagerSecure({ onClose }: PropertyManagerSecureProps) {
                   : m
               )
             });
+            if (editingMaintenanceItem && editingMaintenanceItem.id === maintenanceItemId) {
+              setEditingMaintenanceItem({
+                ...editingMaintenanceItem,
+                documents: [...(editingMaintenanceItem.documents || []), docRef]
+              });
+            }
           } else if (docType === 'maintenanceHistory' && maintenanceItemId) {
             setEditingProperty({
               ...editingProperty,
@@ -697,6 +703,12 @@ export function PropertyManagerSecure({ onClose }: PropertyManagerSecureProps) {
                   : e
               )
             });
+            if (editingMaintenanceHistory && editingMaintenanceHistory.id === maintenanceItemId) {
+              setEditingMaintenanceHistory({
+                ...editingMaintenanceHistory,
+                documents: [...(editingMaintenanceHistory.documents || []), docRef]
+              });
+            }
           }
         } catch (err) {
           setError('Failed to upload document');
@@ -744,6 +756,12 @@ export function PropertyManagerSecure({ onClose }: PropertyManagerSecureProps) {
               : m
           )
         });
+        if (editingMaintenanceItem && editingMaintenanceItem.id === maintenanceItemId) {
+          setEditingMaintenanceItem({
+            ...editingMaintenanceItem,
+            documents: (editingMaintenanceItem.documents || []).filter(d => d.id !== docRef.id)
+          });
+        }
       } else if (docType === 'maintenanceHistory' && maintenanceItemId) {
         setEditingProperty({
           ...editingProperty,
@@ -753,6 +771,12 @@ export function PropertyManagerSecure({ onClose }: PropertyManagerSecureProps) {
               : e
           )
         });
+        if (editingMaintenanceHistory && editingMaintenanceHistory.id === maintenanceItemId) {
+          setEditingMaintenanceHistory({
+            ...editingMaintenanceHistory,
+            documents: (editingMaintenanceHistory.documents || []).filter(d => d.id !== docRef.id)
+          });
+        }
       }
     } catch (err) {
       setError('Failed to remove document');
@@ -2709,6 +2733,7 @@ export function PropertyManagerSecure({ onClose }: PropertyManagerSecureProps) {
                     <DocumentList
                       documents={editingMaintenanceItem.documents}
                       docType="maintenance"
+                      maintenanceItemId={editingMaintenanceItem.id}
                       canEdit={true}
                     />
                   </div>
