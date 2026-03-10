@@ -353,6 +353,17 @@ export function HolidayPlansManagerSecure({ onClose }: HolidayPlansManagerSecure
           }
 
           await updateHoliday(updatedHoliday);
+
+          // Keep the active sub-item edit state in sync so Save doesn't overwrite the new doc
+          if (target === 'accommodation' && editingAccommodation?.id === targetId) {
+            setEditingAccommodation({ ...editingAccommodation, documents: [...(editingAccommodation.documents || []), docRef] });
+          } else if (target === 'travel' && editingTravel?.id === targetId) {
+            setEditingTravel({ ...editingTravel, documents: [...(editingTravel.documents || []), docRef] });
+          } else if (target === 'activity' && editingActivity?.id === targetId) {
+            setEditingActivity({ ...editingActivity, documents: [...(editingActivity.documents || []), docRef] });
+          } else if (target === 'carHire' && editingCarHire?.id === targetId) {
+            setEditingCarHire({ ...editingCarHire, documents: [...(editingCarHire.documents || []), docRef] });
+          }
         } catch (err) {
           setError('Failed to save document');
           console.error('Document save error:', err);
@@ -396,6 +407,39 @@ export function HolidayPlansManagerSecure({ onClose }: HolidayPlansManagerSecure
       }
     } catch (err) {
       setError('Failed to download document');
+      console.error(err);
+    }
+  };
+
+  const removeSubItemDocument = async (
+    docRef: DocumentReference,
+    target: 'accommodation' | 'travel' | 'activity' | 'carHire',
+    targetId: string
+  ) => {
+    if (!viewingHoliday) return;
+    try {
+      await documentService.deleteDocument('holiday_plans', docRef);
+      const updatedHoliday = { ...viewingHoliday };
+      if (target === 'accommodation') {
+        const idx = updatedHoliday.accommodation.findIndex(a => a.id === targetId);
+        if (idx >= 0) updatedHoliday.accommodation[idx].documents = (updatedHoliday.accommodation[idx].documents || []).filter(d => d.id !== docRef.id);
+        if (editingAccommodation?.id === targetId) setEditingAccommodation({ ...editingAccommodation, documents: (editingAccommodation.documents || []).filter(d => d.id !== docRef.id) });
+      } else if (target === 'travel') {
+        const idx = updatedHoliday.travel.findIndex(t => t.id === targetId);
+        if (idx >= 0) updatedHoliday.travel[idx].documents = (updatedHoliday.travel[idx].documents || []).filter(d => d.id !== docRef.id);
+        if (editingTravel?.id === targetId) setEditingTravel({ ...editingTravel, documents: (editingTravel.documents || []).filter(d => d.id !== docRef.id) });
+      } else if (target === 'activity') {
+        const idx = updatedHoliday.activities.findIndex(a => a.id === targetId);
+        if (idx >= 0) updatedHoliday.activities[idx].documents = (updatedHoliday.activities[idx].documents || []).filter(d => d.id !== docRef.id);
+        if (editingActivity?.id === targetId) setEditingActivity({ ...editingActivity, documents: (editingActivity.documents || []).filter(d => d.id !== docRef.id) });
+      } else if (target === 'carHire') {
+        const idx = (updatedHoliday.carHire || []).findIndex(c => c.id === targetId);
+        if (idx >= 0 && updatedHoliday.carHire) updatedHoliday.carHire[idx].documents = (updatedHoliday.carHire[idx].documents || []).filter(d => d.id !== docRef.id);
+        if (editingCarHire?.id === targetId) setEditingCarHire({ ...editingCarHire, documents: (editingCarHire.documents || []).filter(d => d.id !== docRef.id) });
+      }
+      await updateHoliday(updatedHoliday);
+    } catch (err) {
+      setError('Failed to remove document');
       console.error(err);
     }
   };
@@ -1855,6 +1899,7 @@ export function HolidayPlansManagerSecure({ onClose }: HolidayPlansManagerSecure
                           key={doc.id}
                           filename={doc.filename}
                           onClick={() => viewDocument(doc)}
+                          onDelete={() => removeSubItemDocument(doc, 'accommodation', editingAccommodation.id)}
                         />
                       ))}
                     </div>
@@ -2022,6 +2067,7 @@ export function HolidayPlansManagerSecure({ onClose }: HolidayPlansManagerSecure
                           key={doc.id}
                           filename={doc.filename}
                           onClick={() => viewDocument(doc)}
+                          onDelete={() => removeSubItemDocument(doc, 'travel', editingTravel.id)}
                         />
                       ))}
                     </div>
@@ -2150,6 +2196,7 @@ export function HolidayPlansManagerSecure({ onClose }: HolidayPlansManagerSecure
                           key={doc.id}
                           filename={doc.filename}
                           onClick={() => viewDocument(doc)}
+                          onDelete={() => removeSubItemDocument(doc, 'activity', editingActivity.id)}
                         />
                       ))}
                     </div>
@@ -2371,6 +2418,7 @@ export function HolidayPlansManagerSecure({ onClose }: HolidayPlansManagerSecure
                           key={doc.id}
                           filename={doc.filename}
                           onClick={() => viewDocument(doc)}
+                          onDelete={() => removeSubItemDocument(doc, 'carHire', editingCarHire.id)}
                         />
                       ))}
                     </div>
