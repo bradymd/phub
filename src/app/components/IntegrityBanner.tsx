@@ -1,7 +1,7 @@
 import { useState, useEffect } from 'react';
 import { AlertTriangle, X } from 'lucide-react';
 import { runIntegrityCheck, IntegrityReport } from '../../services/integrity';
-import { useStorage } from '../../contexts/StorageContext';
+import { useStorage, useDataVersion } from '../../contexts/StorageContext';
 
 interface IntegrityBannerProps {
   onOpenBackup: () => void;
@@ -9,6 +9,7 @@ interface IntegrityBannerProps {
 
 export function IntegrityBanner({ onOpenBackup }: IntegrityBannerProps) {
   const storage = useStorage();
+  const { dataVersion } = useDataVersion();
   const [missingCount, setMissingCount] = useState(0);
   const [dismissed, setDismissed] = useState(false);
   const [checked, setChecked] = useState(false);
@@ -22,6 +23,7 @@ export function IntegrityBanner({ onOpenBackup }: IntegrityBannerProps) {
         if (!cancelled) {
           setMissingCount(report.missingFiles.length);
           setChecked(true);
+          if (report.missingFiles.length === 0) setDismissed(false);
         }
       } catch (err) {
         console.error('Integrity check failed:', err);
@@ -33,7 +35,7 @@ export function IntegrityBanner({ onOpenBackup }: IntegrityBannerProps) {
 
     check();
     return () => { cancelled = true; };
-  }, [storage]);
+  }, [storage, dataVersion]);
 
   if (!checked || missingCount === 0 || dismissed) {
     return null;
