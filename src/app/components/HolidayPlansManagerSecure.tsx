@@ -213,8 +213,21 @@ export function HolidayPlansManagerSecure({ onClose }: HolidayPlansManagerSecure
       setIsLoading(true);
       setError('');
       const data = await storage.get<HolidayPlan>('holiday_plans');
-      // Sort by start date, most recent first
-      data.sort((a, b) => new Date(b.startDate).getTime() - new Date(a.startDate).getTime());
+      // Sort: active holidays first, then future (soonest first), then past (most recent first)
+      const now = new Date();
+      const status = (h: HolidayPlan) => {
+        const start = new Date(h.startDate);
+        const end = new Date(h.endDate);
+        if (now >= start && now <= end) return 0;
+        if (start > now) return 1;
+        return 2;
+      };
+      data.sort((a, b) => {
+        const sa = status(a), sb = status(b);
+        if (sa !== sb) return sa - sb;
+        const dir = sa === 1 ? 1 : -1;
+        return dir * (new Date(a.startDate).getTime() - new Date(b.startDate).getTime());
+      });
       setHolidays(data);
     } catch (err) {
       setError('Failed to load holiday plans');
