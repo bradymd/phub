@@ -5,6 +5,15 @@ import { PdfJsViewer } from './PdfJsViewer';
 import { DocumentReference } from '../../services/document-service';
 import { printRecord, formatDate, formatCurrency } from '../../utils/print';
 
+// A single completed occurrence of a recurring maintenance item (rolling history)
+interface ServiceRecord {
+  id: string;
+  date: string;   // date the service was carried out
+  cost: number;   // cost for this occurrence
+  paid: boolean;  // whether this occurrence has been paid for
+  notes?: string;
+}
+
 // Maintenance item for recurring annual checks
 interface MaintenanceItem {
   id: string;
@@ -12,9 +21,10 @@ interface MaintenanceItem {
   company: string;
   contactDetails: string;
   annualCost: number;
-  lastDate: string;
-  nextDueDate: string;
+  lastDate: string;     // most recent service date (kept in sync with newest serviceHistory row)
+  nextDueDate: string;  // when the next occurrence is due
   notes: string;
+  serviceHistory?: ServiceRecord[]; // rolling log of past occurrences, newest first
   documents?: DocumentReference[];
 }
 
@@ -123,6 +133,7 @@ const emptyMaintenanceItem: Omit<MaintenanceItem, 'id'> = {
   lastDate: '',
   nextDueDate: '',
   notes: '',
+  serviceHistory: [],
   documents: []
 };
 
@@ -239,6 +250,22 @@ const isDueSoon = (dateStr: string): boolean => {
   return date >= today && date <= thirtyDays;
 };
 
+// A maintenance item is "awaiting payment" if any logged service occurrence is unpaid
+const hasUnpaidService = (item: MaintenanceItem): boolean =>
+  (item.serviceHistory || []).some(s => !s.paid);
+
+// Add one year to an ISO date string (yyyy-mm-dd); returns '' if input empty
+const addOneYear = (dateStr: string): string => {
+  if (!dateStr) return '';
+  const d = new Date(dateStr);
+  if (isNaN(d.getTime())) return '';
+  d.setFullYear(d.getFullYear() + 1);
+  return d.toISOString().split('T')[0];
+};
+
+// Today as yyyy-mm-dd (for date input defaults)
+const todayISO = (): string => new Date().toISOString().split('T')[0];
+
 export function PropertyManagerSecure({ onClose }: PropertyManagerSecureProps) {
   const storage = useStorage();
   const documentService = useDocumentService();
@@ -261,6 +288,10 @@ export function PropertyManagerSecure({ onClose }: PropertyManagerSecureProps) {
   const [showMaintenanceForm, setShowMaintenanceForm] = useState(false);
   const [editingMaintenanceItem, setEditingMaintenanceItem] = useState<MaintenanceItem | null>(null);
   const [viewingMaintenanceItem, setViewingMaintenanceItem] = useState<MaintenanceItem | null>(null);
+
+  // "Mark serviced" dialog state — records a completed occurrence and rolls the dates forward
+  const [servicingItem, setServicingItem] = useState<{ propertyId: string; item: MaintenanceItem } | null>(null);
+  const [serviceForm, setServiceForm] = useState({ date: '', cost: 0, paid: false, nextDueDate: '', notes: '' });
 
   // Utility form state
   const [newUtility, setNewUtility] = useState(emptyUtility);
@@ -444,6 +475,92 @@ export function PropertyManagerSecure({ onClose }: PropertyManagerSecureProps) {
         maintenanceItems: editingProperty.maintenanceItems.filter(m => m.id !== itemId)
       });
     }
+  };
+
+  // Persist a single maintenance item to storage and keep any open views/forms in sync.
+  // Used by the rolling-history actions (mark serviced, toggle paid, delete record).
+  const persistMaintenanceItem = async (propertyId: string, updatedItem: MaintenanceItem) => {
+    const property = properties.find(p => p.id === propertyId);
+    if (!property) return;
+    const updatedProperty: Property = {
+      ...property,
+      maintenanceItems: (property.maintenanceItems || []).map(m =>
+        m.id === updatedItem.id ? updatedItem : m
+      )
+    };
+    try {
+      await storage.update('properties', propertyId, updatedProperty);
+      setProperties(properties.map(p => p.id === propertyId ? updatedProperty : p));
+      notifyDataChange();
+      setViewingDetails(prev => prev && prev.id === propertyId ? updatedProperty : prev);
+      setEditingProperty(prev => prev && prev.id === propertyId
+        ? { ...prev, maintenanceItems: prev.maintenanceItems.map(m => m.id === updatedItem.id ? updatedItem : m) }
+        : prev);
+      setViewingMaintenanceItem(prev => prev && prev.id === updatedItem.id ? updatedItem : prev);
+      setEditingMaintenanceItem(prev => prev && prev.id === updatedItem.id ? updatedItem : prev);
+    } catch (err) {
+      setError('Failed to update maintenance item');
+      console.error(err);
+    }
+  };
+
+  // Open the "Mark serviced" dialog, pre-filling sensible defaults (today, annual cost, +1yr next due)
+  const openServiceDialog = (propertyId: string, item: MaintenanceItem) => {
+    const date = todayISO();
+    setServiceForm({
+      date,
+      cost: item.annualCost || 0,
+      paid: false,
+      nextDueDate: addOneYear(date),
+      notes: ''
+    });
+    setServicingItem({ propertyId, item });
+  };
+
+  // Record a completed occurrence: append to history, roll lastDate/nextDueDate forward
+  const markServiced = async () => {
+    if (!servicingItem) return;
+    const { propertyId, item } = servicingItem;
+    const record: ServiceRecord = {
+      id: `svc_${Date.now()}_${Math.random().toString(36).substr(2, 9)}`,
+      date: serviceForm.date || todayISO(),
+      cost: serviceForm.cost || 0,
+      paid: serviceForm.paid,
+      notes: serviceForm.notes || undefined
+    };
+    const history = [record, ...(item.serviceHistory || [])]
+      .sort((a, b) => new Date(b.date).getTime() - new Date(a.date).getTime());
+    const updatedItem: MaintenanceItem = {
+      ...item,
+      serviceHistory: history,
+      lastDate: history[0].date,
+      nextDueDate: serviceForm.nextDueDate || item.nextDueDate
+    };
+    await persistMaintenanceItem(propertyId, updatedItem);
+    setServicingItem(null);
+  };
+
+  // Toggle the paid flag on one occurrence in an item's history
+  const toggleServicePaid = async (propertyId: string, item: MaintenanceItem, recordId: string) => {
+    const updatedItem: MaintenanceItem = {
+      ...item,
+      serviceHistory: (item.serviceHistory || []).map(s =>
+        s.id === recordId ? { ...s, paid: !s.paid } : s
+      )
+    };
+    await persistMaintenanceItem(propertyId, updatedItem);
+  };
+
+  // Remove one occurrence from an item's history (re-derives lastDate from what remains)
+  const deleteServiceRecord = async (propertyId: string, item: MaintenanceItem, recordId: string) => {
+    if (!confirm('Delete this service record?')) return;
+    const history = (item.serviceHistory || []).filter(s => s.id !== recordId);
+    const updatedItem: MaintenanceItem = {
+      ...item,
+      serviceHistory: history,
+      lastDate: history.length ? history[0].date : ''
+    };
+    await persistMaintenanceItem(propertyId, updatedItem);
   };
 
   // Utility functions
@@ -817,6 +934,9 @@ export function PropertyManagerSecure({ onClose }: PropertyManagerSecureProps) {
     ),
     maintenanceOverdue: properties.reduce((count, p) =>
       count + (p.maintenanceItems || []).filter(m => isPastDate(m.nextDueDate)).length, 0
+    ),
+    maintenanceUnpaid: properties.reduce((count, p) =>
+      count + (p.maintenanceItems || []).filter(m => hasUnpaidService(m)).length, 0
     )
   };
 
@@ -1022,8 +1142,8 @@ export function PropertyManagerSecure({ onClose }: PropertyManagerSecureProps) {
                 <p className="text-2xl font-semibold text-gray-900">£{counts.totalCouncilTax.toLocaleString()}</p>
               </div>
             </div>
-            {(counts.maintenanceOverdue > 0 || counts.maintenanceDueSoon > 0) && (
-              <div className="mt-4 flex gap-4">
+            {(counts.maintenanceOverdue > 0 || counts.maintenanceDueSoon > 0 || counts.maintenanceUnpaid > 0) && (
+              <div className="mt-4 flex flex-wrap gap-4">
                 {counts.maintenanceOverdue > 0 && (
                   <div className="flex items-center gap-2 text-red-600">
                     <AlertCircle className="w-4 h-4" />
@@ -1034,6 +1154,12 @@ export function PropertyManagerSecure({ onClose }: PropertyManagerSecureProps) {
                   <div className="flex items-center gap-2 text-orange-600">
                     <Calendar className="w-4 h-4" />
                     <span className="text-sm font-medium">{counts.maintenanceDueSoon} due within 30 days</span>
+                  </div>
+                )}
+                {counts.maintenanceUnpaid > 0 && (
+                  <div className="flex items-center gap-2 text-amber-600">
+                    <AlertCircle className="w-4 h-4" />
+                    <span className="text-sm font-medium">{counts.maintenanceUnpaid} awaiting payment</span>
                   </div>
                 )}
               </div>
@@ -1252,9 +1378,11 @@ export function PropertyManagerSecure({ onClose }: PropertyManagerSecureProps) {
                     </td>
                     <td className="px-4 py-3 text-center">
                       {(property.maintenanceItems || []).some(m => isPastDate(m.nextDueDate)) ? (
-                        <span className="text-red-600"><AlertCircle className="w-4 h-4 inline" /></span>
+                        <span className="text-red-600" title="Overdue maintenance"><AlertCircle className="w-4 h-4 inline" /></span>
                       ) : (property.maintenanceItems || []).some(m => isDueSoon(m.nextDueDate)) ? (
-                        <span className="text-orange-500"><Calendar className="w-4 h-4 inline" /></span>
+                        <span className="text-orange-500" title="Maintenance due soon"><Calendar className="w-4 h-4 inline" /></span>
+                      ) : (property.maintenanceItems || []).some(m => hasUnpaidService(m)) ? (
+                        <span className="text-amber-600" title="Awaiting payment"><AlertCircle className="w-4 h-4 inline" /></span>
                       ) : (
                         <span className="text-green-600"><CheckCircle className="w-4 h-4 inline" /></span>
                       )}
@@ -1331,9 +1459,11 @@ export function PropertyManagerSecure({ onClose }: PropertyManagerSecureProps) {
                     </td>
                     <td className="px-4 py-3 text-center">
                       {(property.maintenanceItems || []).some(m => isPastDate(m.nextDueDate)) ? (
-                        <span className="text-red-600"><AlertCircle className="w-4 h-4 inline" /></span>
+                        <span className="text-red-600" title="Overdue maintenance"><AlertCircle className="w-4 h-4 inline" /></span>
                       ) : (property.maintenanceItems || []).some(m => isDueSoon(m.nextDueDate)) ? (
-                        <span className="text-orange-500"><Calendar className="w-4 h-4 inline" /></span>
+                        <span className="text-orange-500" title="Maintenance due soon"><Calendar className="w-4 h-4 inline" /></span>
+                      ) : (property.maintenanceItems || []).some(m => hasUnpaidService(m)) ? (
+                        <span className="text-amber-600" title="Awaiting payment"><AlertCircle className="w-4 h-4 inline" /></span>
                       ) : (
                         <span className="text-green-600"><CheckCircle className="w-4 h-4 inline" /></span>
                       )}
@@ -1656,7 +1786,12 @@ export function PropertyManagerSecure({ onClose }: PropertyManagerSecureProps) {
                             className="hover:bg-purple-50 cursor-pointer"
                             onClick={() => setViewingMaintenanceItem(item)}
                           >
-                            <td className="px-4 py-2 font-medium">{item.name}</td>
+                            <td className="px-4 py-2 font-medium">
+                              {item.name}
+                              {hasUnpaidService(item) && (
+                                <span className="ml-2 px-1.5 py-0.5 bg-amber-100 text-amber-700 text-xs rounded align-middle">Awaiting payment</span>
+                              )}
+                            </td>
                             <td className="px-4 py-2">{item.company || '-'}</td>
                             <td className="px-4 py-2 text-right">£{item.annualCost.toFixed(2)}</td>
                             <td className="px-4 py-2">
@@ -2184,14 +2319,25 @@ export function PropertyManagerSecure({ onClose }: PropertyManagerSecureProps) {
                               {isDueSoon(item.nextDueDate) && !isPastDate(item.nextDueDate) && (
                                 <span className="px-2 py-0.5 bg-orange-100 text-orange-700 text-xs rounded">Due Soon</span>
                               )}
+                              {hasUnpaidService(item) && (
+                                <span className="px-2 py-0.5 bg-amber-100 text-amber-700 text-xs rounded">Awaiting payment</span>
+                              )}
                             </div>
                             <div className="text-sm text-gray-600 mt-1 space-y-0.5">
                               {item.company && <p>Company: {item.company}</p>}
                               {item.contactDetails && <p>Contact: {item.contactDetails}</p>}
                               <p>Cost: £{item.annualCost.toFixed(2)} | Next due: {item.nextDueDate ? formatDateUK(item.nextDueDate) : 'Not set'}</p>
+                              {item.lastDate && <p>Last done: {formatDateUK(item.lastDate)}{item.serviceHistory && item.serviceHistory.length > 0 ? ` · ${item.serviceHistory.length} service${item.serviceHistory.length === 1 ? '' : 's'} logged` : ''}</p>}
                             </div>
                           </div>
                           <div className="flex items-center gap-1">
+                            <button
+                              onClick={() => openServiceDialog(editingProperty.id, item)}
+                              className="p-1.5 text-emerald-600 hover:bg-emerald-50 rounded"
+                              title="Mark serviced"
+                            >
+                              <CheckCircle className="w-4 h-4" />
+                            </button>
                             <button
                               onClick={() => setEditingMaintenanceItem(item)}
                               className="p-1.5 text-blue-600 hover:bg-blue-50 rounded"
@@ -3049,7 +3195,14 @@ export function PropertyManagerSecure({ onClose }: PropertyManagerSecureProps) {
                             { label: 'Last Service Date', value: formatDate(viewingMaintenanceItem.lastDate) },
                             { label: 'Next Due Date', value: formatDate(viewingMaintenanceItem.nextDueDate) },
                           ]
-                        }
+                        },
+                        ...((viewingMaintenanceItem.serviceHistory && viewingMaintenanceItem.serviceHistory.length > 0) ? [{
+                          title: 'Service History',
+                          fields: viewingMaintenanceItem.serviceHistory.map(s => ({
+                            label: formatDate(s.date),
+                            value: `${formatCurrency(s.cost)} — ${s.paid ? 'Paid' : 'Awaiting payment'}${s.notes ? ` (${s.notes})` : ''}`
+                          }))
+                        }] : [])
                       ],
                       viewingMaintenanceItem.notes
                     );
@@ -3069,8 +3222,9 @@ export function PropertyManagerSecure({ onClose }: PropertyManagerSecureProps) {
             </div>
 
             <div className="space-y-4">
-              {/* Status badge */}
-              {viewingMaintenanceItem.nextDueDate && (
+              {/* Status badges — time-based and payment are independent */}
+              <div className="flex flex-wrap items-center gap-2">
+                {viewingMaintenanceItem.nextDueDate && (
                 <div className={`inline-flex items-center gap-2 px-3 py-1.5 rounded-lg text-sm font-medium ${
                   isPastDate(viewingMaintenanceItem.nextDueDate)
                     ? 'bg-red-100 text-red-700'
@@ -3085,7 +3239,14 @@ export function PropertyManagerSecure({ onClose }: PropertyManagerSecureProps) {
                     ? 'Due Soon'
                     : 'Up to Date'}
                 </div>
-              )}
+                )}
+                {hasUnpaidService(viewingMaintenanceItem) && (
+                  <div className="inline-flex items-center gap-2 px-3 py-1.5 rounded-lg text-sm font-medium bg-amber-100 text-amber-700">
+                    <AlertCircle className="w-4 h-4" />
+                    Awaiting payment
+                  </div>
+                )}
+              </div>
 
               {/* Details grid */}
               <div className="grid grid-cols-2 gap-4 text-sm">
@@ -3133,6 +3294,58 @@ export function PropertyManagerSecure({ onClose }: PropertyManagerSecureProps) {
                 </div>
               )}
 
+              {/* Service History — rolling log of past occurrences */}
+              <div className="pt-2 border-t">
+                <div className="flex items-center justify-between mb-2">
+                  <p className="text-gray-500 text-xs">
+                    Service History{viewingMaintenanceItem.serviceHistory && viewingMaintenanceItem.serviceHistory.length > 0 ? ` (${viewingMaintenanceItem.serviceHistory.length})` : ''}
+                  </p>
+                  {viewingDetails && (
+                    <button
+                      onClick={() => openServiceDialog(viewingDetails.id, viewingMaintenanceItem)}
+                      className="flex items-center gap-1 px-2.5 py-1 bg-emerald-600 text-white rounded-lg hover:bg-emerald-700 text-xs"
+                    >
+                      <CheckCircle className="w-3 h-3" /> Mark serviced
+                    </button>
+                  )}
+                </div>
+                {viewingMaintenanceItem.serviceHistory && viewingMaintenanceItem.serviceHistory.length > 0 ? (
+                  <div className="space-y-1.5">
+                    {viewingMaintenanceItem.serviceHistory.map((s) => (
+                      <div key={s.id} className="flex items-center justify-between gap-2 bg-gray-50 rounded-lg px-3 py-2 text-sm">
+                        <div className="flex items-center gap-3 min-w-0">
+                          <span className="font-medium whitespace-nowrap">{formatDateUK(s.date)}</span>
+                          <span className="text-gray-600 whitespace-nowrap">£{s.cost.toFixed(2)}</span>
+                          {s.notes && <span className="text-gray-400 text-xs truncate">{s.notes}</span>}
+                        </div>
+                        <div className="flex items-center gap-1 shrink-0">
+                          {viewingDetails && (
+                            <button
+                              onClick={() => toggleServicePaid(viewingDetails.id, viewingMaintenanceItem, s.id)}
+                              className={`px-2 py-0.5 text-xs rounded ${s.paid ? 'bg-green-100 text-green-700 hover:bg-green-200' : 'bg-amber-100 text-amber-700 hover:bg-amber-200'}`}
+                              title="Toggle paid status"
+                            >
+                              {s.paid ? 'Paid' : 'Unpaid'}
+                            </button>
+                          )}
+                          {viewingDetails && (
+                            <button
+                              onClick={() => deleteServiceRecord(viewingDetails.id, viewingMaintenanceItem, s.id)}
+                              className="p-1 text-red-400 hover:text-red-600"
+                              title="Delete record"
+                            >
+                              <Trash className="w-3.5 h-3.5" />
+                            </button>
+                          )}
+                        </div>
+                      </div>
+                    ))}
+                  </div>
+                ) : (
+                  <p className="text-sm text-gray-400 italic">No services logged yet — use "Mark serviced" when this is done.</p>
+                )}
+              </div>
+
               {/* Documents */}
               {viewingMaintenanceItem.documents && viewingMaintenanceItem.documents.length > 0 && (
                 <div>
@@ -3173,6 +3386,91 @@ export function PropertyManagerSecure({ onClose }: PropertyManagerSecureProps) {
                   className="flex-1 px-4 py-2 bg-gray-200 text-gray-700 rounded-lg hover:bg-gray-300"
                 >
                   Close
+                </button>
+              </div>
+            </div>
+          </div>
+        </div>
+      )}
+
+      {/* Mark Serviced Dialog — logs a completed occurrence and rolls the dates forward */}
+      {servicingItem && (
+        <div className="fixed inset-0 bg-black/60 flex items-center justify-center z-[90] p-4">
+          <div className="bg-white rounded-2xl max-w-md w-full p-6 shadow-2xl">
+            <div className="flex items-center justify-between mb-4">
+              <h3 className="text-lg font-semibold flex items-center gap-2">
+                <CheckCircle className="w-5 h-5 text-emerald-600" />
+                Mark serviced
+              </h3>
+              <button onClick={() => setServicingItem(null)} className="p-2 hover:bg-gray-100 rounded-lg">
+                <X className="w-5 h-5" />
+              </button>
+            </div>
+            <p className="text-sm text-gray-500 mb-4">{servicingItem.item.name}</p>
+            <div className="space-y-4">
+              <div className="grid grid-cols-2 gap-4">
+                <div>
+                  <label className="block text-sm text-gray-600 mb-1">Date done</label>
+                  <input
+                    type="date"
+                    value={serviceForm.date}
+                    onChange={(e) => setServiceForm({ ...serviceForm, date: e.target.value, nextDueDate: addOneYear(e.target.value) })}
+                    className="w-full px-3 py-2 border border-gray-300 rounded-lg"
+                  />
+                </div>
+                <div>
+                  <label className="block text-sm text-gray-600 mb-1">Cost (£)</label>
+                  <input
+                    type="number"
+                    step="0.01"
+                    value={serviceForm.cost || ''}
+                    onChange={(e) => setServiceForm({ ...serviceForm, cost: parseFloat(e.target.value) || 0 })}
+                    className="w-full px-3 py-2 border border-gray-300 rounded-lg"
+                  />
+                </div>
+                <div>
+                  <label className="block text-sm text-gray-600 mb-1">Next due</label>
+                  <input
+                    type="date"
+                    value={serviceForm.nextDueDate}
+                    onChange={(e) => setServiceForm({ ...serviceForm, nextDueDate: e.target.value })}
+                    className="w-full px-3 py-2 border border-gray-300 rounded-lg"
+                  />
+                  <p className="text-xs text-gray-400 mt-1">Defaults to one year on</p>
+                </div>
+                <div className="flex items-end">
+                  <label className="flex items-center gap-2 text-sm text-gray-700 cursor-pointer pb-2">
+                    <input
+                      type="checkbox"
+                      checked={serviceForm.paid}
+                      onChange={(e) => setServiceForm({ ...serviceForm, paid: e.target.checked })}
+                      className="w-4 h-4"
+                    />
+                    Already paid
+                  </label>
+                </div>
+              </div>
+              <div>
+                <label className="block text-sm text-gray-600 mb-1">Notes (optional)</label>
+                <input
+                  type="text"
+                  value={serviceForm.notes}
+                  onChange={(e) => setServiceForm({ ...serviceForm, notes: e.target.value })}
+                  className="w-full px-3 py-2 border border-gray-300 rounded-lg"
+                />
+              </div>
+              <div className="flex gap-2">
+                <button
+                  onClick={markServiced}
+                  className="flex-1 px-4 py-2 bg-emerald-600 text-white rounded-lg hover:bg-emerald-700"
+                >
+                  Log service
+                </button>
+                <button
+                  onClick={() => setServicingItem(null)}
+                  className="px-4 py-2 bg-gray-200 text-gray-700 rounded-lg hover:bg-gray-300"
+                >
+                  Cancel
                 </button>
               </div>
             </div>
