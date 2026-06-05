@@ -266,6 +266,25 @@ const addOneYear = (dateStr: string): string => {
 // Today as yyyy-mm-dd (for date input defaults)
 const todayISO = (): string => new Date().toISOString().split('T')[0];
 
+// Entry date is today or in the future (a forthcoming job)
+const isFutureDate = (dateStr: string): boolean => {
+  if (!dateStr) return false;
+  const date = new Date(dateStr + 'T00:00:00');
+  const today = new Date();
+  today.setHours(0, 0, 0, 0);
+  return date >= today;
+};
+
+// Entry is more than a month in the past — old history, grey it out
+const isOldPast = (dateStr: string): boolean => {
+  if (!dateStr) return false;
+  const date = new Date(dateStr + 'T00:00:00');
+  const oneMonthAgo = new Date();
+  oneMonthAgo.setHours(0, 0, 0, 0);
+  oneMonthAgo.setMonth(oneMonthAgo.getMonth() - 1);
+  return date < oneMonthAgo;
+};
+
 export function PropertyManagerSecure({ onClose }: PropertyManagerSecureProps) {
   const storage = useStorage();
   const documentService = useDocumentService();
@@ -1840,13 +1859,21 @@ export function PropertyManagerSecure({ onClose }: PropertyManagerSecureProps) {
                         </tr>
                       </thead>
                       <tbody className="divide-y divide-gray-100">
-                        {viewingDetails.maintenanceHistory.map((entry) => (
+                        {viewingDetails.maintenanceHistory.map((entry) => {
+                          const isFuture = isFutureDate(entry.date);
+                          const isOld = isOldPast(entry.date);
+                          return (
                           <tr
                             key={entry.id}
-                            className="hover:bg-cyan-50 cursor-pointer"
+                            className={`cursor-pointer ${isFuture ? 'bg-teal-50/60 hover:bg-teal-100' : isOld ? 'opacity-50 hover:bg-cyan-50' : 'hover:bg-cyan-50'}`}
                             onClick={() => setViewingMaintenanceHistory(entry)}
                           >
-                            <td className="px-4 py-2">{entry.date ? formatDateUK(entry.date) : '-'}</td>
+                            <td className="px-4 py-2 whitespace-nowrap">
+                              {entry.date ? formatDateUK(entry.date) : '-'}
+                              {isFuture && (
+                                <span className="ml-2 px-1.5 py-0.5 bg-teal-100 text-teal-700 text-xs rounded">Upcoming</span>
+                              )}
+                            </td>
                             <td className="px-4 py-2">
                               <span className={`px-2 py-0.5 rounded text-xs font-medium ${
                                 entry.type === 'repair' ? 'bg-red-100 text-red-700' :
@@ -1872,14 +1899,22 @@ export function PropertyManagerSecure({ onClose }: PropertyManagerSecureProps) {
                               )}
                             </td>
                           </tr>
-                        ))}
+                          );
+                        })}
                       </tbody>
                       <tfoot className="bg-gray-50">
                         <tr>
                           <td colSpan={4} className="px-4 py-2 text-right font-medium text-gray-600">Total spent:</td>
-                          <td className="px-4 py-2 text-right font-medium">£{viewingDetails.maintenanceHistory.reduce((sum, e) => sum + e.cost, 0).toFixed(2)}</td>
+                          <td className="px-4 py-2 text-right font-medium">£{viewingDetails.maintenanceHistory.filter(e => !isFutureDate(e.date)).reduce((sum, e) => sum + e.cost, 0).toFixed(2)}</td>
                           <td></td>
                         </tr>
+                        {viewingDetails.maintenanceHistory.some(e => isFutureDate(e.date)) && (
+                          <tr>
+                            <td colSpan={4} className="px-4 py-2 text-right font-medium text-teal-600">Upcoming:</td>
+                            <td className="px-4 py-2 text-right font-medium text-teal-700">£{viewingDetails.maintenanceHistory.filter(e => isFutureDate(e.date)).reduce((sum, e) => sum + e.cost, 0).toFixed(2)}</td>
+                            <td></td>
+                          </tr>
+                        )}
                       </tfoot>
                     </table>
                   </div>
@@ -2494,8 +2529,11 @@ export function PropertyManagerSecure({ onClose }: PropertyManagerSecureProps) {
 
                 {editingProperty.maintenanceHistory && editingProperty.maintenanceHistory.length > 0 ? (
                   <div className="space-y-3">
-                    {editingProperty.maintenanceHistory.map((entry) => (
-                      <div key={entry.id} className="bg-blue-50 rounded-lg p-3 border border-blue-200">
+                    {editingProperty.maintenanceHistory.map((entry) => {
+                      const isFuture = isFutureDate(entry.date);
+                      const isOld = isOldPast(entry.date);
+                      return (
+                      <div key={entry.id} className={`rounded-lg p-3 border ${isFuture ? 'bg-teal-50 border-teal-300 ring-1 ring-teal-200' : isOld ? 'bg-blue-50 border-blue-200 opacity-60' : 'bg-blue-50 border-blue-200'}`}>
                         <div className="flex items-start justify-between">
                           <div className="flex-1">
                             <div className="flex items-center gap-2 mb-1">
@@ -2503,6 +2541,9 @@ export function PropertyManagerSecure({ onClose }: PropertyManagerSecureProps) {
                               <span className="px-2 py-0.5 bg-blue-200 text-blue-800 text-xs rounded">
                                 {maintenanceTypeLabels[entry.type]}
                               </span>
+                              {isFuture && (
+                                <span className="px-2 py-0.5 bg-teal-100 text-teal-700 text-xs rounded font-medium">Upcoming</span>
+                              )}
                             </div>
                             <div className="text-sm text-gray-600 space-y-0.5">
                               <p>Date: {formatDateUK(entry.date)} | Cost: £{entry.cost.toFixed(2)}</p>
@@ -2547,9 +2588,13 @@ export function PropertyManagerSecure({ onClose }: PropertyManagerSecureProps) {
                           />
                         </div>
                       </div>
-                    ))}
+                      );
+                    })}
                     <div className="text-right text-sm font-medium text-gray-700">
-                      Total spent: £{editingProperty.maintenanceHistory.reduce((sum, e) => sum + e.cost, 0).toFixed(2)}
+                      Total spent: £{editingProperty.maintenanceHistory.filter(e => !isFutureDate(e.date)).reduce((sum, e) => sum + e.cost, 0).toFixed(2)}
+                      {editingProperty.maintenanceHistory.some(e => isFutureDate(e.date)) && (
+                        <span className="ml-3 text-teal-700">Upcoming: £{editingProperty.maintenanceHistory.filter(e => isFutureDate(e.date)).reduce((sum, e) => sum + e.cost, 0).toFixed(2)}</span>
+                      )}
                     </div>
                   </div>
                 ) : (
