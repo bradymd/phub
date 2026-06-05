@@ -1775,6 +1775,7 @@ export function PropertyManagerSecure({ onClose }: PropertyManagerSecureProps) {
                           <th className="px-4 py-2 text-left text-gray-600">Item</th>
                           <th className="px-4 py-2 text-left text-gray-600">Company</th>
                           <th className="px-4 py-2 text-right text-gray-600">Cost</th>
+                          <th className="px-4 py-2 text-left text-gray-600">Last Done</th>
                           <th className="px-4 py-2 text-left text-gray-600">Next Due</th>
                           <th className="px-4 py-2 text-center text-gray-600">Docs</th>
                         </tr>
@@ -1794,6 +1795,9 @@ export function PropertyManagerSecure({ onClose }: PropertyManagerSecureProps) {
                             </td>
                             <td className="px-4 py-2">{item.company || '-'}</td>
                             <td className="px-4 py-2 text-right">£{item.annualCost.toFixed(2)}</td>
+                            <td className="px-4 py-2 text-gray-600">
+                              {item.lastDate ? formatDateUK(item.lastDate) : '-'}
+                            </td>
                             <td className="px-4 py-2">
                               <span className={`${isPastDate(item.nextDueDate) ? 'text-red-600 font-medium' : isDueSoon(item.nextDueDate) ? 'text-orange-600' : ''}`}>
                                 {item.nextDueDate ? formatDateUK(item.nextDueDate) : '-'}
