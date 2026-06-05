@@ -72,6 +72,25 @@ const isDueSoon = (dateStr: string): boolean => {
   return date >= today && date <= thirtyDays;
 };
 
+// Appointment date is today or in the future (an upcoming appointment)
+const isFutureDate = (dateStr: string): boolean => {
+  if (!dateStr) return false;
+  const date = new Date(dateStr + 'T00:00:00');
+  const today = new Date();
+  today.setHours(0, 0, 0, 0);
+  return date >= today;
+};
+
+// Appointment is more than a month in the past — old history, grey it out
+const isOldPast = (dateStr: string): boolean => {
+  if (!dateStr) return false;
+  const date = new Date(dateStr + 'T00:00:00');
+  const oneMonthAgo = new Date();
+  oneMonthAgo.setHours(0, 0, 0, 0);
+  oneMonthAgo.setMonth(oneMonthAgo.getMonth() - 1);
+  return date < oneMonthAgo;
+};
+
 const formatDateUK = (dateStr: string): string => {
   if (!dateStr) return '';
   const parts = dateStr.split('-');
@@ -995,7 +1014,9 @@ export function DentalManagerSecure({ onClose }: DentalManagerSecureProps) {
   });
 
   const totalCost = records.reduce((sum, r) => sum + (r.cost || 0), 0);
-  const upcomingAppointments = records.filter(r => r.nextAppointmentDate && isDueSoon(r.nextAppointmentDate)).length;
+  // Upcoming = appointments whose own date is today or later (matches the home-screen reminder logic)
+  const upcomingAppointments = records.filter(r => isFutureDate(r.date)).length;
+  // Overdue = a planned follow-up (Next Appointment Date) that has now passed
   const overdueAppointments = records.filter(r => r.nextAppointmentDate && isPastDate(r.nextAppointmentDate)).length;
   const uniquePatients = new Set(records.map(r => r.patientName)).size;
 
@@ -1144,10 +1165,19 @@ export function DentalManagerSecure({ onClose }: DentalManagerSecureProps) {
                 </div>
               ) : viewMode === 'grid' ? (
                 <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
-                  {filteredRecords.map((record) => (
+                  {filteredRecords.map((record) => {
+                    const isFuture = isFutureDate(record.date);
+                    const isOld = isOldPast(record.date);
+                    return (
                     <div
                       key={record.id}
-                      className="bg-white rounded-xl border border-gray-200 hover:shadow-lg transition-shadow cursor-pointer"
+                      className={`rounded-xl border hover:shadow-lg transition-shadow cursor-pointer ${
+                        isFuture
+                          ? 'bg-teal-50/40 border-teal-300 ring-1 ring-teal-200'
+                          : isOld
+                          ? 'bg-white border-gray-200 opacity-60'
+                          : 'bg-white border-gray-200'
+                      }`}
                       onClick={() => setExpandedRecord(record.id)}
                     >
                       <div className="p-4">
@@ -1155,6 +1185,9 @@ export function DentalManagerSecure({ onClose }: DentalManagerSecureProps) {
                           <div>
                             <h3 className="font-semibold text-gray-900">{record.patientName}</h3>
                             <p className="text-sm text-gray-500">{formatDateUK(record.date)}{record.time && ` ${record.time}`}</p>
+                            {isFuture && (
+                              <span className="inline-block mt-1 px-2 py-0.5 bg-teal-100 text-teal-700 rounded text-xs font-medium">Upcoming</span>
+                            )}
                           </div>
                           <span className={`px-2 py-1 rounded-lg text-xs font-medium ${getTypeColor(record.type)}`}>
                             {getTypeLabel(record.type)}
@@ -1184,14 +1217,24 @@ export function DentalManagerSecure({ onClose }: DentalManagerSecureProps) {
                         )}
                       </div>
                     </div>
-                  ))}
+                    );
+                  })}
                 </div>
               ) : (
                 <div className="space-y-2">
-                  {filteredRecords.map((record) => (
+                  {filteredRecords.map((record) => {
+                    const isFuture = isFutureDate(record.date);
+                    const isOld = isOldPast(record.date);
+                    return (
                     <div
                       key={record.id}
-                      className="bg-white rounded-xl border border-gray-200 hover:shadow-md transition-shadow"
+                      className={`rounded-xl border hover:shadow-md transition-shadow ${
+                        isFuture
+                          ? 'bg-teal-50/40 border-teal-300 ring-1 ring-teal-200'
+                          : isOld
+                          ? 'bg-white border-gray-200 opacity-60'
+                          : 'bg-white border-gray-200'
+                      }`}
                     >
                       <div
                         className="p-4 flex items-center gap-4 cursor-pointer"
@@ -1203,11 +1246,14 @@ export function DentalManagerSecure({ onClose }: DentalManagerSecureProps) {
                             <span className={`px-2 py-0.5 rounded text-xs font-medium ${getTypeColor(record.type)}`}>
                               {getTypeLabel(record.type)}
                             </span>
+                            {isFuture && (
+                              <span className="px-2 py-0.5 bg-teal-100 text-teal-700 rounded text-xs font-medium">Upcoming</span>
+                            )}
                             {record.nextAppointmentDate && isDueSoon(record.nextAppointmentDate) && (
-                              <span className="px-2 py-0.5 bg-orange-100 text-orange-700 rounded text-xs font-medium">Upcoming</span>
+                              <span className="px-2 py-0.5 bg-orange-100 text-orange-700 rounded text-xs font-medium">Follow-up soon</span>
                             )}
                             {record.nextAppointmentDate && isPastDate(record.nextAppointmentDate) && (
-                              <span className="px-2 py-0.5 bg-red-100 text-red-700 rounded text-xs font-medium">Overdue</span>
+                              <span className="px-2 py-0.5 bg-red-100 text-red-700 rounded text-xs font-medium">Follow-up overdue</span>
                             )}
                           </div>
                           <div className="flex items-center gap-4 text-sm text-gray-500">
@@ -1259,7 +1305,8 @@ export function DentalManagerSecure({ onClose }: DentalManagerSecureProps) {
                         </div>
                       </div>
                     </div>
-                  ))}
+                    );
+                  })}
                 </div>
               )}
             </>
