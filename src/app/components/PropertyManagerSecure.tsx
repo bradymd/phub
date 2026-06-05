@@ -655,7 +655,7 @@ export function PropertyManagerSecure({ onClose }: PropertyManagerSecureProps) {
         setEditingMaintenanceHistory(null);
         setEditingFromView(false);
       } catch (err) {
-        setError('Failed to update maintenance record');
+        setError('Failed to update maintenance entry');
         console.error(err);
       }
     } else {
@@ -674,7 +674,7 @@ export function PropertyManagerSecure({ onClose }: PropertyManagerSecureProps) {
   };
 
   const deleteMaintenanceHistoryEntry = async (propertyId: string, entryId: string) => {
-    if (!confirm('Delete this maintenance record?')) return;
+    if (!confirm('Delete this maintenance entry?')) return;
 
     if (editingProperty && editingProperty.id === propertyId) {
       const entry = editingProperty.maintenanceHistory?.find(e => e.id === entryId);
@@ -1825,7 +1825,7 @@ export function PropertyManagerSecure({ onClose }: PropertyManagerSecureProps) {
               {viewingDetails.maintenanceHistory && viewingDetails.maintenanceHistory.length > 0 && (
                 <div>
                   <h4 className="text-sm font-medium text-gray-700 mb-3 flex items-center gap-2">
-                    <Wrench className="w-4 h-4" /> Maintenance History
+                    <Wrench className="w-4 h-4" /> Other Maintenance
                   </h4>
                   <div className="border border-gray-200 rounded-lg overflow-hidden">
                     <table className="w-full text-sm">
@@ -2381,7 +2381,7 @@ export function PropertyManagerSecure({ onClose }: PropertyManagerSecureProps) {
               <div className="border border-gray-200 rounded-lg p-4">
                 <div className="flex items-center justify-between mb-3">
                   <h4 className="text-sm font-medium text-gray-700 flex items-center gap-2">
-                    <Wrench className="w-4 h-4" /> Property Maintenance History
+                    <Wrench className="w-4 h-4" /> Other Maintenance
                   </h4>
                   <button
                     onClick={() => setShowMaintenanceHistoryForm(!showMaintenanceHistoryForm)}
@@ -2553,7 +2553,7 @@ export function PropertyManagerSecure({ onClose }: PropertyManagerSecureProps) {
                     </div>
                   </div>
                 ) : (
-                  <p className="text-sm text-gray-500 italic">No maintenance history recorded yet</p>
+                  <p className="text-sm text-gray-500 italic">Nothing logged yet</p>
                 )}
               </div>
 
@@ -2922,7 +2922,7 @@ export function PropertyManagerSecure({ onClose }: PropertyManagerSecureProps) {
         <div className="fixed inset-0 bg-black/60 flex items-center justify-center z-[80] p-4">
           <div className="bg-white rounded-2xl max-w-lg w-full p-6 shadow-2xl">
             <div className="flex items-center justify-between mb-4">
-              <h3 className="text-lg font-semibold">Edit Maintenance Record</h3>
+              <h3 className="text-lg font-semibold">Edit Maintenance Entry</h3>
               <button onClick={() => { setEditingMaintenanceHistory(null); if (editingFromView) { setEditingFromView(false); setEditingProperty(null); } }} className="p-2 hover:bg-gray-100 rounded-lg">
                 <X className="w-5 h-5" />
               </button>

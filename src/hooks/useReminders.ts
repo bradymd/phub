@@ -84,6 +84,13 @@ export function useReminders(): PanelReminders {
                 newReminders.property.dueSoon++;
               }
             }
+            // Check "Other Maintenance" entries for upcoming work (within 30 days).
+            // Past entries are just history — don't flag them as overdue (cf. holidays).
+            (property.maintenanceHistory || []).forEach((entry: any) => {
+              if (entry.date && isDueSoon(entry.date)) {
+                newReminders.property.dueSoon++;
+              }
+            });
           });
         } catch (e) {
           // Property store might not exist yet
