@@ -110,8 +110,10 @@ export const ImportWizard: React.FC<ImportWizardProps> = ({ masterPassword, onIm
         throw new Error(`Import completed with errors:\n${errors.join('\n')}`);
       }
 
-      // Import master password hash
-      if (data.master_password_hash) {
+      // Import master password hash (browser/dev fallback only; Electron verifies
+      // via the wrapped .master.key file and must not persist a hash on disk)
+      const isElectron = typeof window !== 'undefined' && 'electronAPI' in window;
+      if (data.master_password_hash && !isElectron) {
         localStorage.setItem('master_password_hash', data.master_password_hash);
       }
 

@@ -76,27 +76,26 @@ export default function App() {
   // Check if user has already set up a master password
   useEffect(() => {
     const checkMasterPassword = async () => {
-      // Check localStorage first (browser mode)
-      const hasPasswordInStorage = localStorage.getItem('master_password_hash');
-      if (hasPasswordInStorage) {
-        setHasMasterPassword(true);
+      const isElectron = typeof window !== 'undefined' && 'electronAPI' in window;
+
+      if (isElectron) {
+        // In Electron the wrapped .master.key file is the source of truth.
+        // Remove any legacy SHA-256 hash that older versions wrote to localStorage —
+        // it served no purpose here and was an offline brute-force oracle for the
+        // master password.
+        localStorage.removeItem('master_password_hash');
+        try {
+          const result = await (window as any).electronAPI.masterKey.exists();
+          setHasMasterPassword(result.exists);
+        } catch (err) {
+          console.error('Error checking master key:', err);
+          setHasMasterPassword(false);
+        }
         return;
       }
 
-      // Check Electron file-based master key
-      if (typeof window !== 'undefined' && 'electronAPI' in window) {
-        try {
-          const result = await (window as any).electronAPI.masterKey.exists();
-          if (result.exists) {
-            setHasMasterPassword(true);
-            return;
-          }
-        } catch (err) {
-          console.error('Error checking master key:', err);
-        }
-      }
-
-      setHasMasterPassword(false);
+      // Browser/dev fallback: verification hash lives in localStorage
+      setHasMasterPassword(localStorage.getItem('master_password_hash') !== null);
     };
 
     checkMasterPassword();

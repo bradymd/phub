@@ -70,6 +70,21 @@ const documentsDir = path.join(os.homedir(), 'Documents');
 // Master key file location
 const masterKeyFile = path.join(hubDir, '.master.key');
 
+/**
+ * Join a renderer-supplied relative path onto a trusted base directory and
+ * guarantee the result stays inside that base. Prevents path-traversal
+ * (e.g. "../../.ssh/id_rsa") from a compromised renderer escaping the data
+ * and documents directories. Throws if the path would escape.
+ */
+function safeJoin(baseDir, relativePath) {
+  const resolvedBase = path.resolve(baseDir);
+  const target = path.resolve(resolvedBase, relativePath || '');
+  if (target !== resolvedBase && !target.startsWith(resolvedBase + path.sep)) {
+    throw new Error('Path escapes allowed directory');
+  }
+  return target;
+}
+
 // Create main window
 function createWindow() {
   // Try to use the icon - use absolute path for better debugging
@@ -88,8 +103,64 @@ function createWindow() {
     }
   });
 
+  const isDev = process.env.NODE_ENV === 'development';
+
+  // Content-Security-Policy (production only — the Vite dev server needs inline
+  // scripts and a websocket for HMR). Restricts what a compromised/XSS'd renderer
+  // can do: no remote scripts, no remote network connections. Allowances:
+  //  - style 'unsafe-inline': Tailwind/inline style attributes
+  //  - img https:: website favicons (Virtual High Street) + data/blob previews
+  //  - worker/blob: pdf.js renders via a web worker; print uses blob URLs
+  if (!isDev) {
+    const csp = [
+      "default-src 'self'",
+      "script-src 'self'",
+      "style-src 'self' 'unsafe-inline'",
+      "img-src 'self' data: blob: https:",
+      "font-src 'self' data:",
+      "connect-src 'self' blob: data:",
+      "worker-src 'self' blob:",
+      "frame-src 'self' blob:",
+      "object-src 'none'",
+      "base-uri 'self'",
+      "form-action 'none'"
+    ].join('; ');
+    mainWindow.webContents.session.webRequest.onHeadersReceived((details, callback) => {
+      callback({
+        responseHeaders: {
+          ...details.responseHeaders,
+          'Content-Security-Policy': [csp]
+        }
+      });
+    });
+  }
+
+  // Navigation guard: keep the renderer pinned to the app. Open real external
+  // links (http/https) in the system browser instead of in-app, and block any
+  // other navigation. window.open('', '_blank') used for print/preview resolves
+  // to about:blank, which is allowed through.
+  mainWindow.webContents.setWindowOpenHandler(({ url }) => {
+    if (url === 'about:blank' || url === '') {
+      return { action: 'allow' };
+    }
+    if (url.startsWith('http://') || url.startsWith('https://')) {
+      shell.openExternal(url);
+    }
+    return { action: 'deny' };
+  });
+
+  mainWindow.webContents.on('will-navigate', (event, url) => {
+    const isLocalApp = url.startsWith('http://localhost:5173') || url.startsWith('file://');
+    if (!isLocalApp) {
+      event.preventDefault();
+      if (url.startsWith('http://') || url.startsWith('https://')) {
+        shell.openExternal(url);
+      }
+    }
+  });
+
   // Load app
-  if (process.env.NODE_ENV === 'development') {
+  if (isDev) {
     mainWindow.loadURL('http://localhost:5173');
     mainWindow.webContents.openDevTools();
   } else {
@@ -374,7 +445,7 @@ ipcMain.handle('fs:ensureDataDir', async () => {
 // Check if file exists
 ipcMain.handle('fs:exists', async (event, filePath) => {
   try {
-    const fullPath = path.join(dataDir, filePath);
+    const fullPath = safeJoin(dataDir, filePath);
     await fs.access(fullPath);
     return { exists: true };
   } catch {
@@ -385,7 +456,7 @@ ipcMain.handle('fs:exists', async (event, filePath) => {
 // Read text file
 ipcMain.handle('fs:readTextFile', async (event, filePath) => {
   try {
-    const fullPath = path.join(dataDir, filePath);
+    const fullPath = safeJoin(dataDir, filePath);
     const content = await fs.readFile(fullPath, 'utf-8');
     return { success: true, content };
   } catch (err) {
@@ -397,7 +468,7 @@ ipcMain.handle('fs:readTextFile', async (event, filePath) => {
 // Write text file
 ipcMain.handle('fs:writeTextFile', async (event, filePath, content) => {
   try {
-    const fullPath = path.join(dataDir, filePath);
+    const fullPath = safeJoin(dataDir, filePath);
     await fs.writeFile(fullPath, content, 'utf-8');
     return { success: true };
   } catch (err) {
@@ -409,7 +480,7 @@ ipcMain.handle('fs:writeTextFile', async (event, filePath, content) => {
 // Delete file
 ipcMain.handle('fs:remove', async (event, filePath) => {
   try {
-    const fullPath = path.join(dataDir, filePath);
+    const fullPath = safeJoin(dataDir, filePath);
     await fs.unlink(fullPath);
     return { success: true };
   } catch (err) {
@@ -491,7 +562,7 @@ ipcMain.handle('fs:writeTextFileAbsolute', async (event, filePath, content) => {
 // Check if document file/directory exists
 ipcMain.handle('docs:exists', async (event, relativePath) => {
   try {
-    const fullPath = path.join(documentsDir, relativePath);
+    const fullPath = safeJoin(documentsDir, relativePath);
     await fs.access(fullPath);
     return { exists: true };
   } catch {
@@ -502,7 +573,7 @@ ipcMain.handle('docs:exists', async (event, relativePath) => {
 // Create directory for documents
 ipcMain.handle('docs:mkdir', async (event, relativePath) => {
   try {
-    const fullPath = path.join(documentsDir, relativePath);
+    const fullPath = safeJoin(documentsDir, relativePath);
     await fs.mkdir(fullPath, { recursive: true });
     return { success: true };
   } catch (err) {
@@ -514,7 +585,7 @@ ipcMain.handle('docs:mkdir', async (event, relativePath) => {
 // Read document file
 ipcMain.handle('docs:readTextFile', async (event, relativePath) => {
   try {
-    const fullPath = path.join(documentsDir, relativePath);
+    const fullPath = safeJoin(documentsDir, relativePath);
     const content = await fs.readFile(fullPath, 'utf-8');
     return { success: true, content };
   } catch (err) {
@@ -526,7 +597,7 @@ ipcMain.handle('docs:readTextFile', async (event, relativePath) => {
 // Write document file
 ipcMain.handle('docs:writeTextFile', async (event, relativePath, content) => {
   try {
-    const fullPath = path.join(documentsDir, relativePath);
+    const fullPath = safeJoin(documentsDir, relativePath);
     await fs.writeFile(fullPath, content, 'utf-8');
     return { success: true };
   } catch (err) {
@@ -538,7 +609,7 @@ ipcMain.handle('docs:writeTextFile', async (event, relativePath, content) => {
 // Write binary file from base64 data
 ipcMain.handle('docs:writeBinaryFile', async (event, relativePath, base64Data) => {
   try {
-    const fullPath = path.join(documentsDir, relativePath);
+    const fullPath = safeJoin(documentsDir, relativePath);
     const buffer = Buffer.from(base64Data, 'base64');
     await fs.writeFile(fullPath, buffer);
     return { success: true, path: fullPath };
@@ -551,7 +622,7 @@ ipcMain.handle('docs:writeBinaryFile', async (event, relativePath, base64Data) =
 // Delete document file
 ipcMain.handle('docs:remove', async (event, relativePath) => {
   try {
-    const fullPath = path.join(documentsDir, relativePath);
+    const fullPath = safeJoin(documentsDir, relativePath);
     await fs.unlink(fullPath);
     return { success: true };
   } catch (err) {
@@ -616,7 +687,7 @@ ipcMain.handle('masterKey:write', async (event, content) => {
 // List files in a directory (relative to ~/Documents/)
 ipcMain.handle('docs:listDir', async (event, relativePath) => {
   try {
-    const fullPath = path.join(documentsDir, relativePath);
+    const fullPath = safeJoin(documentsDir, relativePath);
     const entries = await fs.readdir(fullPath, { withFileTypes: true });
     const files = [];
 
@@ -645,7 +716,7 @@ ipcMain.handle('docs:listDir', async (event, relativePath) => {
 // List subdirectories in a directory (relative to ~/Documents/)
 ipcMain.handle('docs:listSubDirs', async (event, relativePath) => {
   try {
-    const fullPath = path.join(documentsDir, relativePath);
+    const fullPath = safeJoin(documentsDir, relativePath);
     const entries = await fs.readdir(fullPath, { withFileTypes: true });
     const dirs = entries.filter(e => e.isDirectory()).map(e => e.name);
     return { success: true, dirs };

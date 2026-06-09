@@ -682,9 +682,6 @@ export function VehicleManagerSecure({ onClose }: VehicleManagerSecureProps) {
     total: vehicles.length,
     motDue: vehicles.filter(v => isDueSoon(v.motDueDate) || isPastDate(v.motDueDate)).length,
     insuranceDue: vehicles.filter(v => isDueSoon(v.insuranceRenewalDate) || isPastDate(v.insuranceRenewalDate)).length,
-    totalServiceCost: vehicles.reduce((sum, v) =>
-      sum + (v.serviceHistory || []).reduce((s, e) => s + (e.cost || 0), 0), 0
-    )
   };
 
   const getOwnershipLabel = (ownership: string) => {
@@ -816,7 +813,7 @@ export function VehicleManagerSecure({ onClose }: VehicleManagerSecureProps) {
         {/* Summary Cards */}
         {showSummary && (
           <div className="p-6 bg-gradient-to-br from-slate-50 to-slate-100 border-b border-gray-200">
-            <div className="grid grid-cols-1 md:grid-cols-4 gap-4">
+            <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
               <div className="bg-white rounded-xl p-4 shadow-sm">
                 <div className="flex items-center gap-3 mb-2">
                   <div className="p-2 bg-slate-100 text-slate-600 rounded-lg">
@@ -843,15 +840,6 @@ export function VehicleManagerSecure({ onClose }: VehicleManagerSecureProps) {
                   <p className="text-sm text-gray-600">Insurance Due</p>
                 </div>
                 <p className={`text-2xl font-semibold ${counts.insuranceDue > 0 ? 'text-orange-600' : 'text-gray-900'}`}>{counts.insuranceDue}</p>
-              </div>
-              <div className="bg-white rounded-xl p-4 shadow-sm">
-                <div className="flex items-center gap-3 mb-2">
-                  <div className="p-2 bg-blue-100 text-blue-600 rounded-lg">
-                    <Wrench className="w-5 h-5" />
-                  </div>
-                  <p className="text-sm text-gray-600">Total Service Costs</p>
-                </div>
-                <p className="text-2xl font-semibold text-gray-900">£{counts.totalServiceCost.toLocaleString()}</p>
               </div>
             </div>
           </div>

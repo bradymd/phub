@@ -140,9 +140,13 @@ export function StorageProvider({ masterPassword, children }: StorageProviderPro
     // 5. Save re-wrapped master key
     await writeWrappedMasterKey(newWrappedKey);
 
-    // 6. Update the password hash in localStorage
-    const newPasswordHash = await hashPassword(newPassword);
-    localStorage.setItem('master_password_hash', newPasswordHash);
+    // 6. Update the password hash in localStorage (browser/dev fallback only;
+    //    Electron verifies the password by unwrapping the .master.key file)
+    const isElectron = typeof window !== 'undefined' && 'electronAPI' in window;
+    if (!isElectron) {
+      const newPasswordHash = await hashPassword(newPassword);
+      localStorage.setItem('master_password_hash', newPasswordHash);
+    }
 
     // 7. Update current password in context
     setCurrentPassword(newPassword);

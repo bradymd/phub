@@ -44,10 +44,17 @@ export default function MasterPasswordSetup({ onSetupComplete }: MasterPasswordS
 
     try {
       setIsProcessing(true);
-      const hash = await hashPassword(password);
 
-      // Store the hash for verification (NOT the actual password)
-      localStorage.setItem('master_password_hash', hash);
+      // In Electron the wrapped .master.key file is the source of truth: the password
+      // is verified by unwrapping it (PBKDF2, 100k iterations). Persisting a fast,
+      // unsalted SHA-256 hash on disk would just hand an attacker an offline
+      // brute-force oracle for the master password, so only the browser/dev fallback
+      // (which has no key file) keeps a verification hash.
+      const isElectron = typeof window !== 'undefined' && 'electronAPI' in window;
+      if (!isElectron) {
+        const hash = await hashPassword(password);
+        localStorage.setItem('master_password_hash', hash);
+      }
 
       onSetupComplete(password); // Pass the actual password for immediate use
     } catch (err) {

@@ -15,6 +15,21 @@ All notable changes to Personal Hub are documented here.
 ### Fixed
 - **Property panel**: Maintenance item and history edits from the details view modal now persist to storage immediately (previously changes were silently lost unless the user also saved the entire property form)
 
+## [1.0.19] - 2026-06-09
+
+### Security
+- **Master password protection hardened**: The redundant SHA-256 password hash previously stored in local app data has been removed — it was an unnecessary fast offline guessing target. The password is now verified solely by unwrapping the key file (PBKDF2, 100k iterations). Any legacy hash is automatically deleted on startup.
+- **Content-Security-Policy** added in production builds, restricting the app to local resources and blocking remote scripts/network connections.
+- **Navigation hardening**: External links now open in your system browser; the app window can no longer be navigated away to remote pages.
+- **File-access hardening**: Internal file operations are now confined to the PersonalHub data and documents folders (path-traversal protection).
+- **Dependencies**: Updated to resolve all 19 known dependency advisories.
+
+### Changed
+- **Vehicles panel**: Removed the "Total Service Costs" summary stat from the header (it aggregated across all vehicles, misrepresenting old/sold cars as an ongoing cost). Per-vehicle service costs remain in each vehicle's Service History.
+
+### Removed
+- Internal cleanup: deleted unused legacy components and stale files (no user-facing change).
+
 ## [1.0.8] - 2026-02-05
 
 ### Fixed
