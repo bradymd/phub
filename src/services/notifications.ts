@@ -90,6 +90,8 @@ export async function getUpcomingItems(
     // Check Vehicles
     const vehicles = await storage.getAll('vehicles') || [];
     for (const vehicle of vehicles) {
+      // Archived vehicles (sold/returned) don't raise notifications
+      if (vehicle.status === 'archived') continue;
       // MOT due
       if (vehicle.motDueDate) {
         const days = daysUntilDate(vehicle.motDueDate);

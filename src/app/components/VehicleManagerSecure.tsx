@@ -40,6 +40,8 @@ interface Vehicle {
   year: string;
   color: string;
   fuelType: 'petrol' | 'diesel' | 'electric' | 'hybrid' | 'other';
+  // Status: archived vehicles are greyed out and excluded from alerts
+  status?: 'active' | 'on_order' | 'archived';
   // Purchase info
   purchaseDate: string;
   purchasePrice: number;
@@ -86,6 +88,7 @@ const emptyVehicle: Omit<Vehicle, 'id'> = {
   year: '',
   color: '',
   fuelType: 'petrol',
+  status: 'active',
   purchaseDate: '',
   purchasePrice: 0,
   purchasedFrom: '',
@@ -164,6 +167,18 @@ const getNextServiceDueDate = (vehicle: Vehicle): string | null => {
     .sort((a, b) => new Date(b.date).getTime() - new Date(a.date).getTime());
 
   return entriesWithNextDate.length > 0 ? entriesWithNextDate[0].nextServiceDate! : null;
+};
+
+// Existing vehicles without a status field are treated as active
+const getVehicleStatus = (vehicle: Vehicle): 'active' | 'on_order' | 'archived' =>
+  vehicle.status || 'active';
+
+const getStatusLabel = (status: 'active' | 'on_order' | 'archived'): string => {
+  switch (status) {
+    case 'on_order': return 'On Order';
+    case 'archived': return 'Archived';
+    default: return 'Active';
+  }
 };
 
 export function VehicleManagerSecure({ onClose }: VehicleManagerSecureProps) {
@@ -666,6 +681,7 @@ export function VehicleManagerSecure({ onClose }: VehicleManagerSecureProps) {
     }
   };
 
+  const statusSortOrder = { active: 0, on_order: 1, archived: 2 };
   const filteredVehicles = vehicles.filter(vehicle => {
     if (!searchQuery) return true;
     const query = searchQuery.toLowerCase();
@@ -675,13 +691,14 @@ export function VehicleManagerSecure({ onClose }: VehicleManagerSecureProps) {
       vehicle.model.toLowerCase().includes(query) ||
       vehicle.insurer.toLowerCase().includes(query)
     );
-  });
+  }).sort((a, b) => statusSortOrder[getVehicleStatus(a)] - statusSortOrder[getVehicleStatus(b)]);
 
-  // Calculate summary stats
+  // Calculate summary stats — archived vehicles don't raise alerts
+  const alertableVehicles = vehicles.filter(v => getVehicleStatus(v) !== 'archived');
   const counts = {
     total: vehicles.length,
-    motDue: vehicles.filter(v => isDueSoon(v.motDueDate) || isPastDate(v.motDueDate)).length,
-    insuranceDue: vehicles.filter(v => isDueSoon(v.insuranceRenewalDate) || isPastDate(v.insuranceRenewalDate)).length,
+    motDue: alertableVehicles.filter(v => isDueSoon(v.motDueDate) || isPastDate(v.motDueDate)).length,
+    insuranceDue: alertableVehicles.filter(v => isDueSoon(v.insuranceRenewalDate) || isPastDate(v.insuranceRenewalDate)).length,
   };
 
   const getOwnershipLabel = (ownership: string) => {
@@ -905,6 +922,18 @@ export function VehicleManagerSecure({ onClose }: VehicleManagerSecureProps) {
                     <option value="hybrid">Hybrid</option>
                     <option value="other">Other</option>
                   </select>
+                  <div>
+                    <label className="block text-xs text-gray-500 mb-1">Status</label>
+                    <select
+                      value={newVehicle.status || 'active'}
+                      onChange={(e) => setNewVehicle({ ...newVehicle, status: e.target.value as Vehicle['status'] })}
+                      className="w-full px-4 py-2 border border-gray-300 rounded-lg bg-white"
+                    >
+                      <option value="active">Active</option>
+                      <option value="on_order">On Order / Arriving Soon</option>
+                      <option value="archived">Archived (sold / returned)</option>
+                    </select>
+                  </div>
                 </div>
               </div>
 
@@ -1221,41 +1250,54 @@ export function VehicleManagerSecure({ onClose }: VehicleManagerSecureProps) {
             </div>
           ) : viewMode === 'grid' ? (
             <div className="space-y-4">
-              {filteredVehicles.map((vehicle) => (
+              {filteredVehicles.map((vehicle) => {
+                const status = getVehicleStatus(vehicle);
+                const isArchived = status === 'archived';
+                return (
                 <div
                   key={vehicle.id}
                   onClick={() => setViewingDetails(vehicle)}
-                  className={`bg-gray-50 rounded-xl p-5 hover:bg-gray-100 transition-colors cursor-pointer ${
-                    isPastDate(vehicle.motDueDate) || isPastDate(vehicle.insuranceRenewalDate) ? 'border-2 border-red-200' :
-                    isDueSoon(vehicle.motDueDate) || isDueSoon(vehicle.insuranceRenewalDate) ? 'border-2 border-orange-200' : ''
+                  className={`rounded-xl p-5 transition-colors cursor-pointer ${
+                    isArchived ? 'bg-gray-100 opacity-60 hover:opacity-80' :
+                    `bg-gray-50 hover:bg-gray-100 ${
+                      isPastDate(vehicle.motDueDate) || isPastDate(vehicle.insuranceRenewalDate) ? 'border-2 border-red-200' :
+                      isDueSoon(vehicle.motDueDate) || isDueSoon(vehicle.insuranceRenewalDate) ? 'border-2 border-orange-200' : ''
+                    }`
                   }`}
                 >
                   <div className="flex items-center justify-between">
                     <div className="flex items-center gap-4 flex-1">
-                      <div className="p-3 bg-slate-200 text-slate-700 rounded-lg">
+                      <div className={`p-3 rounded-lg ${isArchived ? 'bg-gray-200 text-gray-500' : 'bg-slate-200 text-slate-700'}`}>
                         <Car className="w-6 h-6" />
                       </div>
                       <div className="flex-1">
                         <div className="flex items-center gap-3 mb-1">
-                          <h3 className="text-lg font-semibold text-gray-900">{vehicle.registration}</h3>
+                          <h3 className={`text-lg font-semibold ${isArchived ? 'text-gray-500' : 'text-gray-900'}`}>{vehicle.registration}</h3>
                           <span className="text-gray-600">{vehicle.make} {vehicle.model} {vehicle.year}</span>
-                          {/* Warnings */}
-                          {isPastDate(vehicle.motDueDate) && (
+                          {/* Status badges */}
+                          {isArchived && (
+                            <span className="px-2 py-1 bg-gray-200 text-gray-600 rounded text-xs">Archived</span>
+                          )}
+                          {status === 'on_order' && (
+                            <span className="px-2 py-1 bg-indigo-100 text-indigo-700 rounded text-xs">On Order</span>
+                          )}
+                          {/* Warnings - suppressed for archived vehicles */}
+                          {!isArchived && isPastDate(vehicle.motDueDate) && (
                             <span className="px-2 py-1 bg-red-100 text-red-700 rounded text-xs flex items-center gap-1">
                               <AlertCircle className="w-3 h-3" /> MOT Expired
                             </span>
                           )}
-                          {isDueSoon(vehicle.motDueDate) && !isPastDate(vehicle.motDueDate) && (
+                          {!isArchived && isDueSoon(vehicle.motDueDate) && !isPastDate(vehicle.motDueDate) && (
                             <span className="px-2 py-1 bg-orange-100 text-orange-700 rounded text-xs flex items-center gap-1">
                               <AlertCircle className="w-3 h-3" /> MOT Due Soon
                             </span>
                           )}
-                          {isPastDate(vehicle.insuranceRenewalDate) && (
+                          {!isArchived && isPastDate(vehicle.insuranceRenewalDate) && (
                             <span className="px-2 py-1 bg-red-100 text-red-700 rounded text-xs flex items-center gap-1">
                               <AlertCircle className="w-3 h-3" /> Insurance Expired
                             </span>
                           )}
-                          {isDueSoon(vehicle.insuranceRenewalDate) && !isPastDate(vehicle.insuranceRenewalDate) && (
+                          {!isArchived && isDueSoon(vehicle.insuranceRenewalDate) && !isPastDate(vehicle.insuranceRenewalDate) && (
                             <span className="px-2 py-1 bg-orange-100 text-orange-700 rounded text-xs flex items-center gap-1">
                               <AlertCircle className="w-3 h-3" /> Insurance Due Soon
                             </span>
@@ -1296,29 +1338,40 @@ export function VehicleManagerSecure({ onClose }: VehicleManagerSecureProps) {
                     </div>
                   </div>
                 </div>
-              ))}
+                );
+              })}
             </div>
           ) : (
             /* List View */
             <div className="bg-white rounded-xl shadow-sm border border-gray-100 divide-y divide-gray-100">
-              {filteredVehicles.map((vehicle) => (
+              {filteredVehicles.map((vehicle) => {
+                const status = getVehicleStatus(vehicle);
+                const isArchived = status === 'archived';
+                return (
                 <div
                   key={vehicle.id}
                   onClick={() => setViewingDetails(vehicle)}
                   className={`px-6 py-4 hover:bg-gray-50 transition-colors cursor-pointer flex items-center justify-between ${
+                    isArchived ? 'bg-gray-50 opacity-60 hover:opacity-80' :
                     isPastDate(vehicle.motDueDate) || isPastDate(vehicle.insuranceRenewalDate) ? 'bg-red-50' :
                     isDueSoon(vehicle.motDueDate) || isDueSoon(vehicle.insuranceRenewalDate) ? 'bg-orange-50' : ''
                   }`}
                 >
                   <div className="flex items-center gap-4 flex-1">
-                    <div className="p-2 bg-slate-100 text-slate-600 rounded-lg">
+                    <div className={`p-2 rounded-lg ${isArchived ? 'bg-gray-100 text-gray-400' : 'bg-slate-100 text-slate-600'}`}>
                       <Car className="w-5 h-5" />
                     </div>
                     <div className="flex-1">
                       <div className="flex items-center gap-2">
-                        <h3 className="font-semibold text-gray-900">{vehicle.registration}</h3>
+                        <h3 className={`font-semibold ${isArchived ? 'text-gray-500' : 'text-gray-900'}`}>{vehicle.registration}</h3>
                         <span className="text-gray-600">{vehicle.make} {vehicle.model}</span>
-                        {isPastDate(vehicle.motDueDate) && (
+                        {isArchived && (
+                          <span className="px-2 py-0.5 bg-gray-200 text-gray-600 rounded text-xs">Archived</span>
+                        )}
+                        {status === 'on_order' && (
+                          <span className="px-2 py-0.5 bg-indigo-100 text-indigo-700 rounded text-xs">On Order</span>
+                        )}
+                        {!isArchived && isPastDate(vehicle.motDueDate) && (
                           <span className="px-2 py-0.5 bg-red-100 text-red-700 rounded text-xs flex items-center gap-1">
                             <AlertCircle className="w-3 h-3" /> MOT Expired
                           </span>
@@ -1354,7 +1407,8 @@ export function VehicleManagerSecure({ onClose }: VehicleManagerSecureProps) {
                     </button>
                   </div>
                 </div>
-              ))}
+                );
+              })}
             </div>
           )}
         </div>
@@ -1429,6 +1483,18 @@ export function VehicleManagerSecure({ onClose }: VehicleManagerSecureProps) {
                     <option value="hybrid">Hybrid</option>
                     <option value="other">Other</option>
                   </select>
+                  <div>
+                    <label className="block text-xs text-gray-500 mb-1">Status</label>
+                    <select
+                      value={editingVehicle.status || 'active'}
+                      onChange={(e) => setEditingVehicle({ ...editingVehicle, status: e.target.value as Vehicle['status'] })}
+                      className="w-full px-4 py-2 border border-gray-300 rounded-lg bg-white"
+                    >
+                      <option value="active">Active</option>
+                      <option value="on_order">On Order / Arriving Soon</option>
+                      <option value="archived">Archived (sold / returned)</option>
+                    </select>
+                  </div>
                 </div>
               </div>
 
@@ -2282,7 +2348,15 @@ export function VehicleManagerSecure({ onClose }: VehicleManagerSecureProps) {
                   <Car className="w-6 h-6" />
                 </div>
                 <div>
-                  <h3 className="text-xl font-semibold text-gray-900">{viewingDetails.registration}</h3>
+                  <h3 className="text-xl font-semibold text-gray-900 flex items-center gap-2">
+                    {viewingDetails.registration}
+                    {getVehicleStatus(viewingDetails) === 'archived' && (
+                      <span className="px-2 py-1 bg-gray-200 text-gray-600 rounded text-xs font-normal">Archived</span>
+                    )}
+                    {getVehicleStatus(viewingDetails) === 'on_order' && (
+                      <span className="px-2 py-1 bg-indigo-100 text-indigo-700 rounded text-xs font-normal">On Order</span>
+                    )}
+                  </h3>
                   <p className="text-gray-600">{viewingDetails.make} {viewingDetails.model} {viewingDetails.year}</p>
                 </div>
               </div>
@@ -2299,6 +2373,7 @@ export function VehicleManagerSecure({ onClose }: VehicleManagerSecureProps) {
                           { label: 'Year', value: viewingDetails.year },
                           { label: 'Color', value: viewingDetails.color },
                           { label: 'Fuel Type', value: getFuelLabel(viewingDetails.fuelType) },
+                          { label: 'Status', value: getStatusLabel(getVehicleStatus(viewingDetails)) },
                           { label: 'Ownership', value: getOwnershipLabel(viewingDetails.ownership) },
                           { label: 'Current Mileage', value: viewingDetails.currentMileage > 0 ? `${viewingDetails.currentMileage.toLocaleString()} miles` : undefined },
                         ]
@@ -2405,6 +2480,7 @@ export function VehicleManagerSecure({ onClose }: VehicleManagerSecureProps) {
                   <h4 className="text-sm font-medium text-gray-700 mb-3">Vehicle Details</h4>
                   <div className="space-y-2 text-sm">
                     {viewingDetails.color && <p><span className="text-gray-500">Color:</span> {viewingDetails.color}</p>}
+                    <p><span className="text-gray-500">Status:</span> {getStatusLabel(getVehicleStatus(viewingDetails))}</p>
                     <p><span className="text-gray-500">Fuel:</span> {getFuelLabel(viewingDetails.fuelType)}</p>
                     <p><span className="text-gray-500">Ownership:</span> {getOwnershipLabel(viewingDetails.ownership)}</p>
                     {viewingDetails.currentMileage > 0 && (

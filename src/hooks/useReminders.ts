@@ -100,6 +100,8 @@ export function useReminders(): PanelReminders {
         try {
           const vehicles = await storage.get('vehicles');
           vehicles.forEach((vehicle: any) => {
+            // Archived vehicles (sold/returned) don't raise reminders
+            if (vehicle.status === 'archived') return;
             // Check MOT due date
             if (vehicle.motDueDate) {
               if (isPastDate(vehicle.motDueDate)) {
