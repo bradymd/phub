@@ -6,11 +6,12 @@
     "email": "personalhub@example.com"
   },
   "private": true,
-  "version": "1.0.20",
+  "version": "1.0.21",
   "type": "module",
   "main": "electron/main.cjs",
   "scripts": {
-    "build": "vite build",
+    "build": "npm run typecheck && vite build",
+    "typecheck": "tsc --noEmit",
     "dev": "vite",
     "electron:dev": "NODE_ENV=development concurrently \"npm run dev\" \"wait-on http://localhost:5173 && electron . --no-sandbox --enable-features=UseOzonePlatform,WaylandWindowDecorations --ozone-platform-hint=auto\"",
     "electron:build": "npm run build && electron-builder",
@@ -88,11 +89,14 @@
   "devDependencies": {
     "@tailwindcss/vite": "4.1.12",
     "@tauri-apps/cli": "^2.9.6",
+    "@types/react": "^18.3.31",
+    "@types/react-dom": "^18.3.7",
     "@vitejs/plugin-react": "4.7.0",
     "concurrently": "^9.2.1",
     "electron": "^40.0.0",
     "electron-builder": "^26.4.0",
     "tailwindcss": "4.1.12",
+    "typescript": "^6.0.3",
     "vite": "^6.4.1",
     "wait-on": "^9.0.3"
   },
@@ -177,7 +181,10 @@
       "shortcutName": "Personal Hub"
     },
     "mac": {
-      "target": ["zip", "dir"],
+      "target": [
+        "zip",
+        "dir"
+      ],
       "category": "public.app-category.utilities",
       "icon": "build/icon.icns"
     }

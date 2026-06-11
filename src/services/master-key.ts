@@ -36,7 +36,7 @@ async function deriveKEK(password: string, salt: Uint8Array): Promise<CryptoKey>
   return crypto.subtle.deriveKey(
     {
       name: 'PBKDF2',
-      salt: salt,
+      salt: salt as BufferSource,
       iterations: ITERATIONS,
       hash: 'SHA-256',
     },
@@ -99,7 +99,7 @@ export async function wrapMasterKey(masterKey: Uint8Array, password: string): Pr
         iv: iv,
       },
       kek,
-      masterKey
+      masterKey as BufferSource
     );
 
     // Combine salt + iv + wrapped key

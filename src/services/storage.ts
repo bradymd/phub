@@ -12,9 +12,10 @@ export type ProgressCallback = (current: number, total: number) => void;
 // Storage service interface - the contract all implementations must follow
 export interface StorageService {
   get<T>(key: string): Promise<T[]>;
-  save<T>(key: string, items: T[], onProgress?: ProgressCallback): Promise<void>;
-  add<T>(key: string, item: T): Promise<void>;
-  update<T>(key: string, id: string, item: T): Promise<void>;
+  // Items must carry an id — update/delete locate records by it
+  save<T extends { id: string }>(key: string, items: T[], onProgress?: ProgressCallback): Promise<void>;
+  add<T extends { id: string }>(key: string, item: T): Promise<void>;
+  update<T extends { id: string }>(key: string, id: string, item: T): Promise<void>;
   delete(key: string, id: string): Promise<void>;
   clear(key: string): Promise<void>;
   clearAll(): Promise<void>;

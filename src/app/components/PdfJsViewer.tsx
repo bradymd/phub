@@ -115,6 +115,7 @@ export function PdfJsViewer({ src, title }: PdfJsViewerProps) {
 
         // Render PDF page
         const renderContext = {
+          canvas: canvas,
           canvasContext: context,
           viewport: viewport,
         };

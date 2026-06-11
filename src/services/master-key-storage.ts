@@ -8,17 +8,7 @@
 const isElectron = typeof window !== 'undefined' && 'electronAPI' in window;
 
 // Type definitions for Electron API
-declare global {
-  interface Window {
-    electronAPI?: {
-      masterKey: {
-        exists: () => Promise<{ exists: boolean }>;
-        read: () => Promise<{ success: boolean; content?: string; error?: string }>;
-        write: (content: string) => Promise<{ success: boolean; error?: string }>;
-      };
-    };
-  }
-}
+// window.electronAPI type lives in src/types/electron-api.d.ts
 
 /**
  * Check if wrapped master key file exists

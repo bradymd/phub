@@ -4,6 +4,8 @@ import { useStorage, useDocumentService, useDataVersion } from '../../contexts/S
 import { PdfJsViewer } from './PdfJsViewer';
 import { DocumentReference } from '../../services/document-service';
 import { printRecord, formatDate, formatCurrency } from '../../utils/print';
+import { formatDateUK, isPastDate, isDueSoon } from '../../utils/dates';
+import { dataUrlToBlobUrl, downloadDataUrl } from '../../utils/blob';
 
 // A single completed occurrence of a recurring maintenance item (rolling history)
 interface ServiceRecord {
@@ -32,10 +34,14 @@ interface MaintenanceItem {
 interface MaintenanceHistoryEntry {
   id: string;
   date: string;
-  type: 'decorator' | 'plumber' | 'electrician' | 'builder' | 'gardener' | 'cleaner' | 'gutters' | 'roofing' | 'other';
+  // repair/improvement/service/inspection are legacy values from an earlier
+  // version of this form - stored data may still contain them
+  type: 'decorator' | 'plumber' | 'electrician' | 'builder' | 'gardener' | 'cleaner' | 'gutters' | 'roofing' | 'other'
+    | 'repair' | 'improvement' | 'service' | 'inspection';
   description: string;
   cost: number;
   company: string;
+  contractor?: string; // legacy name for company
   contactDetails?: string;
   notes?: string;
   documents?: DocumentReference[];
@@ -167,28 +173,12 @@ const maintenanceTypeLabels: Record<MaintenanceHistoryEntry['type'], string> = {
   cleaner: 'Cleaner',
   gutters: 'Gutters',
   roofing: 'Roofing',
-  other: 'Other'
-};
-
-// Format date from YYYY-MM-DD to DD/MM/YYYY for UK display
-const formatDateUK = (dateStr: string): string => {
-  if (!dateStr) return '';
-
-  // Handle YYYY-MM-DD format (standard HTML date input format)
-  if (dateStr.includes('-')) {
-    const [year, month, day] = dateStr.split('-');
-    if (year && month && day && year.length === 4) {
-      return `${day.padStart(2, '0')}/${month.padStart(2, '0')}/${year}`;
-    }
-  }
-
-  // Handle slash format - assume DD/MM/YYYY (UK format)
-  if (dateStr.includes('/')) {
-    return dateStr;
-  }
-
-  // Fallback: return as-is
-  return dateStr;
+  other: 'Other',
+  // legacy values
+  repair: 'Repair',
+  improvement: 'Improvement',
+  service: 'Service',
+  inspection: 'Inspection'
 };
 
 // Convert DD/MM/YYYY to YYYY-MM-DD for date input
@@ -229,25 +219,6 @@ const fromInputDate = (dateStr: string): string => {
   }
 
   return dateStr;
-};
-
-// Check if a date is in the past
-const isPastDate = (dateStr: string): boolean => {
-  if (!dateStr) return false;
-  const date = new Date(dateStr);
-  const today = new Date();
-  today.setHours(0, 0, 0, 0);
-  return date < today;
-};
-
-// Check if date is within 30 days
-const isDueSoon = (dateStr: string): boolean => {
-  if (!dateStr) return false;
-  const date = new Date(dateStr);
-  const today = new Date();
-  const thirtyDays = new Date();
-  thirtyDays.setDate(today.getDate() + 30);
-  return date >= today && date <= thirtyDays;
 };
 
 // A maintenance item is "awaiting payment" if any logged service occurrence is unpaid
@@ -410,7 +381,7 @@ export function PropertyManagerSecure({ onClose }: PropertyManagerSecureProps) {
           await documentService.deleteDocuments('certificates', allDocs);
         }
       }
-      await storage.remove('properties', id);
+      await storage.delete('properties', id);
       setProperties(properties.filter(p => p.id !== id));
       notifyDataChange();
       setEditingProperty(null);
@@ -707,21 +678,6 @@ export function PropertyManagerSecure({ onClose }: PropertyManagerSecureProps) {
     }
   };
 
-  // Document handling
-  const dataUrlToBlobUrl = (dataUrl: string): string => {
-    const match = dataUrl.match(/^data:([^;]+);base64,(.+)$/);
-    if (!match) return dataUrl;
-    const mimeType = match[1];
-    const base64Data = match[2];
-    const binaryString = atob(base64Data);
-    const bytes = new Uint8Array(binaryString.length);
-    for (let i = 0; i < binaryString.length; i++) {
-      bytes[i] = binaryString.charCodeAt(i);
-    }
-    const blob = new Blob([bytes], { type: mimeType });
-    return URL.createObjectURL(blob);
-  };
-
   const viewFile = async (docRef: DocumentReference) => {
     if (!docRef) {
       setError('Document reference is missing');
@@ -755,29 +711,10 @@ export function PropertyManagerSecure({ onClose }: PropertyManagerSecureProps) {
     try {
       setError('');
       const dataUrl = await documentService.loadDocument('certificates', docRef);
-      const match = dataUrl.match(/^data:([^;]+);base64,(.+)$/);
-      if (!match) {
+      if (!downloadDataUrl(dataUrl, docRef.filename)) {
         setError('Invalid file data format');
         return;
       }
-
-      const mimeType = match[1];
-      const base64Data = match[2];
-      const binaryString = atob(base64Data);
-      const bytes = new Uint8Array(binaryString.length);
-      for (let i = 0; i < binaryString.length; i++) {
-        bytes[i] = binaryString.charCodeAt(i);
-      }
-
-      const blob = new Blob([bytes], { type: mimeType });
-      const url = URL.createObjectURL(blob);
-      const a = document.createElement('a');
-      a.href = url;
-      a.download = docRef.filename;
-      document.body.appendChild(a);
-      a.click();
-      document.body.removeChild(a);
-      URL.revokeObjectURL(url);
     } catch (err) {
       setError('Failed to download file');
       console.error('Download error:', err);
@@ -1421,7 +1358,7 @@ export function PropertyManagerSecure({ onClose }: PropertyManagerSecureProps) {
                         <button
                           onClick={(e) => {
                             e.stopPropagation();
-                            handleDeleteProperty(property.id);
+                            deleteProperty(property.id);
                           }}
                           className="p-1 text-gray-400 hover:text-red-600 transition-colors"
                           title="Delete"
@@ -1502,7 +1439,7 @@ export function PropertyManagerSecure({ onClose }: PropertyManagerSecureProps) {
                         <button
                           onClick={(e) => {
                             e.stopPropagation();
-                            handleDeleteProperty(property.id);
+                            deleteProperty(property.id);
                           }}
                           className="p-1 text-gray-400 hover:text-red-600 transition-colors"
                           title="Delete"
@@ -1594,7 +1531,7 @@ export function PropertyManagerSecure({ onClose }: PropertyManagerSecureProps) {
                           fields: [
                             { label: 'Date', value: formatDate(entry.date) },
                             { label: 'Type', value: maintenanceTypeLabels[entry.type] || entry.type },
-                            { label: 'Contractor', value: entry.contractor },
+                            { label: 'Contractor', value: entry.company || entry.contractor },
                             { label: 'Cost', value: formatCurrency(entry.cost) },
                             { label: 'Notes', value: entry.notes },
                           ]
@@ -1886,7 +1823,7 @@ export function PropertyManagerSecure({ onClose }: PropertyManagerSecureProps) {
                               </span>
                             </td>
                             <td className="px-4 py-2 font-medium">{entry.description}</td>
-                            <td className="px-4 py-2">{entry.contractor || '-'}</td>
+                            <td className="px-4 py-2">{entry.company || entry.contractor || '-'}</td>
                             <td className="px-4 py-2 text-right">£{entry.cost.toFixed(2)}</td>
                             <td className="px-4 py-2 text-center">
                               {entry.documents && entry.documents.length > 0 ? (

@@ -3,15 +3,7 @@
  * Automatically detects system locale from the platform
  */
 
-declare global {
-  interface Window {
-    electronAPI?: {
-      app: {
-        getLocale: () => Promise<{ locale: string }>;
-      };
-    };
-  }
-}
+// window.electronAPI type lives in src/types/electron-api.d.ts
 
 let cachedLocale: string | null = null;
 

@@ -11,6 +11,7 @@ import {
   PanelHeader, RowActions, TypeBadge, DocumentChip, Card, SectionHeader,
   EmptyState, FormField, AddButton, SearchInput, DetailRow, ListRow
 } from '../../components/ui/PanelParts';
+import { formatDateLong as formatDateUK } from '../../utils/dates';
 
 // =============================================================================
 // Types
@@ -115,12 +116,6 @@ interface HolidayPlansManagerSecureProps {
 // =============================================================================
 // Helpers
 // =============================================================================
-
-const formatDateUK = (dateStr: string): string => {
-  if (!dateStr) return '';
-  const date = new Date(dateStr + 'T00:00:00');
-  return date.toLocaleDateString('en-GB', { day: '2-digit', month: 'short', year: 'numeric' });
-};
 
 const formatCurrency = (amount: number | undefined): string => {
   if (amount === undefined || amount === null) return '';
@@ -2609,7 +2604,7 @@ export function HolidayPlansManagerSecure({ onClose }: HolidayPlansManagerSecure
                   />
                 </div>
               ) : viewingDocument.docRef.mimeType === 'application/pdf' ? (
-                <PdfJsViewer fileUrl={viewingDocument.blobUrl} />
+                <PdfJsViewer src={viewingDocument.blobUrl} title={viewingDocument.docRef.filename} />
               ) : (
                 <div className="flex flex-col items-center justify-center h-full text-white gap-4">
                   <FileText className="w-16 h-16 text-gray-400" />

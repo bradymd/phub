@@ -20,9 +20,9 @@ interface FinanceManagerSecureProps {
   onClose: () => void;
 }
 
-const emptyAccount = {
+const emptyAccount: Omit<FinanceAccount, 'id'> = {
   name: '',
-  type: 'savings' as const,
+  type: 'savings',
   currentValue: '',
   contributions: '',
   taxYear: '2025-2026', // Current tax year

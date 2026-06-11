@@ -3,6 +3,8 @@ import { X, Plus, Trash, Heart, Calendar, Edit2, Key, FileText, ExternalLink, Ho
 import { useStorage, useDocumentService, useDataVersion } from '../../contexts/StorageContext';
 import { PdfJsViewer } from './PdfJsViewer';
 import { DocumentReference } from '../../services/document-service';
+import { formatDateUK, isPastDate, isDueSoon } from '../../utils/dates';
+import { dataUrlToBlobUrl, downloadDataUrl } from '../../utils/blob';
 
 interface HealthcareProvider {
   id: string;
@@ -48,6 +50,7 @@ interface MedicalRecord {
 }
 
 interface MedicalProfile {
+  id?: string;
   nhsNumber?: string;
   bloodType?: string;
   allergies?: string;
@@ -74,34 +77,6 @@ const emptyRecord = {
   followUpDate: '',
   attachments: [],
   documents: []
-};
-
-// Check if date is in the past
-const isPastDate = (dateStr: string): boolean => {
-  if (!dateStr) return false;
-  const date = new Date(dateStr + 'T00:00:00');
-  const today = new Date();
-  today.setHours(0, 0, 0, 0);
-  return date < today;
-};
-
-// Check if date is within 30 days (in the future)
-const isDueSoon = (dateStr: string): boolean => {
-  if (!dateStr) return false;
-  const date = new Date(dateStr + 'T00:00:00');
-  const today = new Date();
-  today.setHours(0, 0, 0, 0);
-  const thirtyDays = new Date(today);
-  thirtyDays.setDate(today.getDate() + 30);
-  return date >= today && date <= thirtyDays;
-};
-
-// Format date from YYYY-MM-DD to DD-MM-YYYY
-const formatDateUK = (dateStr: string): string => {
-  if (!dateStr) return '';
-  const parts = dateStr.split('-');
-  if (parts.length !== 3) return dateStr;
-  return `${parts[2]}-${parts[1]}-${parts[0]}`;
 };
 
 export function MedicalHistoryManagerSecure({ onClose }: MedicalHistoryManagerSecureProps) {
@@ -210,7 +185,7 @@ export function MedicalHistoryManagerSecure({ onClose }: MedicalHistoryManagerSe
     try {
       const profiles = await storage.get<MedicalProfile>('medical_profile');
       if (profiles.length > 0) {
-        await storage.update('medical_profile', profiles[0].id as string, profile);
+        await storage.update('medical_profile', profiles[0].id as string, { ...profile, id: profiles[0].id as string });
       } else {
         await storage.add('medical_profile', { ...profile, id: Date.now().toString() });
       }
@@ -311,24 +286,6 @@ export function MedicalHistoryManagerSecure({ onClose }: MedicalHistoryManagerSe
     return new Blob([byteArray], { type: mimeType });
   };
 
-  // Convert data URL to Blob URL for better iframe rendering (especially for large PDFs)
-  const dataUrlToBlobUrl = (dataUrl: string): string => {
-    const match = dataUrl.match(/^data:([^;]+);base64,(.+)$/);
-    if (!match) {
-      console.error('Invalid data URL format');
-      return dataUrl;
-    }
-    const mimeType = match[1];
-    const base64Data = match[2];
-    const binaryString = atob(base64Data);
-    const bytes = new Uint8Array(binaryString.length);
-    for (let i = 0; i < binaryString.length; i++) {
-      bytes[i] = binaryString.charCodeAt(i);
-    }
-    const blob = new Blob([bytes], { type: mimeType });
-    return URL.createObjectURL(blob);
-  };
-
   const viewFile = async (docRef: DocumentReference) => {
     if (!docRef) {
       console.error('No document reference available');
@@ -367,29 +324,10 @@ export function MedicalHistoryManagerSecure({ onClose }: MedicalHistoryManagerSe
     try {
       setError('');
       const dataUrl = await documentService.loadDocument('medical', docRef);
-      const match = dataUrl.match(/^data:([^;]+);base64,(.+)$/);
-      if (!match) {
+      if (!downloadDataUrl(dataUrl, docRef.filename)) {
         setError('Invalid file data format');
         return;
       }
-
-      const mimeType = match[1];
-      const base64Data = match[2];
-      const binaryString = atob(base64Data);
-      const bytes = new Uint8Array(binaryString.length);
-      for (let i = 0; i < binaryString.length; i++) {
-        bytes[i] = binaryString.charCodeAt(i);
-      }
-
-      const blob = new Blob([bytes], { type: mimeType });
-      const url = URL.createObjectURL(blob);
-      const a = document.createElement('a');
-      a.href = url;
-      a.download = docRef.filename;
-      document.body.appendChild(a);
-      a.click();
-      document.body.removeChild(a);
-      URL.revokeObjectURL(url);
     } catch (err) {
       setError('Failed to download file');
       console.error('Download error:', err);
@@ -431,6 +369,18 @@ export function MedicalHistoryManagerSecure({ onClose }: MedicalHistoryManagerSe
       console.error('Failed to upload file:', err);
       setError('Failed to upload document');
     }
+  };
+
+  // Used by the healthcare-provider document buttons (record documents go
+  // through handleFileUpload above)
+  const uploadProviderDocument = async (file: File) => {
+    const dataUrl: string = await new Promise((resolve, reject) => {
+      const reader = new FileReader();
+      reader.onload = () => resolve(reader.result as string);
+      reader.onerror = () => reject(reader.error);
+      reader.readAsDataURL(file);
+    });
+    return documentService.saveDocument('medical', file.name, dataUrl, new Date().toISOString());
   };
 
   const removeDocument = async (index: number, isEditing: boolean) => {
@@ -980,7 +930,7 @@ export function MedicalHistoryManagerSecure({ onClose }: MedicalHistoryManagerSe
                                   accept="image/*,.pdf"
                                   onChange={async (e) => {
                                     if (e.target.files?.[0]) {
-                                      const docRef = await documentService.uploadDocument(e.target.files[0]);
+                                      const docRef = await uploadProviderDocument(e.target.files[0]);
                                       const updatedProvider = {
                                         ...provider,
                                         documents: [...(provider.documents || []), docRef]
@@ -2020,7 +1970,7 @@ export function MedicalHistoryManagerSecure({ onClose }: MedicalHistoryManagerSe
                       <button
                         type="button"
                         onClick={async () => {
-                          await documentService.removeDocument(doc);
+                          await documentService.deleteDocument('medical', doc);
                           setEditingProvider({
                             ...editingProvider,
                             documents: editingProvider.documents?.filter((d, i) => i !== idx)
@@ -2040,7 +1990,7 @@ export function MedicalHistoryManagerSecure({ onClose }: MedicalHistoryManagerSe
                       accept="image/*,.pdf"
                       onChange={async (e) => {
                         if (e.target.files?.[0]) {
-                          const docRef = await documentService.uploadDocument(e.target.files[0]);
+                          const docRef = await uploadProviderDocument(e.target.files[0]);
                           setEditingProvider({
                             ...editingProvider,
                             documents: [...(editingProvider.documents || []), docRef]

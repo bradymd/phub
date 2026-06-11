@@ -6,6 +6,7 @@ import { runIntegrityCheck, removeDeadReference, IntegrityReport, FileInfo } fro
 import { DocumentCategory } from '../../services/document-service';
 import { showSaveDialog, showOpenDialog } from '../../utils/file-system';
 import { decrypt } from '../../utils/crypto';
+import { dataUrlToBlobUrl } from '../../utils/blob';
 
 interface BackupManagerProps {
   onClose: () => void;
@@ -28,24 +29,6 @@ export function BackupManager({ onClose }: BackupManagerProps) {
   const [orphanRetry, setOrphanRetry] = useState<{ category: string; file: FileInfo } | null>(null);
   const [orphanPassword, setOrphanPassword] = useState('');
   const [autoBackups, setAutoBackups] = useState<AutoBackupInfo[]>([]);
-
-  // Convert data URL to Blob URL for better iframe rendering (especially for large PDFs)
-  const dataUrlToBlobUrl = (dataUrl: string): string => {
-    const match = dataUrl.match(/^data:([^;]+);base64,(.+)$/);
-    if (!match) {
-      console.error('Invalid data URL format');
-      return dataUrl;
-    }
-    const mimeType = match[1];
-    const base64Data = match[2];
-    const binaryString = atob(base64Data);
-    const bytes = new Uint8Array(binaryString.length);
-    for (let i = 0; i < binaryString.length; i++) {
-      bytes[i] = binaryString.charCodeAt(i);
-    }
-    const blob = new Blob([bytes], { type: mimeType });
-    return URL.createObjectURL(blob);
-  };
 
   // Run integrity check on open
   useEffect(() => {

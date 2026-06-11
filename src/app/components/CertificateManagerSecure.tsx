@@ -2,6 +2,8 @@ import { useState, useEffect } from 'react';
 import { X, Plus, Trash, Award, Calendar, Edit2, Key, FileText, AlertCircle, ExternalLink, Search, Upload, Download, Eye, Grid3x3, List } from 'lucide-react';
 import { useStorage } from '../../contexts/StorageContext';
 import { PdfJsViewer } from './PdfJsViewer';
+import { formatDateUK } from '../../utils/dates';
+import { dataUrlToBlobUrl, downloadDataUrl } from '../../utils/blob';
 
 interface Certificate {
   id: string;
@@ -28,16 +30,6 @@ const availableCertificateDocuments = [
   { value: 'documents/certificates/Nominet fabio.org.uk 2003.pdf', label: 'Nominet Domain Registration 2003' },
 ];
 
-// Format date from YYYY-MM-DD to DD/MM/YYYY for UK display
-const formatDateUK = (dateStr: string): string => {
-  if (!dateStr) return '';
-  const date = new Date(dateStr + 'T00:00:00'); // Add time to avoid timezone issues
-  const day = date.getDate().toString().padStart(2, '0');
-  const month = (date.getMonth() + 1).toString().padStart(2, '0');
-  const year = date.getFullYear();
-  return `${day}/${month}/${year}`;
-};
-
 // Parse date from DD/MM/YYYY to YYYY-MM-DD for storage
 const parseDateUK = (dateStr: string): string => {
   if (!dateStr) return '';
@@ -56,9 +48,9 @@ interface CertificateManagerSecureProps {
   onClose: () => void;
 }
 
-const emptyRecord = {
+const emptyRecord: Omit<Certificate, 'id'> = {
   name: '',
-  type: 'other' as const,
+  type: 'other',
   issueDate: '',
   expiryDate: '',
   issuingAuthority: '',
@@ -235,24 +227,6 @@ export function CertificateManagerSecure({ onClose }: CertificateManagerSecurePr
     setEditingCertificate({ ...certificate });
   };
 
-  // Convert data URL to Blob URL for better iframe rendering (especially for large PDFs)
-  const dataUrlToBlobUrl = (dataUrl: string): string => {
-    const match = dataUrl.match(/^data:([^;]+);base64,(.+)$/);
-    if (!match) {
-      console.error('Invalid data URL format');
-      return dataUrl;
-    }
-    const mimeType = match[1];
-    const base64Data = match[2];
-    const binaryString = atob(base64Data);
-    const bytes = new Uint8Array(binaryString.length);
-    for (let i = 0; i < binaryString.length; i++) {
-      bytes[i] = binaryString.charCodeAt(i);
-    }
-    const blob = new Blob([bytes], { type: mimeType });
-    return URL.createObjectURL(blob);
-  };
-
   const viewFile = (certificate: Certificate) => {
     // Clean up any existing blob URL
     if (viewingBlobUrl) {
@@ -276,33 +250,10 @@ export function CertificateManagerSecure({ onClose }: CertificateManagerSecurePr
     }
 
     try {
-      // Extract MIME type and base64 data from data URL
-      const match = certificate.fileData.match(/^data:([^;]+);base64,(.+)$/);
-      if (!match) {
+      if (!downloadDataUrl(certificate.fileData, certificate.filename || `${certificate.name}.pdf`)) {
         setError('Invalid file data format');
         return;
       }
-
-      const mimeType = match[1];
-      const base64Data = match[2];
-
-      // Convert base64 to binary
-      const binaryString = atob(base64Data);
-      const bytes = new Uint8Array(binaryString.length);
-      for (let i = 0; i < binaryString.length; i++) {
-        bytes[i] = binaryString.charCodeAt(i);
-      }
-
-      // Create blob and download
-      const blob = new Blob([bytes], { type: mimeType });
-      const url = URL.createObjectURL(blob);
-      const a = document.createElement('a');
-      a.href = url;
-      a.download = certificate.filename || `${certificate.name}.pdf`;
-      document.body.appendChild(a);
-      a.click();
-      document.body.removeChild(a);
-      URL.revokeObjectURL(url);
     } catch (err) {
       setError('Failed to download file');
       console.error('Download error:', err);

@@ -11,34 +11,7 @@ import { encrypt, decrypt } from '../utils/crypto';
 const isElectron = typeof window !== 'undefined' && 'electronAPI' in window;
 
 // Type definitions for Electron API
-declare global {
-  interface Window {
-    electronAPI?: {
-      docs: {
-        exists: (relativePath: string) => Promise<{ exists: boolean }>;
-        mkdir: (relativePath: string) => Promise<{ success: boolean; error?: string }>;
-        readTextFile: (relativePath: string) => Promise<{ success: boolean; content?: string; error?: string }>;
-        writeTextFile: (relativePath: string, content: string) => Promise<{ success: boolean; error?: string }>;
-        writeBinaryFile: (relativePath: string, base64Data: string) => Promise<{ success: boolean; path?: string; error?: string }>;
-        remove: (relativePath: string) => Promise<{ success: boolean; error?: string }>;
-        listDir: (relativePath: string) => Promise<{ success: boolean; files?: Array<{ path: string; size: number; modifiedAt: string }>; error?: string }>;
-        listSubDirs: (relativePath: string) => Promise<{ success: boolean; dirs?: string[]; error?: string }>;
-      };
-      backup: {
-        create: (outputPath: string) => Promise<{ success: boolean; manifest?: any; error?: string }>;
-        reconcile: (backupPath: string) => Promise<{ success: boolean; report?: any; error?: string }>;
-        restore: (backupPath: string, filesToRestore: string[] | null) => Promise<{ success: boolean; restoredCount?: number; errors?: string[]; error?: string }>;
-        importLegacy: (filePath: string, masterKey: string) => Promise<{ success: boolean; records?: number; keys?: string[]; error?: string }>;
-        createAutoBackup: () => Promise<{ success: boolean; manifest?: any; path?: string; error?: string }>;
-        pruneAutoBackups: (keep: number) => Promise<{ success: boolean; deleted?: number; error?: string }>;
-        listAutoBackups: () => Promise<{ success: boolean; backups?: Array<{ filename: string; path: string; size: number; createdAt: string }>; error?: string }>;
-      };
-      shell: {
-        openPath: (filePath: string) => Promise<{ success: boolean; error?: string }>;
-      };
-    };
-  }
-}
+// window.electronAPI type lives in src/types/electron-api.d.ts
 
 export interface DocumentReference {
   id: string;

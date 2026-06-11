@@ -25,7 +25,7 @@ async function deriveKey(password: string, salt: Uint8Array): Promise<CryptoKey>
   return crypto.subtle.deriveKey(
     {
       name: 'PBKDF2',
-      salt: salt,
+      salt: salt as BufferSource,
       iterations: ITERATIONS,
       hash: 'SHA-256',
     },
@@ -52,7 +52,7 @@ export async function encrypt(plaintext: string, masterKeyString: string): Promi
     const masterKeyBytes = base64ToArrayBuffer(masterKeyString);
     const key = await crypto.subtle.importKey(
       'raw',
-      masterKeyBytes,
+      masterKeyBytes as BufferSource,
       { name: 'AES-GCM', length: 256 },
       false,
       ['encrypt', 'decrypt']
@@ -104,7 +104,7 @@ export async function decrypt(encryptedBase64: string, masterKeyString: string):
     const masterKeyBytes = base64ToArrayBuffer(masterKeyString);
     const key = await crypto.subtle.importKey(
       'raw',
-      masterKeyBytes,
+      masterKeyBytes as BufferSource,
       { name: 'AES-GCM', length: 256 },
       false,
       ['encrypt', 'decrypt']

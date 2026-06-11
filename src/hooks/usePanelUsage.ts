@@ -64,7 +64,7 @@ export function usePanelUsage() {
         try {
           const existing = await storage.get<PanelUsageData>(STORAGE_KEY);
           if (existing.length > 0) {
-            await storage.update(STORAGE_KEY, (existing[0] as any).id, newData);
+            await storage.update(STORAGE_KEY, (existing[0] as any).id, { ...newData, id: (existing[0] as any).id });
           } else {
             await storage.add(STORAGE_KEY, { ...newData, id: 'usage' });
           }

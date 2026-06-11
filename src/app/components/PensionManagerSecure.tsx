@@ -19,9 +19,9 @@ interface PensionManagerSecureProps {
   onClose: () => void;
 }
 
-const emptyPension = {
+const emptyPension: Omit<Pension, 'id'> = {
   name: '',
-  pensionType: 'DC' as const,
+  pensionType: 'DC',
   potValue: '',
   annuityEstimate: '',
   spousePension: '',

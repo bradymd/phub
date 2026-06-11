@@ -8,32 +8,7 @@ import { encrypt, decrypt } from '../utils/crypto';
 import type { StorageService, ProgressCallback } from './storage';
 
 // Electron API type definition
-declare global {
-  interface Window {
-    electronAPI?: {
-      fs: {
-        ensureDataDir: () => Promise<{ success: boolean; error?: string }>;
-        exists: (filePath: string) => Promise<{ exists: boolean }>;
-        readTextFile: (filePath: string) => Promise<{ success: boolean; content?: string; error?: string }>;
-        writeTextFile: (filePath: string, content: string) => Promise<{ success: boolean; error?: string }>;
-        remove: (filePath: string) => Promise<{ success: boolean; error?: string }>;
-        readTextFileAbsolute: (filePath: string) => Promise<{ success: boolean; content?: string; error?: string }>;
-        writeTextFileAbsolute: (filePath: string, content: string) => Promise<{ success: boolean; error?: string }>;
-      };
-      dialog: {
-        save: (options: {
-          defaultPath?: string;
-          filters?: Array<{ name: string; extensions: string[] }>;
-        }) => Promise<{ canceled?: boolean; filePath?: string; error?: string }>;
-        open: (options: {
-          defaultPath?: string;
-          multiple?: boolean;
-          filters?: Array<{ name: string; extensions: string[] }>;
-        }) => Promise<{ canceled?: boolean; filePath?: string; filePaths?: string[]; error?: string }>;
-      };
-    };
-  }
-}
+// window.electronAPI type lives in src/types/electron-api.d.ts
 
 export class ElectronStorageService implements StorageService {
   constructor(private masterPassword: string) {

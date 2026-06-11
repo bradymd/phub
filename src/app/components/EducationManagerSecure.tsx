@@ -3,6 +3,7 @@ import { X, Plus, Trash, GraduationCap, Calendar, Edit2, Award, Key, FileText, E
 import { useStorage, useDocumentService } from '../../contexts/StorageContext';
 import { PdfJsViewer } from './PdfJsViewer';
 import { DocumentReference } from '../../services/document-service';
+import { dataUrlToBlobUrl, downloadDataUrl } from '../../utils/blob';
 
 interface EducationRecord {
   id: string;
@@ -265,24 +266,6 @@ export function EducationManagerSecure({ onClose }: EducationManagerSecureProps)
     }
   };
 
-  // Convert data URL to Blob URL for better iframe rendering (especially for large PDFs)
-  const dataUrlToBlobUrl = (dataUrl: string): string => {
-    const match = dataUrl.match(/^data:([^;]+);base64,(.+)$/);
-    if (!match) {
-      console.error('Invalid data URL format');
-      return dataUrl;
-    }
-    const mimeType = match[1];
-    const base64Data = match[2];
-    const binaryString = atob(base64Data);
-    const bytes = new Uint8Array(binaryString.length);
-    for (let i = 0; i < binaryString.length; i++) {
-      bytes[i] = binaryString.charCodeAt(i);
-    }
-    const blob = new Blob([bytes], { type: mimeType });
-    return URL.createObjectURL(blob);
-  };
-
   const viewFile = async (docRef: DocumentReference) => {
     if (!docRef) {
       console.error('No document reference available');
@@ -323,33 +306,10 @@ export function EducationManagerSecure({ onClose }: EducationManagerSecureProps)
       // Load and decrypt the document
       const dataUrl = await documentService.loadDocument('education', docRef);
 
-      // Extract MIME type and base64 data from data URL
-      const match = dataUrl.match(/^data:([^;]+);base64,(.+)$/);
-      if (!match) {
+      if (!downloadDataUrl(dataUrl, docRef.filename)) {
         setError('Invalid file data format');
         return;
       }
-
-      const mimeType = match[1];
-      const base64Data = match[2];
-
-      // Convert base64 to binary
-      const binaryString = atob(base64Data);
-      const bytes = new Uint8Array(binaryString.length);
-      for (let i = 0; i < binaryString.length; i++) {
-        bytes[i] = binaryString.charCodeAt(i);
-      }
-
-      // Create blob and download
-      const blob = new Blob([bytes], { type: mimeType });
-      const url = URL.createObjectURL(blob);
-      const a = document.createElement('a');
-      a.href = url;
-      a.download = docRef.filename;
-      document.body.appendChild(a);
-      a.click();
-      document.body.removeChild(a);
-      URL.revokeObjectURL(url);
     } catch (err) {
       setError(`Failed to download: ${err instanceof Error ? err.message : 'Unknown error'}`);
       console.error('Download error:', err);

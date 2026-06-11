@@ -3,6 +3,8 @@ import { X, Plus, Trash, PawPrint, Calendar, Edit2, FileText, Search, AlertCircl
 import { useStorage, useDocumentService, useDataVersion } from '../../contexts/StorageContext';
 import { PdfJsViewer } from './PdfJsViewer';
 import { DocumentReference } from '../../services/document-service';
+import { formatDateUK, isPastDate, isDueSoon } from '../../utils/dates';
+import { dataUrlToBlobUrl, downloadDataUrl } from '../../utils/blob';
 
 // Types
 interface Vaccination {
@@ -132,31 +134,6 @@ const emptyVetVisit: Omit<VetVisit, 'id'> = {
 };
 
 // Utility functions
-const isPastDate = (dateStr: string): boolean => {
-  if (!dateStr) return false;
-  const date = new Date(dateStr + 'T00:00:00');
-  const today = new Date();
-  today.setHours(0, 0, 0, 0);
-  return date < today;
-};
-
-const isDueSoon = (dateStr: string): boolean => {
-  if (!dateStr) return false;
-  const date = new Date(dateStr + 'T00:00:00');
-  const today = new Date();
-  today.setHours(0, 0, 0, 0);
-  const thirtyDays = new Date(today);
-  thirtyDays.setDate(today.getDate() + 30);
-  return date >= today && date <= thirtyDays;
-};
-
-const formatDateUK = (dateStr: string): string => {
-  if (!dateStr) return '';
-  const parts = dateStr.split('-');
-  if (parts.length !== 3) return dateStr;
-  return `${parts[2]}-${parts[1]}-${parts[0]}`;
-};
-
 const formatCurrency = (amount: number): string => {
   return new Intl.NumberFormat('en-GB', {
     style: 'currency',
@@ -950,7 +927,7 @@ export function PetsManagerSecure({ onClose }: PetsManagerSecureProps) {
 
   // Selected pet view
   const [selectedPetId, setSelectedPetId] = useState<string | null>(null);
-  const [expandedSection, setExpandedSection] = useState<'vaccinations' | 'visits' | null>('vaccinations');
+  const [expandedSection, setExpandedSection] = useState<'vaccinations' | 'visits' | 'insurance' | null>('vaccinations');
 
   // Vaccination form state
   const [showAddVaccination, setShowAddVaccination] = useState(false);
@@ -1202,19 +1179,6 @@ export function PetsManagerSecure({ onClose }: PetsManagerSecureProps) {
   };
 
   // Document handling
-  const dataUrlToBlobUrl = (dataUrl: string): string => {
-    const match = dataUrl.match(/^data:([^;]+);base64,(.+)$/);
-    if (!match) return dataUrl;
-    const mimeType = match[1];
-    const base64Data = match[2];
-    const binaryString = atob(base64Data);
-    const bytes = new Uint8Array(binaryString.length);
-    for (let i = 0; i < binaryString.length; i++) {
-      bytes[i] = binaryString.charCodeAt(i);
-    }
-    return URL.createObjectURL(new Blob([bytes], { type: mimeType }));
-  };
-
   const viewFile = async (docRef: DocumentReference) => {
     if (viewingDocument?.blobUrl) URL.revokeObjectURL(viewingDocument.blobUrl);
     try {
@@ -1233,20 +1197,7 @@ export function PetsManagerSecure({ onClose }: PetsManagerSecureProps) {
   const downloadFile = async (docRef: DocumentReference) => {
     try {
       const dataUrl = await documentService.loadDocument('pets', docRef);
-      const match = dataUrl.match(/^data:([^;]+);base64,(.+)$/);
-      if (!match) return;
-      const binaryString = atob(match[2]);
-      const bytes = new Uint8Array(binaryString.length);
-      for (let i = 0; i < binaryString.length; i++) bytes[i] = binaryString.charCodeAt(i);
-      const blob = new Blob([bytes], { type: match[1] });
-      const url = URL.createObjectURL(blob);
-      const a = document.createElement('a');
-      a.href = url;
-      a.download = docRef.filename;
-      document.body.appendChild(a);
-      a.click();
-      document.body.removeChild(a);
-      URL.revokeObjectURL(url);
+      downloadDataUrl(dataUrl, docRef.filename);
     } catch (err) {
       setError('Failed to download file');
     }
@@ -2087,7 +2038,7 @@ export function PetsManagerSecure({ onClose }: PetsManagerSecureProps) {
                   <img src={viewingDocument.dataUrl} alt={viewingDocument.docRef.filename} className="max-w-full max-h-full object-contain" />
                 </div>
               ) : viewingDocument.docRef.mimeType === 'application/pdf' ? (
-                <PdfJsViewer url={viewingDocument.blobUrl} filename={viewingDocument.docRef.filename} />
+                <PdfJsViewer src={viewingDocument.blobUrl} title={viewingDocument.docRef.filename} />
               ) : (
                 <div className="h-full flex items-center justify-center text-white">
                   <div className="text-center">

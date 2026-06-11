@@ -53,7 +53,7 @@ export async function createBackup(
     throw new Error(result.error || 'Backup creation failed');
   }
 
-  return result.manifest;
+  return result.manifest as BackupManifest;
 }
 
 /**
@@ -73,7 +73,7 @@ export async function getReconciliationReport(
     throw new Error(result.error || 'Failed to read backup');
   }
 
-  return result.report;
+  return result.report as ReconciliationReport;
 }
 
 /**
@@ -138,7 +138,7 @@ export async function createAutoBackup(): Promise<BackupManifest | null> {
     throw new Error(result.error || 'Auto-backup failed');
   }
 
-  return result.manifest;
+  return result.manifest as BackupManifest;
 }
 
 /**

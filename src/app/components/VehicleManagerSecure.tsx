@@ -3,7 +3,9 @@ import { X, Plus, Trash, Car, Calendar, Edit2, FileText, Search, Eye, EyeOff, Gr
 import { useStorage, useDocumentService, useDataVersion } from '../../contexts/StorageContext';
 import { PdfJsViewer } from './PdfJsViewer';
 import { DocumentReference } from '../../services/document-service';
-import { printRecord, formatDate, formatCurrency } from '../../utils/print';
+import { printRecord, formatCurrency } from '../../utils/print';
+import { formatDateUK, isPastDate, isDueSoon } from '../../utils/dates';
+import { dataUrlToBlobUrl, downloadDataUrl } from '../../utils/blob';
 
 interface ServiceEntry {
   id: string;
@@ -126,34 +128,6 @@ const emptyServiceEntry: Omit<ServiceEntry, 'id'> = {
   nextServiceMileage: 0,
   documents: [],
   garage: ''
-};
-
-// Format date from YYYY-MM-DD to DD/MM/YYYY for UK display
-const formatDateUK = (dateStr: string): string => {
-  if (!dateStr) return '';
-  const [year, month, day] = dateStr.split('-');
-  if (!year || !month || !day) return dateStr;
-  return `${day}/${month}/${year}`;
-};
-
-// Check if a date is in the past
-const isPastDate = (dateStr: string): boolean => {
-  if (!dateStr) return false;
-  const date = new Date(dateStr);
-  const today = new Date();
-  today.setHours(0, 0, 0, 0);
-  return date < today;
-};
-
-// Check if a date is within the next 30 days
-const isDueSoon = (dateStr: string): boolean => {
-  if (!dateStr) return false;
-  const date = new Date(dateStr);
-  const today = new Date();
-  const thirtyDaysLater = new Date();
-  thirtyDaysLater.setDate(thirtyDaysLater.getDate() + 30);
-  today.setHours(0, 0, 0, 0);
-  return date >= today && date <= thirtyDaysLater;
 };
 
 // Get the next service due date from the most recent service entry
@@ -403,28 +377,6 @@ export function VehicleManagerSecure({ onClose }: VehicleManagerSecureProps) {
     }
   };
 
-  // Convert data URL to Blob URL for better iframe/object rendering (especially for large PDFs)
-  const dataUrlToBlobUrl = (dataUrl: string): string => {
-    const match = dataUrl.match(/^data:([^;]+);base64,(.+)$/);
-    if (!match) {
-      console.error('Invalid data URL format');
-      return dataUrl; // Fallback to data URL
-    }
-    const mimeType = match[1];
-    const base64Data = match[2];
-
-    // Convert base64 to binary
-    const binaryString = atob(base64Data);
-    const bytes = new Uint8Array(binaryString.length);
-    for (let i = 0; i < binaryString.length; i++) {
-      bytes[i] = binaryString.charCodeAt(i);
-    }
-
-    // Create blob and URL
-    const blob = new Blob([bytes], { type: mimeType });
-    return URL.createObjectURL(blob);
-  };
-
   const viewFile = async (docRef: DocumentReference) => {
     if (!docRef) {
       setError('Document reference is missing');
@@ -465,31 +417,9 @@ export function VehicleManagerSecure({ onClose }: VehicleManagerSecureProps) {
     try {
       setError('');
       const dataUrl = await documentService.loadDocument('certificates', docRef);
-
-      const match = dataUrl.match(/^data:([^;]+);base64,(.+)$/);
-      if (!match) {
+      if (!downloadDataUrl(dataUrl, docRef.filename)) {
         setError('Invalid file data format');
-        return;
       }
-
-      const mimeType = match[1];
-      const base64Data = match[2];
-
-      const binaryString = atob(base64Data);
-      const bytes = new Uint8Array(binaryString.length);
-      for (let i = 0; i < binaryString.length; i++) {
-        bytes[i] = binaryString.charCodeAt(i);
-      }
-
-      const blob = new Blob([bytes], { type: mimeType });
-      const url = URL.createObjectURL(blob);
-      const a = document.createElement('a');
-      a.href = url;
-      a.download = docRef.filename;
-      document.body.appendChild(a);
-      a.click();
-      document.body.removeChild(a);
-      URL.revokeObjectURL(url);
     } catch (err) {
       setError(`Failed to download: ${err instanceof Error ? err.message : 'Unknown error'}`);
     }
@@ -2391,7 +2321,6 @@ export function VehicleManagerSecure({ onClose }: VehicleManagerSecureProps) {
                         fields: [
                           { label: 'Insurer', value: viewingDetails.insurer },
                           { label: 'Policy Number', value: viewingDetails.insurancePolicyNumber },
-                          { label: 'Annual Premium', value: viewingDetails.insuranceAnnualCost > 0 ? formatCurrency(viewingDetails.insuranceAnnualCost) : undefined },
                         ]
                       },
                       {

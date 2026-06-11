@@ -1,25 +1,14 @@
 import { useState, useEffect } from 'react';
 import { useStorage, useDataVersion } from '../contexts/StorageContext';
-
-// Check if date is in the past
-const isPastDate = (dateStr: string): boolean => {
-  if (!dateStr) return false;
-  const date = new Date(dateStr + 'T00:00:00');
-  const today = new Date();
-  today.setHours(0, 0, 0, 0);
-  return date < today;
-};
-
-// Check if date is within 30 days (in the future)
-const isDueSoon = (dateStr: string): boolean => {
-  if (!dateStr) return false;
-  const date = new Date(dateStr + 'T00:00:00');
-  const today = new Date();
-  today.setHours(0, 0, 0, 0);
-  const thirtyDays = new Date(today);
-  thirtyDays.setDate(today.getDate() + 30);
-  return date >= today && date <= thirtyDays;
-};
+import { isPastDate, isDueSoon } from '../utils/dates';
+import {
+  PropertyReminderSource,
+  VehicleReminderSource,
+  MedicalRecordReminderSource,
+  DentalRecordReminderSource,
+  PetReminderSource,
+  HolidayPlanReminderSource,
+} from '../types/reminder-sources';
 
 export interface ReminderCounts {
   overdue: number;
@@ -64,10 +53,10 @@ export function useReminders(): PanelReminders {
 
         // Load property data
         try {
-          const properties = await storage.get('properties');
-          properties.forEach((property: any) => {
+          const properties = await storage.get<PropertyReminderSource>('properties');
+          properties.forEach((property) => {
             // Check maintenance items
-            (property.maintenanceItems || []).forEach((item: any) => {
+            (property.maintenanceItems || []).forEach((item) => {
               if (item.nextDueDate) {
                 if (isPastDate(item.nextDueDate)) {
                   newReminders.property.overdue++;
@@ -86,7 +75,7 @@ export function useReminders(): PanelReminders {
             }
             // Check "Other Maintenance" entries for upcoming work (within 30 days).
             // Past entries are just history — don't flag them as overdue (cf. holidays).
-            (property.maintenanceHistory || []).forEach((entry: any) => {
+            (property.maintenanceHistory || []).forEach((entry) => {
               if (entry.date && isDueSoon(entry.date)) {
                 newReminders.property.dueSoon++;
               }
@@ -98,8 +87,8 @@ export function useReminders(): PanelReminders {
 
         // Load vehicle data
         try {
-          const vehicles = await storage.get('vehicles');
-          vehicles.forEach((vehicle: any) => {
+          const vehicles = await storage.get<VehicleReminderSource>('vehicles');
+          vehicles.forEach((vehicle) => {
             // Archived vehicles (sold/returned) don't raise reminders
             if (vehicle.status === 'archived') return;
             // Check MOT due date
@@ -131,8 +120,8 @@ export function useReminders(): PanelReminders {
             if (serviceHistory.length > 0) {
               // Find the most recent service entry that has a nextServiceDate
               const entriesWithNextDate = serviceHistory
-                .filter((entry: any) => entry.nextServiceDate)
-                .sort((a: any, b: any) => new Date(b.date).getTime() - new Date(a.date).getTime());
+                .filter((entry) => entry.nextServiceDate)
+                .sort((a, b) => new Date(b.date).getTime() - new Date(a.date).getTime());
               if (entriesWithNextDate.length > 0) {
                 const nextServiceDate = entriesWithNextDate[0].nextServiceDate;
                 if (isPastDate(nextServiceDate)) {
@@ -149,8 +138,8 @@ export function useReminders(): PanelReminders {
 
         // Load medical records
         try {
-          const records = await storage.get('medical_history');
-          records.forEach((record: any) => {
+          const records = await storage.get<MedicalRecordReminderSource>('medical_history');
+          records.forEach((record) => {
             // Check for upcoming appointments (date is in the future within 30 days)
             if (record.date && isDueSoon(record.date)) {
               newReminders.health.dueSoon++;
@@ -170,8 +159,8 @@ export function useReminders(): PanelReminders {
 
         // Load dental records
         try {
-          const dentalRecords = await storage.get('dental_records');
-          dentalRecords.forEach((record: any) => {
+          const dentalRecords = await storage.get<DentalRecordReminderSource>('dental_records');
+          dentalRecords.forEach((record) => {
             // Check for upcoming appointments (date is in the future within 30 days)
             if (record.date && isDueSoon(record.date)) {
               newReminders.dental.dueSoon++;
@@ -191,10 +180,10 @@ export function useReminders(): PanelReminders {
 
         // Load pet records
         try {
-          const pets = await storage.get('pets');
-          pets.forEach((pet: any) => {
+          const pets = await storage.get<PetReminderSource>('pets');
+          pets.forEach((pet) => {
             // Check vaccination booster due dates
-            (pet.vaccinations || []).forEach((vax: any) => {
+            (pet.vaccinations || []).forEach((vax) => {
               if (vax.nextDueDate) {
                 if (isPastDate(vax.nextDueDate)) {
                   newReminders.pets.overdue++;
@@ -212,7 +201,7 @@ export function useReminders(): PanelReminders {
               }
             }
             // Check vet visit follow-ups
-            (pet.vetVisits || []).forEach((visit: any) => {
+            (pet.vetVisits || []).forEach((visit) => {
               if (visit.followUpDate) {
                 if (isPastDate(visit.followUpDate)) {
                   newReminders.pets.overdue++;
@@ -228,15 +217,15 @@ export function useReminders(): PanelReminders {
 
         // Load holiday plans
         try {
-          const holidays = await storage.get('holiday_plans');
-          holidays.forEach((holiday: any) => {
+          const holidays = await storage.get<HolidayPlanReminderSource>('holiday_plans');
+          holidays.forEach((holiday) => {
             // Check if holiday starts soon (within 30 days)
             // Don't mark past holidays as "overdue" - they're just history
             if (holiday.startDate && isDueSoon(holiday.startDate)) {
               newReminders.holidayplans.dueSoon++;
             }
             // Check accommodation balance due dates (only if not already paid)
-            (holiday.accommodation || []).forEach((acc: any) => {
+            (holiday.accommodation || []).forEach((acc) => {
               if (acc.balanceDue && acc.balanceDue > 0 && acc.balanceDueDate && !acc.balancePaidDate) {
                 if (isPastDate(acc.balanceDueDate)) {
                   newReminders.holidayplans.overdue++;
