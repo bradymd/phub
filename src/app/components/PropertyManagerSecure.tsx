@@ -12,9 +12,11 @@ import { PanelBanner } from '../../components/ui/PanelParts';
 interface ServiceRecord {
   id: string;
   date: string;   // date the service was carried out
+  company?: string; // who carried it out (prefilled from the item's usual company)
   cost: number;   // cost for this occurrence
   paid: boolean;  // whether this occurrence has been paid for
   notes?: string;
+  documents?: DocumentReference[]; // receipts etc. for this visit
 }
 
 // Maintenance item for recurring annual checks
@@ -280,9 +282,9 @@ export function PropertyManagerSecure({ onClose }: PropertyManagerSecureProps) {
   const [editingMaintenanceItem, setEditingMaintenanceItem] = useState<MaintenanceItem | null>(null);
   const [viewingMaintenanceItem, setViewingMaintenanceItem] = useState<MaintenanceItem | null>(null);
 
-  // "Mark serviced" dialog state — records a completed occurrence and rolls the dates forward
+  // "Add service record" dialog state — records a completed visit and rolls the dates forward
   const [servicingItem, setServicingItem] = useState<{ propertyId: string; item: MaintenanceItem } | null>(null);
-  const [serviceForm, setServiceForm] = useState({ date: '', cost: 0, paid: false, nextDueDate: '', notes: '' });
+  const [serviceForm, setServiceForm] = useState({ date: '', company: '', cost: 0, paid: false, nextDueDate: '', notes: '', documents: [] as DocumentReference[] });
 
   // Utility form state
   const [newUtility, setNewUtility] = useState(emptyUtility);
@@ -376,7 +378,8 @@ export function PropertyManagerSecure({ onClose }: PropertyManagerSecureProps) {
           ...(property.financeDocuments || []),
           ...(property.insuranceDocuments || []),
           ...(property.councilTaxDocuments || []),
-          ...(property.maintenanceItems || []).flatMap(m => m.documents || [])
+          ...(property.maintenanceItems || []).flatMap(m => m.documents || []),
+          ...(property.maintenanceItems || []).flatMap(m => (m.serviceHistory || []).flatMap(rec => rec.documents || []))
         ];
         if (allDocs.length > 0) {
           await documentService.deleteDocuments('certificates', allDocs);
@@ -458,8 +461,12 @@ export function PropertyManagerSecure({ onClose }: PropertyManagerSecureProps) {
 
     if (editingProperty && editingProperty.id === propertyId) {
       const item = editingProperty.maintenanceItems.find(m => m.id === itemId);
-      if (item?.documents?.length) {
-        await documentService.deleteDocuments('certificates', item.documents);
+      const itemDocs = [
+        ...(item?.documents || []),
+        ...(item?.serviceHistory || []).flatMap(rec => rec.documents || [])
+      ];
+      if (itemDocs.length) {
+        await documentService.deleteDocuments('certificates', itemDocs);
       }
       setEditingProperty({
         ...editingProperty,
@@ -495,15 +502,18 @@ export function PropertyManagerSecure({ onClose }: PropertyManagerSecureProps) {
     }
   };
 
-  // Open the "Mark serviced" dialog, pre-filling sensible defaults (today, annual cost, +1yr next due)
+  // Open the "Add service record" dialog, pre-filling sensible defaults
+  // (today, the item's usual company, annual cost, +1yr next due)
   const openServiceDialog = (propertyId: string, item: MaintenanceItem) => {
     const date = todayISO();
     setServiceForm({
       date,
+      company: item.company || '',
       cost: item.annualCost || 0,
       paid: false,
       nextDueDate: addOneYear(date),
-      notes: ''
+      notes: '',
+      documents: []
     });
     setServicingItem({ propertyId, item });
   };
@@ -515,9 +525,11 @@ export function PropertyManagerSecure({ onClose }: PropertyManagerSecureProps) {
     const record: ServiceRecord = {
       id: `svc_${Date.now()}_${Math.random().toString(36).substr(2, 9)}`,
       date: serviceForm.date || todayISO(),
+      company: serviceForm.company.trim() || undefined,
       cost: serviceForm.cost || 0,
       paid: serviceForm.paid,
-      notes: serviceForm.notes || undefined
+      notes: serviceForm.notes || undefined,
+      documents: serviceForm.documents.length ? serviceForm.documents : undefined
     };
     const history = [record, ...(item.serviceHistory || [])]
       .sort((a, b) => new Date(b.date).getTime() - new Date(a.date).getTime());
@@ -529,6 +541,91 @@ export function PropertyManagerSecure({ onClose }: PropertyManagerSecureProps) {
     };
     await persistMaintenanceItem(propertyId, updatedItem);
     setServicingItem(null);
+  };
+
+  // Upload a receipt while filling in the Add-service-record dialog
+  const handleServiceFormUpload = async (event: React.ChangeEvent<HTMLInputElement>) => {
+    const file = event.target.files?.[0];
+    if (!file) return;
+    if (!file.type.startsWith('image/') && file.type !== 'application/pdf') {
+      setError('Please upload an image or PDF file');
+      return;
+    }
+    if (file.size > 10 * 1024 * 1024) {
+      setError('File size must be less than 10MB');
+      return;
+    }
+    const reader = new FileReader();
+    reader.onload = async (e) => {
+      const dataUrl = e.target?.result as string;
+      const docRef = await documentService.saveDocument('certificates', file.name, dataUrl);
+      setServiceForm(prev => ({ ...prev, documents: [...prev.documents, docRef] }));
+    };
+    reader.readAsDataURL(file);
+    event.target.value = '';
+  };
+
+  const removeServiceFormDocument = async (docRef: DocumentReference) => {
+    await documentService.deleteDocument('certificates', docRef);
+    setServiceForm(prev => ({ ...prev, documents: prev.documents.filter(d => d.id !== docRef.id) }));
+  };
+
+  // Cancelling the dialog must delete any receipts already uploaded,
+  // or they'd be orphaned files (integrity warnings)
+  const cancelServiceDialog = async () => {
+    if (serviceForm.documents.length) {
+      await documentService.deleteDocuments('certificates', serviceForm.documents);
+    }
+    setServicingItem(null);
+  };
+
+  // Attach a receipt to an already-logged visit (e.g. invoice arrived later)
+  const addDocumentToServiceRecord = async (
+    propertyId: string,
+    item: MaintenanceItem,
+    recordId: string,
+    event: React.ChangeEvent<HTMLInputElement>
+  ) => {
+    const file = event.target.files?.[0];
+    if (!file) return;
+    if (!file.type.startsWith('image/') && file.type !== 'application/pdf') {
+      setError('Please upload an image or PDF file');
+      return;
+    }
+    if (file.size > 10 * 1024 * 1024) {
+      setError('File size must be less than 10MB');
+      return;
+    }
+    const reader = new FileReader();
+    reader.onload = async (e) => {
+      const dataUrl = e.target?.result as string;
+      const docRef = await documentService.saveDocument('certificates', file.name, dataUrl);
+      const updatedItem: MaintenanceItem = {
+        ...item,
+        serviceHistory: (item.serviceHistory || []).map(rec =>
+          rec.id === recordId ? { ...rec, documents: [...(rec.documents || []), docRef] } : rec
+        )
+      };
+      await persistMaintenanceItem(propertyId, updatedItem);
+    };
+    reader.readAsDataURL(file);
+    event.target.value = '';
+  };
+
+  const deleteServiceRecordDocument = async (
+    propertyId: string,
+    item: MaintenanceItem,
+    recordId: string,
+    docRef: DocumentReference
+  ) => {
+    await documentService.deleteDocument('certificates', docRef);
+    const updatedItem: MaintenanceItem = {
+      ...item,
+      serviceHistory: (item.serviceHistory || []).map(rec =>
+        rec.id === recordId ? { ...rec, documents: (rec.documents || []).filter(d => d.id !== docRef.id) } : rec
+      )
+    };
+    await persistMaintenanceItem(propertyId, updatedItem);
   };
 
   // Toggle the paid flag on one occurrence in an item's history
@@ -545,6 +642,10 @@ export function PropertyManagerSecure({ onClose }: PropertyManagerSecureProps) {
   // Remove one occurrence from an item's history (re-derives lastDate from what remains)
   const deleteServiceRecord = async (propertyId: string, item: MaintenanceItem, recordId: string) => {
     if (!confirm('Delete this service record?')) return;
+    const record = (item.serviceHistory || []).find(s => s.id === recordId);
+    if (record?.documents?.length) {
+      await documentService.deleteDocuments('certificates', record.documents);
+    }
     const history = (item.serviceHistory || []).filter(s => s.id !== recordId);
     const updatedItem: MaintenanceItem = {
       ...item,
@@ -2243,14 +2344,14 @@ export function PropertyManagerSecure({ onClose }: PropertyManagerSecureProps) {
                               {item.company && <p>Company: {item.company}</p>}
                               {item.contactDetails && <p>Contact: {item.contactDetails}</p>}
                               <p>Cost: £{item.annualCost.toFixed(2)} | Next due: {item.nextDueDate ? formatDateUK(item.nextDueDate) : 'Not set'}</p>
-                              {item.lastDate && <p>Last done: {formatDateUK(item.lastDate)}{item.serviceHistory && item.serviceHistory.length > 0 ? ` · ${item.serviceHistory.length} service${item.serviceHistory.length === 1 ? '' : 's'} logged` : ''}</p>}
+                              {item.lastDate && <p>Last done: {formatDateUK(item.lastDate)}{item.serviceHistory?.[0]?.company ? ` by ${item.serviceHistory[0].company}` : ''}{item.serviceHistory && item.serviceHistory.length > 0 ? ` · ${item.serviceHistory.length} service${item.serviceHistory.length === 1 ? '' : 's'} logged` : ''}</p>}
                             </div>
                           </div>
                           <div className="flex items-center gap-1">
                             <button
                               onClick={() => openServiceDialog(editingProperty.id, item)}
                               className="p-1.5 text-emerald-600 hover:bg-emerald-50 rounded"
-                              title="Mark serviced"
+                              title="Add service record"
                             >
                               <CheckCircle className="w-4 h-4" />
                             </button>
@@ -3231,44 +3332,79 @@ export function PropertyManagerSecure({ onClose }: PropertyManagerSecureProps) {
                       onClick={() => openServiceDialog(viewingDetails.id, viewingMaintenanceItem)}
                       className="flex items-center gap-1 px-2.5 py-1 bg-emerald-600 text-white rounded-lg hover:bg-emerald-700 text-xs"
                     >
-                      <CheckCircle className="w-3 h-3" /> Mark serviced
+                      <CheckCircle className="w-3 h-3" /> Add service record
                     </button>
                   )}
                 </div>
                 {viewingMaintenanceItem.serviceHistory && viewingMaintenanceItem.serviceHistory.length > 0 ? (
                   <div className="space-y-1.5">
                     {viewingMaintenanceItem.serviceHistory.map((s) => (
-                      <div key={s.id} className="flex items-center justify-between gap-2 bg-gray-50 rounded-lg px-3 py-2 text-sm">
-                        <div className="flex items-center gap-3 min-w-0">
-                          <span className="font-medium whitespace-nowrap">{formatDateUK(s.date)}</span>
-                          <span className="text-gray-600 whitespace-nowrap">£{s.cost.toFixed(2)}</span>
-                          {s.notes && <span className="text-gray-400 text-xs truncate">{s.notes}</span>}
+                      <div key={s.id} className="bg-gray-50 rounded-lg px-3 py-2 text-sm">
+                        <div className="flex items-center justify-between gap-2">
+                          <div className="flex items-center gap-3 min-w-0">
+                            <span className="font-medium whitespace-nowrap">{formatDateUK(s.date)}</span>
+                            {s.company && <span className="text-gray-600 whitespace-nowrap truncate">{s.company}</span>}
+                            <span className="text-gray-600 whitespace-nowrap">£{s.cost.toFixed(2)}</span>
+                            {s.notes && <span className="text-gray-400 text-xs truncate">{s.notes}</span>}
+                          </div>
+                          <div className="flex items-center gap-1 shrink-0">
+                            {viewingDetails && (
+                              <button
+                                onClick={() => toggleServicePaid(viewingDetails.id, viewingMaintenanceItem, s.id)}
+                                className={`px-2 py-0.5 text-xs rounded ${s.paid ? 'bg-green-100 text-green-700 hover:bg-green-200' : 'bg-amber-100 text-amber-700 hover:bg-amber-200'}`}
+                                title="Toggle paid status"
+                              >
+                                {s.paid ? 'Paid' : 'Unpaid'}
+                              </button>
+                            )}
+                            {viewingDetails && (
+                              <label className="p-1 text-gray-400 hover:text-blue-600 cursor-pointer" title="Attach receipt">
+                                <Upload className="w-3.5 h-3.5" />
+                                <input
+                                  type="file"
+                                  accept="image/*,.pdf"
+                                  onChange={(e) => addDocumentToServiceRecord(viewingDetails.id, viewingMaintenanceItem, s.id, e)}
+                                  className="hidden"
+                                />
+                              </label>
+                            )}
+                            {viewingDetails && (
+                              <button
+                                onClick={() => deleteServiceRecord(viewingDetails.id, viewingMaintenanceItem, s.id)}
+                                className="p-1 text-red-400 hover:text-red-600"
+                                title="Delete record"
+                              >
+                                <Trash className="w-3.5 h-3.5" />
+                              </button>
+                            )}
+                          </div>
                         </div>
-                        <div className="flex items-center gap-1 shrink-0">
-                          {viewingDetails && (
-                            <button
-                              onClick={() => toggleServicePaid(viewingDetails.id, viewingMaintenanceItem, s.id)}
-                              className={`px-2 py-0.5 text-xs rounded ${s.paid ? 'bg-green-100 text-green-700 hover:bg-green-200' : 'bg-amber-100 text-amber-700 hover:bg-amber-200'}`}
-                              title="Toggle paid status"
-                            >
-                              {s.paid ? 'Paid' : 'Unpaid'}
-                            </button>
-                          )}
-                          {viewingDetails && (
-                            <button
-                              onClick={() => deleteServiceRecord(viewingDetails.id, viewingMaintenanceItem, s.id)}
-                              className="p-1 text-red-400 hover:text-red-600"
-                              title="Delete record"
-                            >
-                              <Trash className="w-3.5 h-3.5" />
-                            </button>
-                          )}
-                        </div>
+                        {s.documents && s.documents.length > 0 && (
+                          <div className="flex flex-wrap gap-1.5 mt-1.5">
+                            {s.documents.map((doc) => (
+                              <span key={doc.id} className="flex items-center gap-1 px-2 py-0.5 bg-blue-100 text-blue-700 rounded text-xs">
+                                <button onClick={() => viewFile(doc)} className="flex items-center gap-1 hover:underline">
+                                  <FileText className="w-3 h-3" />
+                                  {doc.filename}
+                                </button>
+                                {viewingDetails && (
+                                  <button
+                                    onClick={() => deleteServiceRecordDocument(viewingDetails.id, viewingMaintenanceItem, s.id, doc)}
+                                    className="p-0.5 hover:bg-blue-200 rounded"
+                                    title="Remove receipt"
+                                  >
+                                    <X className="w-3 h-3" />
+                                  </button>
+                                )}
+                              </span>
+                            ))}
+                          </div>
+                        )}
                       </div>
                     ))}
                   </div>
                 ) : (
-                  <p className="text-sm text-gray-400 italic">No services logged yet — use "Mark serviced" when this is done.</p>
+                  <p className="text-sm text-gray-400 italic">No visits logged yet — use "Add service record" after each visit.</p>
                 )}
               </div>
 
@@ -3326,14 +3462,24 @@ export function PropertyManagerSecure({ onClose }: PropertyManagerSecureProps) {
             <div className="flex items-center justify-between mb-4">
               <h3 className="text-lg font-semibold flex items-center gap-2">
                 <CheckCircle className="w-5 h-5 text-emerald-600" />
-                Mark serviced
+                Add service record
               </h3>
-              <button onClick={() => setServicingItem(null)} className="p-2 hover:bg-gray-100 rounded-lg">
+              <button onClick={cancelServiceDialog} className="p-2 hover:bg-gray-100 rounded-lg">
                 <X className="w-5 h-5" />
               </button>
             </div>
             <p className="text-sm text-gray-500 mb-4">{servicingItem.item.name}</p>
             <div className="space-y-4">
+              <div>
+                <label className="block text-sm text-gray-600 mb-1">Done by</label>
+                <input
+                  type="text"
+                  value={serviceForm.company}
+                  onChange={(e) => setServiceForm({ ...serviceForm, company: e.target.value })}
+                  placeholder="Company / person who did the work"
+                  className="w-full px-3 py-2 border border-gray-300 rounded-lg"
+                />
+              </div>
               <div className="grid grid-cols-2 gap-4">
                 <div>
                   <label className="block text-sm text-gray-600 mb-1">Date done</label>
@@ -3385,15 +3531,40 @@ export function PropertyManagerSecure({ onClose }: PropertyManagerSecureProps) {
                   className="w-full px-3 py-2 border border-gray-300 rounded-lg"
                 />
               </div>
+              <div>
+                <label className="block text-sm text-gray-600 mb-1">Receipts / documents (optional)</label>
+                {serviceForm.documents.length > 0 && (
+                  <div className="flex flex-wrap gap-1.5 mb-2">
+                    {serviceForm.documents.map((doc) => (
+                      <span key={doc.id} className="flex items-center gap-1 px-2 py-1 bg-blue-100 text-blue-700 rounded text-xs">
+                        <FileText className="w-3 h-3" />
+                        {doc.filename}
+                        <button
+                          onClick={() => removeServiceFormDocument(doc)}
+                          className="p-0.5 hover:bg-blue-200 rounded"
+                          title="Remove"
+                        >
+                          <X className="w-3 h-3" />
+                        </button>
+                      </span>
+                    ))}
+                  </div>
+                )}
+                <label className="flex items-center gap-2 px-3 py-2 bg-white border border-gray-300 rounded-lg cursor-pointer hover:bg-gray-50 w-fit text-sm">
+                  <Upload className="w-4 h-4 text-gray-500" />
+                  <span className="text-gray-600">Upload receipt</span>
+                  <input type="file" accept="image/*,.pdf" onChange={handleServiceFormUpload} className="hidden" />
+                </label>
+              </div>
               <div className="flex gap-2">
                 <button
                   onClick={markServiced}
                   className="flex-1 px-4 py-2 bg-emerald-600 text-white rounded-lg hover:bg-emerald-700"
                 >
-                  Log service
+                  Add record
                 </button>
                 <button
-                  onClick={() => setServicingItem(null)}
+                  onClick={cancelServiceDialog}
                   className="px-4 py-2 bg-gray-200 text-gray-700 rounded-lg hover:bg-gray-300"
                 >
                   Cancel
