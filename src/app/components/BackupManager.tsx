@@ -1,6 +1,7 @@
 import { useState, useEffect } from 'react';
 import { X, Download, Upload, HardDrive, AlertCircle, CheckCircle, Clock, Database, Shield, FileWarning, RefreshCw, Eye, Trash2, FolderInput } from 'lucide-react';
 import { useStorage, useMasterKey, useDocumentService } from '../../contexts/StorageContext';
+import { PanelBanner } from '../../components/ui/PanelParts';
 import { createBackup, getReconciliationReport, restoreBackup, importLegacyBackup, listAutoBackups, BackupManifest, ReconciliationReport, AutoBackupInfo } from '../../services/backup';
 import { runIntegrityCheck, removeDeadReference, IntegrityReport, FileInfo } from '../../services/integrity';
 import { DocumentCategory } from '../../services/document-service';
@@ -396,25 +397,13 @@ export function BackupManager({ onClose }: BackupManagerProps) {
   return (
     <div className="fixed inset-0 bg-black/50 flex items-center justify-center z-50 p-4">
       <div className="bg-white rounded-2xl max-w-2xl w-full max-h-[90vh] overflow-hidden flex flex-col">
-        <div className="p-6 border-b border-gray-200 bg-gradient-to-r from-blue-50 to-indigo-50">
-          <div className="flex items-center justify-between">
-            <div className="flex items-center gap-3">
-              <div className="p-3 bg-gradient-to-br from-blue-600 to-indigo-600 text-white rounded-xl">
-                <HardDrive className="w-6 h-6" />
-              </div>
-              <div>
-                <h2 className="text-xl font-semibold text-gray-900">Backup & Restore</h2>
-                <p className="text-sm text-gray-500 mt-1">Full encrypted backup with document files</p>
-              </div>
-            </div>
-            <button
-              onClick={onClose}
-              className="p-2 hover:bg-white rounded-lg transition-colors"
-            >
-              <X className="w-5 h-5" />
-            </button>
-          </div>
-        </div>
+        <PanelBanner
+          title="Backup & Restore"
+          subtitle="Full encrypted backup with document files"
+          icon={HardDrive}
+          gradient="from-blue-600 to-indigo-600"
+          onClose={onClose}
+        />
 
         <div className="flex-1 overflow-y-auto p-6">
           {error && (

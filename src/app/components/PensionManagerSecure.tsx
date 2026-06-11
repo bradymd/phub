@@ -1,6 +1,7 @@
 import { useState, useEffect } from 'react';
 import { X, Plus, Trash, PiggyBank, TrendingUp, Building2, Edit2, Search, ExternalLink, Eye, EyeOff, Grid3x3, List } from 'lucide-react';
 import { useStorage } from '../../contexts/StorageContext';
+import { PanelBanner } from '../../components/ui/PanelParts';
 
 interface Pension {
   id: string;
@@ -179,77 +180,16 @@ export function PensionManagerSecure({ onClose }: PensionManagerSecureProps) {
   return (
     <div className="fixed inset-0 bg-black/50 flex items-center justify-center z-50 p-4">
       <div className="bg-white rounded-2xl w-full max-w-6xl h-[90vh] flex flex-col shadow-2xl">
-        <div className="p-6 border-b border-gray-200 bg-gradient-to-r from-green-500 to-green-700 text-white rounded-t-2xl">
-          <div className="flex items-center justify-between gap-4">
-            <div className="flex items-center gap-3 flex-shrink-0">
-              <PiggyBank className="w-6 h-6" />
-              <h2 className="text-xl font-semibold">Pension Manager</h2>
-            </div>
-            <div className="flex-1 max-w-md relative">
-              <Search className="absolute left-3 top-1/2 transform -translate-y-1/2 text-gray-400 w-5 h-5" />
-              <input
-                type="text"
-                placeholder="Search pensions..."
-                value={searchQuery}
-                onChange={(e) => setSearchQuery(e.target.value)}
-                className="w-full pl-10 pr-4 py-2 border border-gray-300 rounded-lg bg-white text-gray-900 focus:outline-none focus:ring-2 focus:ring-green-500 focus:border-transparent"
-              />
-              {searchQuery && (
-                <button
-                  onClick={() => setSearchQuery('')}
-                  className="absolute right-3 top-1/2 transform -translate-y-1/2 text-gray-400 hover:text-gray-600"
-                >
-                  <X className="w-4 h-4" />
-                </button>
-              )}
-            </div>
-            <div className="flex items-center gap-2 flex-shrink-0">
-              <button
-                onClick={() => setShowSummary(!showSummary)}
-                className="p-2 hover:bg-green-700 rounded-lg transition-colors"
-                title={showSummary ? "Hide summary" : "Show summary"}
-              >
-                {showSummary ? <Eye className="w-5 h-5" /> : <EyeOff className="w-5 h-5" />}
-              </button>
-              <button
-                onClick={() => setViewMode('grid')}
-                className={`p-2 rounded-lg transition-colors ${
-                  viewMode === 'grid'
-                    ? 'bg-white text-green-600'
-                    : 'hover:bg-green-700'
-                }`}
-                title="Grid view"
-              >
-                <Grid3x3 className="w-5 h-5" />
-              </button>
-              <button
-                onClick={() => setViewMode('list')}
-                className={`p-2 rounded-lg transition-colors ${
-                  viewMode === 'list'
-                    ? 'bg-white text-green-600'
-                    : 'hover:bg-green-700'
-                }`}
-                title="List view"
-              >
-                <List className="w-5 h-5" />
-              </button>
-              <div className="w-px h-8 bg-white/30 mx-1"></div>
-              <button
-                onClick={() => setShowAddForm(!showAddForm)}
-                className="flex items-center gap-2 px-4 py-2 bg-white text-green-600 rounded-lg hover:bg-green-50 transition-colors"
-              >
-                <Plus className="w-4 h-4" />
-                Add
-              </button>
-              <button
-                onClick={onClose}
-                className="p-2 hover:bg-green-700 rounded-lg transition-colors"
-              >
-                <X className="w-5 h-5" />
-              </button>
-            </div>
-          </div>
-        </div>
+        <PanelBanner
+          title="Pension Manager"
+          icon={PiggyBank}
+          gradient="from-green-500 to-green-700"
+          search={{ value: searchQuery, onChange: setSearchQuery, placeholder: 'Search pensions...' }}
+          view={{ mode: viewMode, onChange: setViewMode }}
+          summary={{ shown: showSummary, onToggle: () => setShowSummary(!showSummary) }}
+          onAdd={() => setShowAddForm(!showAddForm)}
+          onClose={onClose}
+        />
 
         {error && (
           <div className="mx-6 mt-4 p-3 bg-red-50 border border-red-200 rounded-lg text-red-700 text-sm">

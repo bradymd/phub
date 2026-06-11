@@ -1,6 +1,7 @@
 import { useState, useEffect } from 'react';
 import { X, Plus, Trash, Mail, Phone, MapPin, Users, Key, Edit, Search, ArrowUpDown, Grid3x3, List } from 'lucide-react';
 import { useStorage } from '../../contexts/StorageContext';
+import { PanelBanner } from '../../components/ui/PanelParts';
 
 interface Contact {
   id: string;
@@ -160,63 +161,15 @@ export function ContactsManagerSecure({ onClose }: ContactsManagerSecureProps) {
   return (
     <div className="fixed inset-0 bg-black/50 flex items-center justify-center z-50 p-4">
       <div className="bg-white rounded-2xl max-w-4xl w-full max-h-[90vh] overflow-hidden flex flex-col">
-        <div className="p-6 border-b border-gray-200 bg-gradient-to-r from-green-50 to-green-100">
-          <div className="flex items-center justify-between">
-            <div className="flex items-center gap-3">
-              <div className="p-3 bg-gradient-to-br from-green-500 to-green-700 text-white rounded-xl relative">
-                <Users className="w-6 h-6" />
-                <div className="absolute -top-1 -right-1 bg-green-500 rounded-full p-1">
-                  <Key className="w-3 h-3 text-white" />
-                </div>
-              </div>
-              <div>
-                <h2 className="text-gray-900 flex items-center gap-2">
-                  Contacts
-                  <span className="text-xs px-2 py-1 bg-green-100 text-green-700 rounded-full">Encrypted</span>
-                </h2>
-                <p className="text-sm text-gray-500 mt-1">Manage your personal and professional contacts</p>
-              </div>
-            </div>
-            <div className="flex items-center gap-2">
-              <button
-                onClick={() => setViewMode('grid')}
-                className={`p-2 rounded-lg transition-colors ${
-                  viewMode === 'grid'
-                    ? 'bg-green-600 text-white'
-                    : 'bg-white text-gray-600 hover:bg-gray-100'
-                }`}
-                title="Grid view"
-              >
-                <Grid3x3 className="w-5 h-5" />
-              </button>
-              <button
-                onClick={() => setViewMode('list')}
-                className={`p-2 rounded-lg transition-colors ${
-                  viewMode === 'list'
-                    ? 'bg-green-600 text-white'
-                    : 'bg-white text-gray-600 hover:bg-gray-100'
-                }`}
-                title="List view"
-              >
-                <List className="w-5 h-5" />
-              </button>
-              <div className="w-px h-8 bg-gray-300 mx-1"></div>
-              <button
-                onClick={() => setShowAddForm(!showAddForm)}
-                className="flex items-center gap-2 px-4 py-2 bg-white text-green-600 rounded-lg hover:bg-green-50 transition-colors"
-              >
-                <Plus className="w-4 h-4" />
-                Add
-              </button>
-              <button
-                onClick={onClose}
-                className="p-2 hover:bg-white rounded-lg transition-colors"
-              >
-                <X className="w-5 h-5" />
-              </button>
-            </div>
-          </div>
-        </div>
+        <PanelBanner
+          title="Contacts"
+          subtitle="Manage your personal and professional contacts"
+          icon={Users}
+          gradient="from-green-500 to-green-700"
+          view={{ mode: viewMode, onChange: setViewMode }}
+          onAdd={() => setShowAddForm(!showAddForm)}
+          onClose={onClose}
+        />
 
         {error && (
           <div className="mx-6 mt-4 p-3 bg-red-50 border border-red-200 rounded-lg text-red-700 text-sm">

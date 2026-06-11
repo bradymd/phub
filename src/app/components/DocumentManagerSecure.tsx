@@ -1,6 +1,7 @@
 import { useState, useEffect } from 'react';
 import { X, Plus, Trash, Download, Upload, FileText, Key, Edit, Search } from 'lucide-react';
 import { useStorage } from '../../contexts/StorageContext';
+import { PanelBanner } from '../../components/ui/PanelParts';
 import { PdfJsViewer } from './PdfJsViewer';
 import { formatDate } from '../../utils/locale';
 
@@ -230,31 +231,13 @@ export function DocumentManagerSecure({ category, onClose }: DocumentManagerSecu
   return (
     <div className="fixed inset-0 bg-black/50 flex items-center justify-center z-50 p-4">
       <div className="bg-white rounded-2xl max-w-3xl w-full max-h-[90vh] overflow-hidden flex flex-col">
-        <div className="p-6 border-b border-gray-200 bg-gradient-to-r from-blue-50 to-purple-50">
-          <div className="flex items-center justify-between">
-            <div className="flex items-center gap-3">
-              <div className="p-3 bg-gradient-to-br from-blue-600 to-purple-600 text-white rounded-xl relative">
-                <FileText className="w-6 h-6" />
-                <div className="absolute -top-1 -right-1 bg-green-500 rounded-full p-1">
-                  <Key className="w-3 h-3 text-white" />
-                </div>
-              </div>
-              <div>
-                <h2 className="text-gray-900 flex items-center gap-2">
-                  {category}
-                  <span className="text-xs px-2 py-1 bg-green-100 text-green-700 rounded-full">Encrypted</span>
-                </h2>
-                <p className="text-sm text-gray-500 mt-1">Manage your {category.toLowerCase()} documents</p>
-              </div>
-            </div>
-            <button
-              onClick={onClose}
-              className="p-2 hover:bg-white rounded-lg transition-colors"
-            >
-              <X className="w-5 h-5" />
-            </button>
-          </div>
-        </div>
+        <PanelBanner
+          title={category}
+          subtitle={`Manage your ${category.toLowerCase()} documents`}
+          icon={FileText}
+          gradient="from-blue-600 to-purple-600"
+          onClose={onClose}
+        />
 
         {/* Search Bar */}
         <div className="px-6 pt-4 pb-2 border-b border-gray-200 bg-gray-50">
