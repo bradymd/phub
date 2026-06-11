@@ -5,6 +5,7 @@ import { PdfJsViewer } from './PdfJsViewer';
 import { DocumentReference } from '../../services/document-service';
 import { formatDateUK, isPastDate, isDueSoon } from '../../utils/dates';
 import { dataUrlToBlobUrl, downloadDataUrl } from '../../utils/blob';
+import { PanelBanner } from '../../components/ui/PanelParts';
 
 // Types
 interface Vaccination {
@@ -1401,47 +1402,18 @@ export function PetsManagerSecure({ onClose }: PetsManagerSecureProps) {
     <div className="fixed inset-0 bg-black/60 z-50 overflow-hidden">
       <div className="absolute inset-2 bg-white rounded-2xl shadow-2xl flex flex-col">
         {/* Header */}
-        <div className="bg-gradient-to-r from-amber-500 to-amber-700 text-white p-6 rounded-t-2xl flex-shrink-0">
-          <div className="flex items-center justify-between">
-            <div className="flex items-center gap-3">
-              <PawPrint className="w-8 h-8" />
-              <div>
-                <h2 className="text-2xl font-bold">Pets</h2>
-                <p className="text-white/80 text-sm">Pet records, vet visits, vaccinations & insurance</p>
-              </div>
-            </div>
-            <div className="flex items-center gap-2">
-              <div className="relative">
-                <Search className="w-4 h-4 absolute left-3 top-1/2 -translate-y-1/2 text-white/60" />
-                <input
-                  type="text"
-                  value={searchQuery}
-                  onChange={(e) => setSearchQuery(e.target.value)}
-                  placeholder="Search pets..."
-                  className="pl-9 pr-4 py-2 bg-white/20 text-white placeholder-white/60 rounded-lg border border-white/30 focus:outline-none focus:ring-2 focus:ring-white/50 w-48"
-                />
-              </div>
-              <button
-                onClick={() => setShowSummary(!showSummary)}
-                className="p-2 hover:bg-white/10 rounded-lg transition-colors"
-                title={showSummary ? 'Hide summary' : 'Show summary'}
-              >
-                {showSummary ? <EyeOff className="w-5 h-5" /> : <Eye className="w-5 h-5" />}
-              </button>
-              <div className="w-px h-8 bg-white/30 mx-1" />
-              <button
-                onClick={() => { setNewPet({ ...emptyPet }); setShowAddPet(true); }}
-                className="flex items-center gap-2 px-4 py-2 bg-white text-amber-600 rounded-lg hover:bg-white/90 transition-colors font-medium"
-              >
-                <Plus className="w-4 h-4" />
-                Add Pet
-              </button>
-              <button onClick={onClose} className="p-2 hover:bg-white/10 rounded-lg transition-colors">
-                <X className="w-5 h-5" />
-              </button>
-            </div>
-          </div>
-        </div>
+        <PanelBanner
+          title="Pets"
+          subtitle="Pet records, vet visits, vaccinations & insurance"
+          icon={PawPrint}
+          gradient="from-amber-500 to-amber-700"
+          className="flex-shrink-0"
+          search={{ value: searchQuery, onChange: setSearchQuery, placeholder: 'Search pets...' }}
+          summary={{ shown: showSummary, onToggle: () => setShowSummary(!showSummary) }}
+          onAdd={() => { setNewPet({ ...emptyPet }); setShowAddPet(true); }}
+          addLabel="Add Pet"
+          onClose={onClose}
+        />
 
         {/* Content */}
         <div className="flex-1 overflow-hidden flex">

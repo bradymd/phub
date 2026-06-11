@@ -6,6 +6,7 @@ import { DocumentReference } from '../../services/document-service';
 import { printRecord, formatDate, formatCurrency } from '../../utils/print';
 import { formatDateUK, isPastDate, isDueSoon } from '../../utils/dates';
 import { dataUrlToBlobUrl, downloadDataUrl } from '../../utils/blob';
+import { PanelBanner } from '../../components/ui/PanelParts';
 
 // A single completed occurrence of a recurring maintenance item (rolling history)
 interface ServiceRecord {
@@ -981,80 +982,19 @@ export function PropertyManagerSecure({ onClose }: PropertyManagerSecureProps) {
     <div className="fixed inset-0 bg-black/60 z-50 overflow-hidden">
       <div className="absolute inset-2 bg-white rounded-2xl shadow-2xl flex flex-col">
         {/* Header */}
-        <div className="bg-gradient-to-r from-slate-600 to-slate-800 text-white p-6 rounded-t-2xl">
-          <div className="flex items-center justify-between">
-            <div className="flex items-center gap-4">
-              <div className="p-3 bg-white/20 rounded-xl">
-                <Home className="w-8 h-8" />
-              </div>
-              <div>
-                <h2 className="text-white flex items-center gap-2">
-                  Property Maintenance
-                  <span className="text-xs px-2 py-1 bg-green-500/30 text-green-100 rounded-full">Encrypted</span>
-                </h2>
-                <p className="text-sm text-slate-200 mt-1">Manage your properties, mortgages, insurance, and maintenance</p>
-              </div>
-            </div>
-            <div className="flex items-center gap-2">
-              <div className="relative">
-                <Search className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-slate-400" />
-                <input
-                  type="text"
-                  placeholder="Search..."
-                  value={searchQuery}
-                  onChange={(e) => setSearchQuery(e.target.value)}
-                  className="pl-9 pr-4 py-2 bg-white/10 border border-white/20 rounded-lg text-white placeholder-slate-300 w-48 focus:outline-none focus:ring-2 focus:ring-white/30"
-                />
-              </div>
-              <button
-                onClick={() => setViewMode('grid')}
-                className={`p-2 rounded-lg transition-colors ${
-                  viewMode === 'grid'
-                    ? 'bg-white text-slate-700'
-                    : 'bg-white/10 text-white hover:bg-white/20'
-                }`}
-                title="Grid view"
-              >
-                <Grid3x3 className="w-5 h-5" />
-              </button>
-              <button
-                onClick={() => setViewMode('list')}
-                className={`p-2 rounded-lg transition-colors ${
-                  viewMode === 'list'
-                    ? 'bg-white text-slate-700'
-                    : 'bg-white/10 text-white hover:bg-white/20'
-                }`}
-                title="List view"
-              >
-                <List className="w-5 h-5" />
-              </button>
-              <button
-                onClick={() => setShowSummary(!showSummary)}
-                className="p-2 bg-white/10 rounded-lg hover:bg-white/20 transition-colors"
-                title={showSummary ? "Hide summary" : "Show summary"}
-              >
-                {showSummary ? <EyeOff className="w-4 h-4" /> : <Eye className="w-4 h-4" />}
-              </button>
-              <div className="w-px h-8 bg-white/30 mx-1"></div>
-              <button
-                onClick={() => {
-                  setNewProperty(emptyProperty);
-                  setShowAddForm(true);
-                }}
-                className="flex items-center gap-2 px-4 py-2 bg-white text-slate-700 rounded-lg hover:bg-slate-100 transition-colors"
-              >
-                <Plus className="w-4 h-4" />
-                Add
-              </button>
-              <button
-                onClick={onClose}
-                className="p-2 hover:bg-white/10 rounded-lg transition-colors"
-              >
-                <X className="w-5 h-5" />
-              </button>
-            </div>
-          </div>
-        </div>
+        <PanelBanner
+          title="Property Maintenance"
+          subtitle="Manage your properties, mortgages, insurance, and maintenance"
+          icon={Home}
+          search={{ value: searchQuery, onChange: setSearchQuery }}
+          view={{ mode: viewMode, onChange: setViewMode }}
+          summary={{ shown: showSummary, onToggle: () => setShowSummary(!showSummary) }}
+          onAdd={() => {
+            setNewProperty(emptyProperty);
+            setShowAddForm(true);
+          }}
+          onClose={onClose}
+        />
 
         {/* Main Content */}
         <div className="flex-1 overflow-y-auto min-h-0 p-6" style={{ willChange: 'transform', transform: 'translateZ(0)' }}>

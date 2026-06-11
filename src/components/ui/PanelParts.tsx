@@ -1,5 +1,5 @@
 import { ReactNode } from 'react';
-import { Edit2, Trash, Download, Eye, FileText, X, ChevronDown, ChevronUp } from 'lucide-react';
+import { Edit2, Trash, Download, Eye, EyeOff, FileText, X, ChevronDown, ChevronUp, Search, Grid3x3, List, Plus } from 'lucide-react';
 import type { LucideIcon } from 'lucide-react';
 
 // =============================================================================
@@ -397,6 +397,128 @@ export function PanelHeader({ title, icon: Icon, onClose, actions }: PanelHeader
         >
           <X className="w-5 h-5 text-gray-500" />
         </button>
+      </div>
+    </div>
+  );
+}
+
+// -----------------------------------------------------------------------------
+// Panel Banner - the standard dark-gradient top bar (per docs/DESIGN_SYSTEM.md)
+// Control order: search | grid/list | summary eye | extras | divider | Add | X
+// The gradient is the panel's accent colour; pass complete Tailwind stop
+// classes (they must appear as literals somewhere in source for the JIT).
+// -----------------------------------------------------------------------------
+interface PanelBannerProps {
+  title: string;
+  subtitle?: string;
+  icon: LucideIcon;
+  /** Tailwind gradient stops, e.g. "from-teal-500 to-teal-700" */
+  gradient?: string;
+  /** All secure panels store encrypted data, so the badge defaults on */
+  encrypted?: boolean;
+  search?: { value: string; onChange: (value: string) => void; placeholder?: string };
+  view?: { mode: 'grid' | 'list'; onChange: (mode: 'grid' | 'list') => void };
+  summary?: { shown: boolean; onToggle: () => void };
+  onAdd?: () => void;
+  addLabel?: string;
+  extraActions?: ReactNode;
+  onClose: () => void;
+  className?: string;
+}
+
+export function PanelBanner({
+  title,
+  subtitle,
+  icon: Icon,
+  gradient = 'from-slate-600 to-slate-800',
+  encrypted = true,
+  search,
+  view,
+  summary,
+  onAdd,
+  addLabel = 'Add',
+  extraActions,
+  onClose,
+  className = '',
+}: PanelBannerProps) {
+  return (
+    <div className={`bg-gradient-to-r ${gradient} text-white p-6 rounded-t-2xl ${className}`}>
+      <div className="flex items-center justify-between">
+        <div className="flex items-center gap-4">
+          <div className="p-3 bg-white/20 rounded-xl">
+            <Icon className="w-8 h-8" />
+          </div>
+          <div>
+            <h2 className="text-white flex items-center gap-2">
+              {title}
+              {encrypted && (
+                <span className="text-xs px-2 py-1 bg-green-500/30 text-green-100 rounded-full">Encrypted</span>
+              )}
+            </h2>
+            {subtitle && <p className="text-sm text-white/80 mt-1">{subtitle}</p>}
+          </div>
+        </div>
+        <div className="flex items-center gap-2">
+          {search && (
+            <div className="relative">
+              <Search className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-white/60" />
+              <input
+                type="text"
+                placeholder={search.placeholder || 'Search...'}
+                value={search.value}
+                onChange={(e) => search.onChange(e.target.value)}
+                className="pl-9 pr-4 py-2 bg-white/10 border border-white/20 rounded-lg text-white placeholder-white/60 w-48 focus:outline-none focus:ring-2 focus:ring-white/30"
+              />
+            </div>
+          )}
+          {view && (
+            <>
+              <button
+                onClick={() => view.onChange('grid')}
+                className={`p-2 rounded-lg transition-colors ${
+                  view.mode === 'grid' ? 'bg-white text-gray-800' : 'bg-white/10 text-white hover:bg-white/20'
+                }`}
+                title="Grid view"
+              >
+                <Grid3x3 className="w-5 h-5" />
+              </button>
+              <button
+                onClick={() => view.onChange('list')}
+                className={`p-2 rounded-lg transition-colors ${
+                  view.mode === 'list' ? 'bg-white text-gray-800' : 'bg-white/10 text-white hover:bg-white/20'
+                }`}
+                title="List view"
+              >
+                <List className="w-5 h-5" />
+              </button>
+            </>
+          )}
+          {summary && (
+            <button
+              onClick={summary.onToggle}
+              className="p-2 bg-white/10 rounded-lg hover:bg-white/20 transition-colors"
+              title={summary.shown ? 'Hide summary' : 'Show summary'}
+            >
+              {summary.shown ? <EyeOff className="w-4 h-4" /> : <Eye className="w-4 h-4" />}
+            </button>
+          )}
+          {extraActions}
+          {onAdd && (
+            <>
+              <div className="w-px h-8 bg-white/30 mx-1"></div>
+              <button
+                onClick={onAdd}
+                className="flex items-center gap-2 px-4 py-2 bg-white text-gray-800 rounded-lg hover:bg-white/90 transition-colors"
+              >
+                <Plus className="w-4 h-4" />
+                {addLabel}
+              </button>
+            </>
+          )}
+          <button onClick={onClose} className="p-2 hover:bg-white/10 rounded-lg transition-colors" title="Close">
+            <X className="w-5 h-5" />
+          </button>
+        </div>
       </div>
     </div>
   );
