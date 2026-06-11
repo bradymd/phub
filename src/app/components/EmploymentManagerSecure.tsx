@@ -53,13 +53,6 @@ export function EmploymentManagerSecure({ onClose }: EmploymentManagerSecureProp
     loadRecords();
   }, []);
 
-  // Scroll to top when add form opens (edit is now in modal)
-  useEffect(() => {
-    if (showAddForm) {
-      window.scrollTo({ top: 0, behavior: 'smooth' });
-    }
-  }, [showAddForm]);
-
   const loadRecords = async () => {
     try {
       setIsLoading(true);
@@ -290,8 +283,20 @@ export function EmploymentManagerSecure({ onClose }: EmploymentManagerSecureProp
 
         <div className="flex-1 overflow-y-auto min-h-0 p-6" style={{ willChange: 'transform', transform: 'translateZ(0)' }}>
           {showAddForm && (
-            <div className="mb-6 p-6 rounded-xl bg-gradient-to-br from-blue-50 to-purple-50 border-2 border-blue-200">
-              <h3 className="mb-4 text-lg font-semibold text-gray-900">Add Employment Record</h3>
+            <div className="fixed inset-0 bg-black/60 flex items-center justify-center z-[9999] p-4">
+              <div className="bg-white rounded-2xl max-w-2xl w-full p-6 shadow-2xl max-h-[90vh] overflow-y-auto">
+              <div className="flex items-center justify-between mb-6">
+                <h2 className="text-xl font-bold text-gray-900">Add Employment Record</h2>
+                <button
+                  onClick={() => {
+                    setShowAddForm(false);
+                    setNewRecord(emptyRecord);
+                  }}
+                  className="p-2 hover:bg-gray-100 rounded-lg transition-colors"
+                >
+                  <X className="w-5 h-5" />
+                </button>
+              </div>
               <div className="space-y-4">
                 <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
                   <input
@@ -406,6 +411,7 @@ export function EmploymentManagerSecure({ onClose }: EmploymentManagerSecureProp
                     Cancel
                   </button>
                 </div>
+              </div>
               </div>
             </div>
           )}
