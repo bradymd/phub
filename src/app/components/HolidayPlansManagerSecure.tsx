@@ -8,7 +8,7 @@ import { useStorage, useDocumentService } from '../../contexts/StorageContext';
 import { PdfJsViewer } from './PdfJsViewer';
 import { DocumentReference } from '../../services/document-service';
 import {
-  PanelHeader, RowActions, TypeBadge, DocumentChip, Card, SectionHeader,
+  PanelBanner, RowActions, TypeBadge, DocumentChip, Card, SectionHeader,
   EmptyState, FormField, AddButton, SearchInput, DetailRow, ListRow
 } from '../../components/ui/PanelParts';
 import { formatDateLong as formatDateUK } from '../../utils/dates';
@@ -854,34 +854,21 @@ export function HolidayPlansManagerSecure({ onClose }: HolidayPlansManagerSecure
   return (
     <div className="fixed inset-0 bg-black/50 z-50 overflow-hidden">
       <div className="absolute inset-2 bg-gradient-to-br from-slate-50 to-blue-50 rounded-2xl flex flex-col shadow-2xl overflow-hidden">
+        <PanelBanner
+          title="Holiday Plans"
+          subtitle="Plan trips: travellers, travel, stays, hire cars and itineraries"
+          icon={Plane}
+          gradient="from-blue-600 to-blue-800"
+          search={{ value: searchQuery, onChange: setSearchQuery, placeholder: 'Search holidays...' }}
+          onAdd={() => setShowAddForm(true)}
+          addLabel="New Holiday"
+          onClose={onClose}
+        />
         <div className="flex-1 overflow-y-auto p-8">
           <div className="max-w-6xl mx-auto">
-        <PanelHeader
-          title="Holiday Plans"
-          icon={Plane}
-          onClose={onClose}
-          actions={
-            <AddButton onClick={() => setShowAddForm(true)}>
-              <Plus className="w-4 h-4" />
-              New Holiday
-            </AddButton>
-          }
-        />
-
         {error && (
           <div className="mb-4 p-3 bg-red-50 border border-red-200 rounded-lg text-red-700 text-sm">
             {error}
-          </div>
-        )}
-
-        {/* Search - only show when there are holidays */}
-        {holidays.length > 0 && (
-          <div className="mb-6">
-            <SearchInput
-              value={searchQuery}
-              onChange={setSearchQuery}
-              placeholder="Search holidays..."
-            />
           </div>
         )}
 

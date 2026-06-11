@@ -1,6 +1,7 @@
 import { useState, useEffect } from 'react';
 import { X, Plus, Trash, Briefcase, Calendar, Edit2, FileText, Key, ChevronDown, ChevronUp, Search, Eye, EyeOff, Grid3x3, List, Building2 } from 'lucide-react';
 import { useStorage } from '../../contexts/StorageContext';
+import { PanelBanner } from '../../components/ui/PanelParts';
 
 interface EmploymentRecord {
   id: string;
@@ -199,61 +200,16 @@ export function EmploymentManagerSecure({ onClose }: EmploymentManagerSecureProp
   return (
     <div className="fixed inset-0 bg-black/50 z-50 overflow-hidden">
       <div className="absolute inset-2 bg-white rounded-2xl flex flex-col shadow-2xl">
-        <div className="p-6 border-b border-gray-200 bg-gradient-to-r from-green-500 to-green-700 text-white rounded-t-2xl">
-          <div className="flex items-center justify-between">
-            <div className="flex items-center gap-3">
-              <div className="p-3 bg-white/20 text-white rounded-xl relative">
-                <Briefcase className="w-6 h-6" />
-                <div className="absolute -top-1 -right-1 bg-white/30 rounded-full p-1">
-                  <Key className="w-3 h-3 text-white" />
-                </div>
-              </div>
-              <div>
-                <h2 className="text-white flex items-center gap-2 text-xl font-semibold">
-                  Employment History
-                </h2>
-                <p className="text-sm text-white/80 mt-1">Track your career journey, roles, and pension details</p>
-              </div>
-            </div>
-            <div className="flex items-center gap-2">
-              <button
-                onClick={() => setViewMode('grid')}
-                className={`p-2 rounded-lg transition-colors ${
-                  viewMode === 'grid'
-                    ? 'bg-white/20'
-                    : 'hover:bg-white/10'
-                }`}
-                title="Grid view"
-              >
-                <Grid3x3 className="w-4 h-4" />
-              </button>
-              <button
-                onClick={() => setViewMode('list')}
-                className={`p-2 rounded-lg transition-colors ${
-                  viewMode === 'list'
-                    ? 'bg-white/20'
-                    : 'hover:bg-white/10'
-                }`}
-                title="List view"
-              >
-                <List className="w-4 h-4" />
-              </button>
-              <button
-                onClick={() => setShowSummary(!showSummary)}
-                className="p-2 hover:bg-white/10 rounded-lg transition-colors"
-                title={showSummary ? "Hide summary" : "Show summary"}
-              >
-                {showSummary ? <Eye className="w-4 h-4" /> : <EyeOff className="w-4 h-4" />}
-              </button>
-              <button
-                onClick={onClose}
-                className="p-2 hover:bg-green-700 rounded-lg transition-colors"
-              >
-                <X className="w-5 h-5" />
-              </button>
-            </div>
-          </div>
-        </div>
+        <PanelBanner
+          title="Employment History"
+          subtitle="Track your career journey, roles, and pension details"
+          icon={Briefcase}
+          gradient="from-green-500 to-green-700"
+          view={{ mode: viewMode, onChange: setViewMode }}
+          summary={{ shown: showSummary, onToggle: () => setShowSummary(!showSummary) }}
+          onAdd={() => setShowAddForm(!showAddForm)}
+          onClose={onClose}
+        />
 
         {error && (
           <div className="mx-6 mt-4 p-3 bg-red-50 border border-red-200 rounded-lg text-red-700 text-sm">
@@ -570,136 +526,6 @@ export function EmploymentManagerSecure({ onClose }: EmploymentManagerSecureProp
                       : 'bg-gradient-to-br from-blue-50 to-indigo-50 border-2 border-indigo-200 hover:bg-blue-100'
                   }`}
                 >
-                  {editingRecord?.id === record.id ? (
-                    <div className="space-y-4" onClick={(e) => e.stopPropagation()}>
-                      <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-                        <div>
-                          <label className="block text-sm font-medium text-gray-700 mb-1">Company Name</label>
-                          <input
-                            type="text"
-                            value={editingRecord.company}
-                            onChange={(e) => setEditingRecord({ ...editingRecord, company: e.target.value })}
-                            className="w-full px-4 py-2 border border-gray-300 rounded-lg bg-white"
-                          />
-                        </div>
-                        <div>
-                          <label className="block text-sm font-medium text-gray-700 mb-1">Job Title</label>
-                          <input
-                            type="text"
-                            value={editingRecord.jobTitle}
-                            onChange={(e) => setEditingRecord({ ...editingRecord, jobTitle: e.target.value })}
-                            className="w-full px-4 py-2 border border-gray-300 rounded-lg bg-white"
-                          />
-                        </div>
-                      </div>
-                      <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-                        <div>
-                          <label className="block text-sm font-medium text-gray-700 mb-1">Location</label>
-                          <input
-                            type="text"
-                            value={editingRecord.location}
-                            onChange={(e) => setEditingRecord({ ...editingRecord, location: e.target.value })}
-                            className="w-full px-4 py-2 border border-gray-300 rounded-lg bg-white"
-                          />
-                        </div>
-                        <div>
-                          <label className="block text-sm font-medium text-gray-700 mb-1">Employment Type</label>
-                          <select
-                            value={editingRecord.employmentType}
-                            onChange={(e) => setEditingRecord({ ...editingRecord, employmentType: e.target.value as any })}
-                            className="w-full px-4 py-2 border border-gray-300 rounded-lg bg-white"
-                          >
-                            <option value="full-time">Full-time</option>
-                            <option value="part-time">Part-time</option>
-                            <option value="contract">Contract</option>
-                            <option value="freelance">Freelance</option>
-                          </select>
-                        </div>
-                      </div>
-                      <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-                        <div>
-                          <label className="block text-sm font-medium text-gray-700 mb-1">Start Date</label>
-                          <input
-                            type="date"
-                            value={editingRecord.startDate}
-                            onChange={(e) => setEditingRecord({ ...editingRecord, startDate: e.target.value })}
-                            className="w-full px-4 py-2 border border-gray-300 rounded-lg bg-white"
-                          />
-                        </div>
-                        <div>
-                          <label className="block text-sm font-medium text-gray-700 mb-1">End Date</label>
-                          <input
-                            type="date"
-                            value={editingRecord.endDate}
-                            onChange={(e) => setEditingRecord({ ...editingRecord, endDate: e.target.value })}
-                            disabled={editingRecord.current}
-                            className="w-full px-4 py-2 border border-gray-300 rounded-lg bg-white disabled:bg-gray-100"
-                          />
-                        </div>
-                      </div>
-                      <label className="flex items-center gap-2 text-sm">
-                        <input
-                          type="checkbox"
-                          checked={editingRecord.current}
-                          onChange={(e) => setEditingRecord({ ...editingRecord, current: e.target.checked })}
-                          className="rounded"
-                        />
-                        <span className="text-gray-700">I currently work here</span>
-                      </label>
-                      <div>
-                        <label className="block text-sm font-medium text-gray-700 mb-1">Responsibilities</label>
-                        <textarea
-                          value={editingRecord.responsibilities}
-                          onChange={(e) => setEditingRecord({ ...editingRecord, responsibilities: e.target.value })}
-                          className="w-full px-4 py-2 border border-gray-300 rounded-lg bg-white"
-                          rows={4}
-                        />
-                      </div>
-                      <div>
-                        <label className="block text-sm font-medium text-gray-700 mb-1">Key Achievements</label>
-                        <textarea
-                          value={editingRecord.achievements}
-                          onChange={(e) => setEditingRecord({ ...editingRecord, achievements: e.target.value })}
-                          className="w-full px-4 py-2 border border-gray-300 rounded-lg bg-white"
-                          rows={3}
-                        />
-                      </div>
-                      <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-                        <div>
-                          <label className="block text-sm font-medium text-gray-700 mb-1">Salary (optional)</label>
-                          <input
-                            type="text"
-                            value={editingRecord.salary}
-                            onChange={(e) => setEditingRecord({ ...editingRecord, salary: e.target.value })}
-                            className="w-full px-4 py-2 border border-gray-300 rounded-lg bg-white"
-                          />
-                        </div>
-                        <div>
-                          <label className="block text-sm font-medium text-gray-700 mb-1">Pension Scheme (optional)</label>
-                          <input
-                            type="text"
-                            value={editingRecord.pensionScheme}
-                            onChange={(e) => setEditingRecord({ ...editingRecord, pensionScheme: e.target.value })}
-                            className="w-full px-4 py-2 border border-gray-300 rounded-lg bg-white"
-                          />
-                        </div>
-                      </div>
-                      <div className="flex gap-2">
-                        <button
-                          onClick={updateRecord}
-                          className="flex-1 px-4 py-2 bg-green-600 text-white rounded-lg hover:bg-green-700 transition-colors"
-                        >
-                          Save Changes
-                        </button>
-                        <button
-                          onClick={() => setEditingRecord(null)}
-                          className="px-4 py-2 bg-gray-200 text-gray-700 rounded-lg hover:bg-gray-300 transition-colors"
-                        >
-                          Cancel
-                        </button>
-                      </div>
-                    </div>
-                  ) : (
                     <div>
                       <div className="flex items-start justify-between mb-3">
                         <div className="flex-1">
@@ -762,7 +588,6 @@ export function EmploymentManagerSecure({ onClose }: EmploymentManagerSecureProp
                         </div>
                       </div>
                     </div>
-                  )}
                 </div>
               ))}
             </div>
@@ -891,8 +716,8 @@ export function EmploymentManagerSecure({ onClose }: EmploymentManagerSecureProp
         </div>
       )}
 
-      {/* Edit Modal - shows when editing from list view */}
-      {editingRecord && viewMode === 'list' && (
+      {/* Edit Modal - used by both grid and list views */}
+      {editingRecord && (
         <div className="fixed inset-0 bg-black/60 flex items-center justify-center z-[9999] p-4">
           <div className="bg-white rounded-2xl max-w-2xl w-full p-6 shadow-2xl max-h-[90vh] overflow-y-auto">
             <div className="flex items-center justify-between mb-6">
