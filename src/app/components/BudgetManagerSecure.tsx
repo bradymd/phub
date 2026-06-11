@@ -1,6 +1,7 @@
 import { useState, useEffect } from 'react';
 import { X, Plus, Trash, Receipt, TrendingDown, TrendingUp, Calendar, Edit2, Search, DollarSign, Eye, EyeOff, ArrowUpDown, ArrowUp, ArrowDown, Tag } from 'lucide-react';
 import { useStorage } from '../../contexts/StorageContext';
+import { PanelBanner } from '../../components/ui/PanelParts';
 
 interface BudgetItem {
   id: string;
@@ -389,41 +390,24 @@ export function BudgetManagerSecure({ onClose }: BudgetManagerSecureProps) {
   return (
     <div className="fixed inset-0 bg-black/50 z-50 overflow-hidden">
       <div className="absolute inset-2 bg-white rounded-2xl flex flex-col shadow-2xl">
-        <div className="p-6 border-b border-gray-200 flex items-center justify-between bg-gradient-to-r from-rose-500 to-rose-700 text-white rounded-t-2xl">
-          <div className="flex items-center gap-3">
-            <Receipt className="w-6 h-6" />
-            <h2 className="text-xl font-semibold">Budget & Expenses</h2>
-          </div>
-          <div className="flex items-center gap-2">
-            <button
-              onClick={() => setShowSummary(!showSummary)}
-              className="flex items-center gap-2 px-3 py-2 bg-white/90 text-red-600 rounded-lg hover:bg-white transition-colors"
-              title={showSummary ? 'Hide summary cards' : 'Show summary cards'}
-            >
-              {showSummary ? <EyeOff className="w-4 h-4" /> : <Eye className="w-4 h-4" />}
-            </button>
+        <PanelBanner
+          title="Budget & Expenses"
+          icon={Receipt}
+          gradient="from-rose-500 to-rose-700"
+          summary={{ shown: showSummary, onToggle: () => setShowSummary(!showSummary) }}
+          extraActions={
             <button
               onClick={() => setShowCategoryManager(!showCategoryManager)}
-              className="flex items-center gap-2 px-3 py-2 bg-white/90 text-red-600 rounded-lg hover:bg-white transition-colors"
+              className="p-2 bg-white/10 rounded-lg hover:bg-white/20 transition-colors"
               title="Manage custom categories"
             >
               <Tag className="w-4 h-4" />
             </button>
-            <button
-              onClick={() => setShowAddForm(!showAddForm)}
-              className="flex items-center gap-2 px-4 py-2 bg-white text-red-600 rounded-lg hover:bg-red-50 transition-colors"
-            >
-              <Plus className="w-4 h-4" />
-              Add Item
-            </button>
-            <button
-              onClick={onClose}
-              className="p-2 hover:bg-red-700 rounded-lg transition-colors"
-            >
-              <X className="w-5 h-5" />
-            </button>
-          </div>
-        </div>
+          }
+          onAdd={() => setShowAddForm(!showAddForm)}
+          addLabel="Add Item"
+          onClose={onClose}
+        />
 
         <div className="flex-1 overflow-y-auto min-h-0" style={{ willChange: 'transform', transform: 'translateZ(0)' }}>
         {error && (

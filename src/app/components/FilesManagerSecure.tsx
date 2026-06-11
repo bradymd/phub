@@ -1,6 +1,7 @@
 import { useState, useEffect } from 'react';
 import { X, Plus, Trash, FolderPlus, Upload, FileText, Image as ImageIcon, Key, Edit, Search, File, AlertTriangle, HardDrive } from 'lucide-react';
 import { useStorage } from '../../contexts/StorageContext';
+import { PanelBanner } from '../../components/ui/PanelParts';
 import { PdfJsViewer } from './PdfJsViewer';
 import { formatDate } from '../../utils/locale';
 
@@ -365,41 +366,26 @@ export function FilesManagerSecure({ onClose }: FilesManagerSecureProps) {
     <div className="fixed inset-0 bg-black/50 flex items-center justify-center z-50 p-4">
       <div className="bg-white rounded-2xl max-w-6xl w-full max-h-[90vh] overflow-hidden flex flex-col">
         {/* Header */}
-        <div className="p-6 border-b border-gray-200 bg-gradient-to-r from-purple-50 to-purple-100">
-          <div className="flex items-center justify-between">
-            <div className="flex items-center gap-3">
-              <div className="p-3 bg-gradient-to-br from-purple-500 to-purple-700 text-white rounded-xl relative">
-                <FolderPlus className="w-6 h-6" />
-                <div className="absolute -top-1 -right-1 bg-green-500 rounded-full p-1">
-                  <Key className="w-3 h-3 text-white" />
-                </div>
-              </div>
-              <div>
-                <h2 className="text-gray-900 flex items-center gap-2">
-                  My Files
-                  <span className="text-xs px-2 py-1 bg-green-100 text-green-700 rounded-full">Encrypted</span>
-                </h2>
-                <p className="text-sm text-gray-500 mt-1">Organize your files in custom categories</p>
-              </div>
-            </div>
-            <button onClick={onClose} className="p-2 hover:bg-white rounded-lg transition-colors">
-              <X className="w-5 h-5" />
-            </button>
-          </div>
+        <PanelBanner
+          title="My Files"
+          subtitle="Organize your files in custom categories"
+          icon={FolderPlus}
+          gradient="from-purple-500 to-purple-700"
+          onClose={onClose}
+        />
 
-          {/* Storage indicator */}
-          <div className="mt-4 flex items-center gap-2 text-sm">
-            <HardDrive className={`w-4 h-4 ${storageWarning ? 'text-amber-600' : 'text-gray-500'}`} />
-            <span className={storageWarning ? 'text-amber-600' : 'text-gray-500'}>
-              {formatFileSize(totalStorage)} used
+        {/* Storage indicator */}
+        <div className="px-6 py-2 border-b border-gray-200 bg-gray-50 flex items-center gap-2 text-sm">
+          <HardDrive className={`w-4 h-4 ${storageWarning ? 'text-amber-600' : 'text-gray-500'}`} />
+          <span className={storageWarning ? 'text-amber-600' : 'text-gray-500'}>
+            {formatFileSize(totalStorage)} used
+          </span>
+          {storageWarning && (
+            <span className="flex items-center gap-1 text-amber-600">
+              <AlertTriangle className="w-4 h-4" />
+              Storage getting large
             </span>
-            {storageWarning && (
-              <span className="flex items-center gap-1 text-amber-600">
-                <AlertTriangle className="w-4 h-4" />
-                Storage getting large
-              </span>
-            )}
-          </div>
+          )}
         </div>
 
         {error && (

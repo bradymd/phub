@@ -5,6 +5,7 @@ import {
   TrendingDown, AlertCircle, FileText, Download, Eye, EyeOff
 } from 'lucide-react';
 import { useStorage } from '../../contexts/StorageContext';
+import { PanelBanner } from '../../components/ui/PanelParts';
 
 // Budget panel data structure (for import)
 interface BudgetItem {
@@ -535,70 +536,37 @@ export function KakeiboManagerSecure({ onClose }: KakeiboManagerSecureProps) {
     <div className="fixed inset-0 bg-black/50 z-50 overflow-hidden">
       <div className="absolute inset-2 bg-white rounded-2xl flex flex-col shadow-2xl">
         {/* Header */}
-        <div className="p-6 border-b border-gray-200 bg-gradient-to-r from-rose-500 to-rose-700 text-white rounded-t-2xl">
-          <div className="flex items-center justify-between">
-            <div className="flex items-center gap-3">
-              <div className="p-3 bg-white/20 text-white rounded-xl relative">
-                <BookOpen className="w-6 h-6" />
-                <div className="absolute -top-1 -right-1 bg-white/30 rounded-full p-1">
-                  <Key className="w-3 h-3 text-white" />
-                </div>
-              </div>
-              <div>
-                <h2 className="text-white flex items-center gap-2">
-                  <span className="font-semibold text-xl">家計簿</span> Kakeibo
-                </h2>
-                <p className="text-sm text-white/80 mt-1">Mindful Japanese Budgeting</p>
-              </div>
-            </div>
-            <div className="flex items-center gap-2">
-              {/* Month Navigation */}
-              <div className="flex items-center gap-2 bg-white/90 rounded-lg px-3 py-2 shadow-sm">
-                <button
-                  onClick={() => navigateMonth('prev')}
-                  className="p-1 hover:bg-gray-100 rounded transition-colors"
-                  title="Previous month"
-                >
-                  <ChevronLeft className="w-5 h-5 text-gray-600" />
-                </button>
-                <span className="font-medium text-gray-900 min-w-[140px] text-center">
-                  {formatMonthDisplay(currentMonth.year, currentMonth.month)}
-                </span>
-                <button
-                  onClick={() => navigateMonth('next')}
-                  className="p-1 hover:bg-gray-100 rounded transition-colors"
-                  title="Next month"
-                >
-                  <ChevronRight className="w-5 h-5 text-gray-600" />
-                </button>
-              </div>
-              {isCurrentMonthSetup && (
-                <>
-                  <button
-                    onClick={() => setShowSummary(!showSummary)}
-                    className="flex items-center gap-2 px-3 py-2 bg-white/90 text-rose-600 rounded-lg hover:bg-white transition-colors"
-                    title={showSummary ? 'Hide summary cards' : 'Show summary cards'}
-                  >
-                    {showSummary ? <EyeOff className="w-4 h-4" /> : <Eye className="w-4 h-4" />}
-                  </button>
-                  <button
-                    onClick={() => setShowAddExpense(true)}
-                    className="flex items-center gap-2 px-4 py-2 bg-white text-rose-600 rounded-lg hover:bg-rose-50 transition-colors"
-                  >
-                    <Plus className="w-4 h-4" />
-                    Add Expense
-                  </button>
-                </>
-              )}
+        <PanelBanner
+          title="家計簿 Kakeibo"
+          subtitle="Mindful Japanese Budgeting"
+          icon={BookOpen}
+          gradient="from-rose-500 to-rose-700"
+          summary={isCurrentMonthSetup ? { shown: showSummary, onToggle: () => setShowSummary(!showSummary) } : undefined}
+          extraActions={
+            <div className="flex items-center gap-2 bg-white/90 rounded-lg px-3 py-2 shadow-sm">
               <button
-                onClick={onClose}
-                className="p-2 hover:bg-rose-700 rounded-lg transition-colors"
+                onClick={() => navigateMonth('prev')}
+                className="p-1 hover:bg-gray-100 rounded transition-colors"
+                title="Previous month"
               >
-                <X className="w-5 h-5" />
+                <ChevronLeft className="w-5 h-5 text-gray-600" />
+              </button>
+              <span className="font-medium text-gray-900 min-w-[140px] text-center">
+                {formatMonthDisplay(currentMonth.year, currentMonth.month)}
+              </span>
+              <button
+                onClick={() => navigateMonth('next')}
+                className="p-1 hover:bg-gray-100 rounded transition-colors"
+                title="Next month"
+              >
+                <ChevronRight className="w-5 h-5 text-gray-600" />
               </button>
             </div>
-          </div>
-        </div>
+          }
+          onAdd={isCurrentMonthSetup ? () => setShowAddExpense(true) : undefined}
+          addLabel="Add Expense"
+          onClose={onClose}
+        />
 
         <div className="flex-1 overflow-y-auto min-h-0" style={{ willChange: 'transform', transform: 'translateZ(0)' }}>
         {error && (
