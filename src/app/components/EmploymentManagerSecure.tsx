@@ -282,140 +282,6 @@ export function EmploymentManagerSecure({ onClose }: EmploymentManagerSecureProp
         </div>
 
         <div className="flex-1 overflow-y-auto min-h-0 p-6" style={{ willChange: 'transform', transform: 'translateZ(0)' }}>
-          {showAddForm && (
-            <div className="fixed inset-0 bg-black/60 flex items-center justify-center z-[9999] p-4">
-              <div className="bg-white rounded-2xl max-w-2xl w-full p-6 shadow-2xl max-h-[90vh] overflow-y-auto">
-              <div className="flex items-center justify-between mb-6">
-                <h2 className="text-xl font-bold text-gray-900">Add Employment Record</h2>
-                <button
-                  onClick={() => {
-                    setShowAddForm(false);
-                    setNewRecord(emptyRecord);
-                  }}
-                  className="p-2 hover:bg-gray-100 rounded-lg transition-colors"
-                >
-                  <X className="w-5 h-5" />
-                </button>
-              </div>
-              <div className="space-y-4">
-                <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-                  <input
-                    type="text"
-                    value={newRecord.company}
-                    onChange={(e) => setNewRecord({ ...newRecord, company: e.target.value })}
-                    placeholder="Company name..."
-                    className="px-4 py-2 border border-gray-300 rounded-lg bg-white"
-                  />
-                  <input
-                    type="text"
-                    value={newRecord.jobTitle}
-                    onChange={(e) => setNewRecord({ ...newRecord, jobTitle: e.target.value })}
-                    placeholder="Job title..."
-                    className="px-4 py-2 border border-gray-300 rounded-lg bg-white"
-                  />
-                  <input
-                    type="text"
-                    value={newRecord.location}
-                    onChange={(e) => setNewRecord({ ...newRecord, location: e.target.value })}
-                    placeholder="Location..."
-                    className="px-4 py-2 border border-gray-300 rounded-lg bg-white"
-                  />
-                  <select
-                    value={newRecord.employmentType}
-                    onChange={(e) => setNewRecord({ ...newRecord, employmentType: e.target.value as any })}
-                    className="px-4 py-2 border border-gray-300 rounded-lg bg-white"
-                  >
-                    <option value="full-time">Full-time</option>
-                    <option value="part-time">Part-time</option>
-                    <option value="contract">Contract</option>
-                    <option value="freelance">Freelance</option>
-                  </select>
-                  <div>
-                    <label className="block text-sm text-gray-600 mb-1">Start Date</label>
-                    <input
-                      type="date"
-                      value={newRecord.startDate}
-                      onChange={(e) => setNewRecord({ ...newRecord, startDate: e.target.value })}
-                      className="w-full px-4 py-2 border border-gray-300 rounded-lg bg-white"
-                    />
-                  </div>
-                  <div>
-                    <label className="block text-sm text-gray-600 mb-1">End Date</label>
-                    <input
-                      type="date"
-                      value={newRecord.endDate}
-                      onChange={(e) => setNewRecord({ ...newRecord, endDate: e.target.value })}
-                      disabled={newRecord.current}
-                      className="w-full px-4 py-2 border border-gray-300 rounded-lg bg-white disabled:bg-gray-100"
-                    />
-                  </div>
-                </div>
-
-                <label className="flex items-center gap-2 text-sm">
-                  <input
-                    type="checkbox"
-                    checked={newRecord.current}
-                    onChange={(e) => setNewRecord({ ...newRecord, current: e.target.checked })}
-                    className="rounded"
-                  />
-                  <span className="text-gray-700">I currently work here</span>
-                </label>
-
-                <textarea
-                  value={newRecord.responsibilities}
-                  onChange={(e) => setNewRecord({ ...newRecord, responsibilities: e.target.value })}
-                  placeholder="Roles and responsibilities..."
-                  className="w-full px-4 py-2 border border-gray-300 rounded-lg bg-white"
-                  rows={4}
-                />
-
-                <textarea
-                  value={newRecord.achievements}
-                  onChange={(e) => setNewRecord({ ...newRecord, achievements: e.target.value })}
-                  placeholder="Key achievements..."
-                  className="w-full px-4 py-2 border border-gray-300 rounded-lg bg-white"
-                  rows={3}
-                />
-
-                <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-                  <input
-                    type="text"
-                    value={newRecord.salary}
-                    onChange={(e) => setNewRecord({ ...newRecord, salary: e.target.value })}
-                    placeholder="Salary (optional)..."
-                    className="px-4 py-2 border border-gray-300 rounded-lg bg-white"
-                  />
-                  <input
-                    type="text"
-                    value={newRecord.pensionScheme}
-                    onChange={(e) => setNewRecord({ ...newRecord, pensionScheme: e.target.value })}
-                    placeholder="Pension scheme (optional)..."
-                    className="px-4 py-2 border border-gray-300 rounded-lg bg-white"
-                  />
-                </div>
-
-                <div className="flex gap-2">
-                  <button
-                    onClick={addRecord}
-                    className="flex-1 px-4 py-2 bg-indigo-600 text-white rounded-lg hover:bg-indigo-700 transition-colors"
-                  >
-                    Add Record
-                  </button>
-                  <button
-                    onClick={() => {
-                      setShowAddForm(false);
-                      setNewRecord(emptyRecord);
-                    }}
-                    className="px-4 py-2 bg-gray-200 text-gray-700 rounded-lg hover:bg-gray-300 transition-colors"
-                  >
-                    Cancel
-                  </button>
-                </div>
-              </div>
-              </div>
-            </div>
-          )}
-
           {!showAddForm && (
             <button
               onClick={() => setShowAddForm(true)}
@@ -600,6 +466,142 @@ export function EmploymentManagerSecure({ onClose }: EmploymentManagerSecureProp
           )}
         </div>
       </div>
+
+      {/* Add Record Modal */}
+          {showAddForm && (
+            <div className="fixed inset-0 bg-black/60 flex items-center justify-center z-[9999] p-4">
+              <div className="bg-white rounded-2xl max-w-2xl w-full p-6 shadow-2xl max-h-[90vh] overflow-y-auto">
+              <div className="flex items-center justify-between mb-6">
+                <h2 className="text-xl font-bold text-gray-900">Add Employment Record</h2>
+                <button
+                  onClick={() => {
+                    setShowAddForm(false);
+                    setNewRecord(emptyRecord);
+                  }}
+                  className="p-2 hover:bg-gray-100 rounded-lg transition-colors"
+                >
+                  <X className="w-5 h-5" />
+                </button>
+              </div>
+              <div className="space-y-4">
+                <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                  <input
+                    type="text"
+                    value={newRecord.company}
+                    onChange={(e) => setNewRecord({ ...newRecord, company: e.target.value })}
+                    placeholder="Company name..."
+                    className="px-4 py-2 border border-gray-300 rounded-lg bg-white"
+                  />
+                  <input
+                    type="text"
+                    value={newRecord.jobTitle}
+                    onChange={(e) => setNewRecord({ ...newRecord, jobTitle: e.target.value })}
+                    placeholder="Job title..."
+                    className="px-4 py-2 border border-gray-300 rounded-lg bg-white"
+                  />
+                  <input
+                    type="text"
+                    value={newRecord.location}
+                    onChange={(e) => setNewRecord({ ...newRecord, location: e.target.value })}
+                    placeholder="Location..."
+                    className="px-4 py-2 border border-gray-300 rounded-lg bg-white"
+                  />
+                  <select
+                    value={newRecord.employmentType}
+                    onChange={(e) => setNewRecord({ ...newRecord, employmentType: e.target.value as any })}
+                    className="px-4 py-2 border border-gray-300 rounded-lg bg-white"
+                  >
+                    <option value="full-time">Full-time</option>
+                    <option value="part-time">Part-time</option>
+                    <option value="contract">Contract</option>
+                    <option value="freelance">Freelance</option>
+                  </select>
+                  <div>
+                    <label className="block text-sm text-gray-600 mb-1">Start Date</label>
+                    <input
+                      type="date"
+                      value={newRecord.startDate}
+                      onChange={(e) => setNewRecord({ ...newRecord, startDate: e.target.value })}
+                      className="w-full px-4 py-2 border border-gray-300 rounded-lg bg-white"
+                    />
+                  </div>
+                  <div>
+                    <label className="block text-sm text-gray-600 mb-1">End Date</label>
+                    <input
+                      type="date"
+                      value={newRecord.endDate}
+                      onChange={(e) => setNewRecord({ ...newRecord, endDate: e.target.value })}
+                      disabled={newRecord.current}
+                      className="w-full px-4 py-2 border border-gray-300 rounded-lg bg-white disabled:bg-gray-100"
+                    />
+                  </div>
+                </div>
+
+                <label className="flex items-center gap-2 text-sm">
+                  <input
+                    type="checkbox"
+                    checked={newRecord.current}
+                    onChange={(e) => setNewRecord({ ...newRecord, current: e.target.checked })}
+                    className="rounded"
+                  />
+                  <span className="text-gray-700">I currently work here</span>
+                </label>
+
+                <textarea
+                  value={newRecord.responsibilities}
+                  onChange={(e) => setNewRecord({ ...newRecord, responsibilities: e.target.value })}
+                  placeholder="Roles and responsibilities..."
+                  className="w-full px-4 py-2 border border-gray-300 rounded-lg bg-white"
+                  rows={4}
+                />
+
+                <textarea
+                  value={newRecord.achievements}
+                  onChange={(e) => setNewRecord({ ...newRecord, achievements: e.target.value })}
+                  placeholder="Key achievements..."
+                  className="w-full px-4 py-2 border border-gray-300 rounded-lg bg-white"
+                  rows={3}
+                />
+
+                <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                  <input
+                    type="text"
+                    value={newRecord.salary}
+                    onChange={(e) => setNewRecord({ ...newRecord, salary: e.target.value })}
+                    placeholder="Salary (optional)..."
+                    className="px-4 py-2 border border-gray-300 rounded-lg bg-white"
+                  />
+                  <input
+                    type="text"
+                    value={newRecord.pensionScheme}
+                    onChange={(e) => setNewRecord({ ...newRecord, pensionScheme: e.target.value })}
+                    placeholder="Pension scheme (optional)..."
+                    className="px-4 py-2 border border-gray-300 rounded-lg bg-white"
+                  />
+                </div>
+
+                <div className="flex gap-2">
+                  <button
+                    onClick={addRecord}
+                    className="flex-1 px-4 py-2 bg-indigo-600 text-white rounded-lg hover:bg-indigo-700 transition-colors"
+                  >
+                    Add Record
+                  </button>
+                  <button
+                    onClick={() => {
+                      setShowAddForm(false);
+                      setNewRecord(emptyRecord);
+                    }}
+                    className="px-4 py-2 bg-gray-200 text-gray-700 rounded-lg hover:bg-gray-300 transition-colors"
+                  >
+                    Cancel
+                  </button>
+                </div>
+              </div>
+              </div>
+            </div>
+          )}
+
 
       {/* Employment Details Modal */}
       {viewingDetails && (
