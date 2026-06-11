@@ -1111,12 +1111,15 @@ export function DentalManagerSecure({ onClose }: DentalManagerSecureProps) {
                 <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
                   {filteredRecords.map((record) => {
                     const isFuture = isFutureDate(record.date);
+                    const isSoon = isFuture && isDueSoon(record.date, 7); // within a week -> orange
                     const isOld = isOldPast(record.date);
                     return (
                     <div
                       key={record.id}
                       className={`rounded-xl border hover:shadow-lg transition-shadow cursor-pointer ${
-                        isFuture
+                        isSoon
+                          ? 'bg-orange-50/40 border-orange-300 ring-1 ring-orange-200'
+                          : isFuture
                           ? 'bg-teal-50/40 border-teal-300 ring-1 ring-teal-200'
                           : isOld
                           ? 'bg-white border-gray-200 opacity-60'
@@ -1130,7 +1133,7 @@ export function DentalManagerSecure({ onClose }: DentalManagerSecureProps) {
                             <h3 className="font-semibold text-gray-900">{record.patientName}</h3>
                             <p className="text-sm text-gray-500">{formatDateUK(record.date)}{record.time && ` ${record.time}`}</p>
                             {isFuture && (
-                              <span className="inline-block mt-1 px-2 py-0.5 bg-teal-100 text-teal-700 rounded text-xs font-medium">Upcoming</span>
+                              <span className={`inline-block mt-1 px-2 py-0.5 rounded text-xs font-medium ${isSoon ? 'bg-orange-100 text-orange-700' : 'bg-teal-100 text-teal-700'}`}>Upcoming</span>
                             )}
                           </div>
                           <span className={`px-2 py-1 rounded-lg text-xs font-medium ${getTypeColor(record.type)}`}>
@@ -1168,12 +1171,15 @@ export function DentalManagerSecure({ onClose }: DentalManagerSecureProps) {
                 <div className="space-y-2">
                   {filteredRecords.map((record) => {
                     const isFuture = isFutureDate(record.date);
+                    const isSoon = isFuture && isDueSoon(record.date, 7); // within a week -> orange
                     const isOld = isOldPast(record.date);
                     return (
                     <div
                       key={record.id}
                       className={`rounded-xl border hover:shadow-md transition-shadow ${
-                        isFuture
+                        isSoon
+                          ? 'bg-orange-50/40 border-orange-300 ring-1 ring-orange-200'
+                          : isFuture
                           ? 'bg-teal-50/40 border-teal-300 ring-1 ring-teal-200'
                           : isOld
                           ? 'bg-white border-gray-200 opacity-60'
@@ -1191,7 +1197,7 @@ export function DentalManagerSecure({ onClose }: DentalManagerSecureProps) {
                               {getTypeLabel(record.type)}
                             </span>
                             {isFuture && (
-                              <span className="px-2 py-0.5 bg-teal-100 text-teal-700 rounded text-xs font-medium">Upcoming</span>
+                              <span className={`px-2 py-0.5 rounded text-xs font-medium ${isSoon ? 'bg-orange-100 text-orange-700' : 'bg-teal-100 text-teal-700'}`}>Upcoming</span>
                             )}
                             {record.nextAppointmentDate && isDueSoon(record.nextAppointmentDate) && (
                               <span className="px-2 py-0.5 bg-orange-100 text-orange-700 rounded text-xs font-medium">Follow-up soon</span>
