@@ -5,6 +5,7 @@ import { PdfJsViewer } from './PdfJsViewer';
 import { DocumentReference } from '../../services/document-service';
 import { formatDateUK, isPastDate, isDueSoon } from '../../utils/dates';
 import { dataUrlToBlobUrl, downloadDataUrl } from '../../utils/blob';
+import { PanelBanner } from '../../components/ui/PanelParts';
 
 interface HealthcareProvider {
   id: string;
@@ -516,54 +517,26 @@ export function MedicalHistoryManagerSecure({ onClose }: MedicalHistoryManagerSe
   return (
     <div className="fixed inset-0 bg-black/50 z-50 overflow-hidden">
       <div className="absolute inset-2 bg-white rounded-2xl flex flex-col shadow-2xl">
-        <div className="p-6 border-b border-gray-200 bg-gradient-to-r from-rose-50 to-rose-100">
-          <div className="flex items-center justify-between">
-            <div className="flex items-center gap-3">
-              <div className="p-3 bg-gradient-to-br from-rose-500 to-rose-700 text-white rounded-xl relative">
-                <Heart className="w-6 h-6" />
-                <div className="absolute -top-1 -right-1 bg-green-500 rounded-full p-1">
-                  <Key className="w-3 h-3 text-white" />
-                </div>
-              </div>
-              <div>
-                <h2 className="text-gray-900 flex items-center gap-2">
-                  Medical History
-                  <span className="text-xs px-2 py-1 bg-green-100 text-green-700 rounded-full">Encrypted</span>
-                </h2>
-                <p className="text-sm text-gray-500 mt-1">Track consultations, tests, treatments, and medical records</p>
-              </div>
-            </div>
-            <div className="flex items-center gap-2">
-              <button
-                onClick={() => setShowSummary(!showSummary)}
-                className="flex items-center gap-2 px-3 py-2 bg-white rounded-lg hover:bg-red-50 transition-colors"
-                title={showSummary ? 'Hide summary cards' : 'Show summary cards'}
-              >
-                {showSummary ? <EyeOff className="w-4 h-4 text-red-600" /> : <Eye className="w-4 h-4 text-red-600" />}
-              </button>
-              <button
-                onClick={() => setShowProviders(!showProviders)}
-                className="flex items-center gap-2 px-3 py-2 bg-white text-blue-600 rounded-lg hover:bg-blue-50 transition-colors"
-              >
-                <Stethoscope className="w-4 h-4" />
-                Providers
-              </button>
-              <button
-                onClick={() => setShowAddForm(!showAddForm)}
-                className="flex items-center gap-2 px-4 py-2 bg-white text-red-600 rounded-lg hover:bg-red-50 transition-colors"
-              >
-                <Plus className="w-4 h-4" />
-                Add Record
-              </button>
-              <button
-                onClick={onClose}
-                className="p-2 hover:bg-white rounded-lg transition-colors"
-              >
-                <X className="w-5 h-5" />
-              </button>
-            </div>
-          </div>
-        </div>
+        <PanelBanner
+          title="Medical History"
+          subtitle="Track consultations, tests, treatments, and medical records"
+          icon={Heart}
+          gradient="from-rose-500 to-rose-700"
+          search={{ value: searchQuery, onChange: setSearchQuery, placeholder: 'Search medical records...' }}
+          summary={{ shown: showSummary, onToggle: () => setShowSummary(!showSummary) }}
+          extraActions={
+            <button
+              onClick={() => setShowProviders(!showProviders)}
+              className="p-2 bg-white/10 rounded-lg hover:bg-white/20 transition-colors"
+              title={showProviders ? 'Hide providers' : 'Show providers'}
+            >
+              <Stethoscope className="w-4 h-4 text-white" />
+            </button>
+          }
+          onAdd={() => setShowAddForm(!showAddForm)}
+          addLabel="Add Record"
+          onClose={onClose}
+        />
 
         {error && (
           <div className="mx-6 mt-4 p-3 bg-red-50 border border-red-200 rounded-lg text-red-700 text-sm">
@@ -958,27 +931,6 @@ export function MedicalHistoryManagerSecure({ onClose }: MedicalHistoryManagerSe
             </div>
           </div>
         )}
-
-        <div className="px-6 py-3 border-b border-gray-200">
-          <div className="relative">
-            <Search className="absolute left-3 top-1/2 transform -translate-y-1/2 text-gray-400 w-5 h-5" />
-            <input
-              type="text"
-              placeholder="Search medical records..."
-              value={searchQuery}
-              onChange={(e) => setSearchQuery(e.target.value)}
-              className="w-full pl-10 pr-4 py-2 border border-gray-300 rounded-lg bg-white focus:outline-none focus:ring-2 focus:ring-red-500 focus:border-transparent"
-            />
-            {searchQuery && (
-              <button
-                onClick={() => setSearchQuery('')}
-                className="absolute right-3 top-1/2 transform -translate-y-1/2 text-gray-400 hover:text-gray-600"
-              >
-                <X className="w-4 h-4" />
-              </button>
-            )}
-          </div>
-        </div>
 
         <div className="flex-1 overflow-y-auto p-6 medical-history-list">
           {showAddForm && (

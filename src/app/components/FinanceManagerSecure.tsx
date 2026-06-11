@@ -1,6 +1,7 @@
 import { useState, useEffect } from 'react';
 import { X, Plus, Trash, Wallet, TrendingUp, PiggyBank, Edit2, Search, ExternalLink, Eye, EyeOff, Grid3x3, List } from 'lucide-react';
 import { useStorage } from '../../contexts/StorageContext';
+import { PanelBanner } from '../../components/ui/PanelParts';
 
 interface FinanceAccount {
   id: string;
@@ -221,56 +222,17 @@ export function FinanceManagerSecure({ onClose }: FinanceManagerSecureProps) {
   return (
     <div className="fixed inset-0 bg-black/50 z-50 overflow-hidden">
       <div className="absolute inset-2 bg-white rounded-2xl flex flex-col shadow-2xl">
-        <div className="p-6 border-b border-gray-200 flex items-center justify-between bg-gradient-to-r from-blue-500 to-blue-700 text-white rounded-t-2xl">
-          <div className="flex items-center gap-3">
-            <Wallet className="w-6 h-6" />
-            <h2 className="text-xl font-semibold">Banks & Savings Manager</h2>
-          </div>
-          <div className="flex items-center gap-2">
-            <button
-              onClick={() => setViewMode('grid')}
-              className={`p-2 rounded-lg transition-colors ${
-                viewMode === 'grid'
-                  ? 'bg-white/20'
-                  : 'hover:bg-white/10'
-              }`}
-              title="Grid view"
-            >
-              <Grid3x3 className="w-4 h-4" />
-            </button>
-            <button
-              onClick={() => setViewMode('list')}
-              className={`p-2 rounded-lg transition-colors ${
-                viewMode === 'list'
-                  ? 'bg-white/20'
-                  : 'hover:bg-white/10'
-              }`}
-              title="List view"
-            >
-              <List className="w-4 h-4" />
-            </button>
-            <button
-              onClick={() => setShowSummary(!showSummary)}
-              className="p-2 hover:bg-white/10 rounded-lg transition-colors"
-              title={showSummary ? "Hide summary" : "Show summary"}
-            >
-              {showSummary ? <Eye className="w-4 h-4" /> : <EyeOff className="w-4 h-4" />}
-            </button>
-            <button
-              onClick={() => setShowAddForm(!showAddForm)}
-              className="flex items-center gap-2 px-4 py-2 bg-white text-blue-600 rounded-lg hover:bg-blue-50 transition-colors"
-            >
-              <Plus className="w-4 h-4" />
-              Add Account
-            </button>
-            <button
-              onClick={onClose}
-              className="p-2 hover:bg-blue-700 rounded-lg transition-colors"
-            >
-              <X className="w-5 h-5" />
-            </button>
-          </div>
-        </div>
+        <PanelBanner
+          title="Banks & Savings Manager"
+          icon={Wallet}
+          gradient="from-blue-500 to-blue-700"
+          search={{ value: searchQuery, onChange: setSearchQuery, placeholder: 'Search accounts...' }}
+          view={{ mode: viewMode, onChange: setViewMode }}
+          summary={{ shown: showSummary, onToggle: () => setShowSummary(!showSummary) }}
+          onAdd={() => setShowAddForm(!showAddForm)}
+          addLabel="Add Account"
+          onClose={onClose}
+        />
 
         {error && (
           <div className="mx-6 mt-4 p-3 bg-red-50 border border-red-200 rounded-lg text-red-700 text-sm">
@@ -332,27 +294,6 @@ export function FinanceManagerSecure({ onClose }: FinanceManagerSecureProps) {
           </div>
           </div>
         )}
-
-        <div className="px-6 pt-4 pb-2 border-b border-gray-200">
-          <div className="relative">
-            <Search className="absolute left-3 top-1/2 transform -translate-y-1/2 text-gray-400 w-5 h-5" />
-            <input
-              type="text"
-              placeholder="Search accounts..."
-              value={searchQuery}
-              onChange={(e) => setSearchQuery(e.target.value)}
-              className="w-full pl-10 pr-4 py-2 border border-gray-300 rounded-lg bg-white focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-transparent"
-            />
-            {searchQuery && (
-              <button
-                onClick={() => setSearchQuery('')}
-                className="absolute right-3 top-1/2 transform -translate-y-1/2 text-gray-400 hover:text-gray-600"
-              >
-                <X className="w-4 h-4" />
-              </button>
-            )}
-          </div>
-        </div>
 
         <div className="flex-1 overflow-y-auto min-h-0 p-6" style={{ willChange: 'transform', transform: 'translateZ(0)' }}>
           {showAddForm && (

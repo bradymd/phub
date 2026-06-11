@@ -4,6 +4,7 @@ import { useStorage, useDocumentService } from '../../contexts/StorageContext';
 import { PdfJsViewer } from './PdfJsViewer';
 import { DocumentReference } from '../../services/document-service';
 import { dataUrlToBlobUrl, downloadDataUrl } from '../../utils/blob';
+import { PanelBanner } from '../../components/ui/PanelParts';
 
 interface EducationRecord {
   id: string;
@@ -376,86 +377,17 @@ export function EducationManagerSecure({ onClose }: EducationManagerSecureProps)
   return (
     <div className="fixed inset-0 bg-black/50 z-50 overflow-hidden">
       <div className="absolute inset-2 bg-white rounded-2xl flex flex-col shadow-2xl">
-        <div className="p-6 border-b border-gray-200 bg-gradient-to-r from-purple-500 to-purple-700 text-white rounded-t-2xl">
-          <div className="flex items-center justify-between">
-            <div className="flex items-center gap-3">
-              <div className="p-3 bg-white/20 text-white rounded-xl relative">
-                <GraduationCap className="w-6 h-6" />
-                <div className="absolute -top-1 -right-1 bg-white/30 rounded-full p-1">
-                  <Key className="w-3 h-3 text-white" />
-                </div>
-              </div>
-              <div>
-                <h2 className="text-white flex items-center gap-2 text-xl font-semibold">
-                  Education & Training
-                </h2>
-                <p className="text-sm text-white/80 mt-1">Track your qualifications, certifications, and training</p>
-              </div>
-            </div>
-            <div className="flex items-center gap-2">
-              <div className="relative">
-                <Search className="absolute left-3 top-1/2 transform -translate-y-1/2 text-gray-400 w-4 h-4" />
-                <input
-                  type="text"
-                  placeholder="Search..."
-                  value={searchQuery}
-                  onChange={(e) => setSearchQuery(e.target.value)}
-                  className="pl-9 pr-3 py-2 border border-gray-300 rounded-lg bg-white text-gray-900 focus:outline-none focus:ring-2 focus:ring-purple-500 focus:border-transparent w-48"
-                />
-                {searchQuery && (
-                  <button
-                    onClick={() => setSearchQuery('')}
-                    className="absolute right-2 top-1/2 transform -translate-y-1/2 text-gray-400 hover:text-gray-600"
-                  >
-                    <X className="w-3 h-3" />
-                  </button>
-                )}
-              </div>
-              <button
-                onClick={() => setViewMode('grid')}
-                className={`p-2 rounded-lg transition-colors ${
-                  viewMode === 'grid'
-                    ? 'bg-white/20'
-                    : 'hover:bg-white/10'
-                }`}
-                title="Grid view"
-              >
-                <Grid3x3 className="w-4 h-4" />
-              </button>
-              <button
-                onClick={() => setViewMode('list')}
-                className={`p-2 rounded-lg transition-colors ${
-                  viewMode === 'list'
-                    ? 'bg-white/20'
-                    : 'hover:bg-white/10'
-                }`}
-                title="List view"
-              >
-                <List className="w-4 h-4" />
-              </button>
-              <button
-                onClick={() => setShowSummary(!showSummary)}
-                className="p-2 bg-white/90 rounded-lg hover:bg-white transition-colors text-purple-600"
-                title={showSummary ? "Hide summary" : "Show summary"}
-              >
-                {showSummary ? <EyeOff className="w-4 h-4" /> : <Eye className="w-4 h-4" />}
-              </button>
-              <button
-                onClick={() => setShowAddForm(!showAddForm)}
-                className="flex items-center gap-2 px-4 py-2 bg-white text-purple-600 rounded-lg hover:bg-white/90 transition-colors"
-              >
-                <Plus className="w-4 h-4" />
-                Add
-              </button>
-              <button
-                onClick={onClose}
-                className="p-2 hover:bg-purple-700 rounded-lg transition-colors"
-              >
-                <X className="w-5 h-5" />
-              </button>
-            </div>
-          </div>
-        </div>
+        <PanelBanner
+          title="Education & Training"
+          subtitle="Track your qualifications, certifications, and training"
+          icon={GraduationCap}
+          gradient="from-purple-500 to-purple-700"
+          search={{ value: searchQuery, onChange: setSearchQuery, placeholder: 'Search...' }}
+          view={{ mode: viewMode, onChange: setViewMode }}
+          summary={{ shown: showSummary, onToggle: () => setShowSummary(!showSummary) }}
+          onAdd={() => setShowAddForm(!showAddForm)}
+          onClose={onClose}
+        />
 
         {error && (
           <div className="mx-6 mt-4 p-3 bg-red-50 border border-red-200 rounded-lg text-red-700 text-sm">
