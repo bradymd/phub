@@ -240,6 +240,7 @@ interface CardProps {
   onClick?: () => void;
   highlighted?: boolean;
   highlightColor?: 'red' | 'orange' | 'yellow';
+  dimmed?: boolean;
 }
 
 export function Card({
@@ -251,14 +252,15 @@ export function Card({
   actions,
   onClick,
   highlighted,
-  highlightColor = 'orange'
+  highlightColor = 'orange',
+  dimmed = false
 }: CardProps) {
   return (
     <div
       onClick={onClick}
-      className={`bg-white rounded-xl shadow-sm border border-gray-100 p-4 hover:shadow-md transition-all ${
-        onClick ? 'cursor-pointer' : ''
-      } ${highlighted ? `border-l-4 ${highlightColor === 'red' ? 'border-l-red-500 bg-red-50' : highlightColor === 'orange' ? 'border-l-orange-500 bg-orange-50' : 'border-l-yellow-500 bg-yellow-50'}` : ''}`}
+      className={`rounded-xl shadow-sm border border-gray-100 p-4 transition-all ${
+        dimmed ? 'bg-gray-50 opacity-50 hover:opacity-75' : 'bg-white hover:shadow-md'
+      } ${onClick ? 'cursor-pointer' : ''} ${highlighted ? `border-l-4 ${highlightColor === 'red' ? 'border-l-red-500 bg-red-50' : highlightColor === 'orange' ? 'border-l-orange-500 bg-orange-50' : 'border-l-yellow-500 bg-yellow-50'}` : ''}`}
     >
       <div className="flex items-start justify-between mb-3">
         <div className="flex items-center gap-3">

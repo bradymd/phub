@@ -4,6 +4,11 @@ All notable changes to Personal Hub are documented here.
 
 ## [Unreleased]
 
+## [1.0.30] - 2026-06-16
+
+### Changed
+- **Holiday Plans**: Past holidays (ended more than 2 weeks ago) are now automatically subdued — dimmed card with a "Past" badge — so upcoming and active holidays stand out visually
+
 ### Added
 - **Automatic backups**: Your data is now backed up automatically as you work — no manual action needed
   - Backups are created after every few changes and on app startup (if changes were made)

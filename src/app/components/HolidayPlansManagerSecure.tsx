@@ -943,12 +943,15 @@ export function HolidayPlansManagerSecure({ onClose }: HolidayPlansManagerSecure
           />
         ) : (
           <div className="space-y-4">
-            {filteredHolidays.map((holiday) => (
+            {filteredHolidays.map((holiday) => {
+              const isPastHoliday = new Date(holiday.endDate).getTime() + 14 * 24 * 60 * 60 * 1000 < Date.now();
+              return (
               <Card
                 key={holiday.id}
                 icon={Plane}
                 iconColor="blue"
                 title={holiday.name}
+                dimmed={isPastHoliday}
                 badge={
                   <div className="flex items-center gap-2 mt-1">
                     <TypeBadge color="cyan">
@@ -958,6 +961,9 @@ export function HolidayPlansManagerSecure({ onClose }: HolidayPlansManagerSecure
                       <TypeBadge color="purple">
                         {holiday.travelers.length} traveler{holiday.travelers.length !== 1 ? 's' : ''}
                       </TypeBadge>
+                    )}
+                    {isPastHoliday && (
+                      <TypeBadge color="gray">Past</TypeBadge>
                     )}
                   </div>
                 }
@@ -996,7 +1002,7 @@ export function HolidayPlansManagerSecure({ onClose }: HolidayPlansManagerSecure
                   )}
                 </div>
               </Card>
-            ))}
+            );})}
           </div>
         )}
 
